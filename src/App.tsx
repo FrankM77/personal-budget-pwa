@@ -1,24 +1,25 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { EnvelopeListView } from './views/EnvelopeListView';
+// 1. ADD THIS IMPORT
+import EnvelopeDetail from './views/EnvelopeDetail'; 
 
 function App() {
-  // 1. State: Mimicking @State private var showingLaunchScreen
+  // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
 
-  // 2. Effect: Mimicking .onAppear { DispatchQueue... }
+  // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowingLaunchScreen(false);
-    }, 2000); // 2 second delay
+    }, 2000); 
     return () => clearTimeout(timer);
   }, []);
 
-  // 3. Splash Screen View
+  // Splash Screen View
   if (showingLaunchScreen) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-blue-600 text-white">
-        {/* Simple Launch Screen Animation */}
         <div className="text-3xl font-bold animate-pulse">
           House Budget
         </div>
@@ -26,14 +27,15 @@ function App() {
     );
   }
 
-  // 4. Main App View (WindowGroup)
+  // Main App View
   return (
     <BrowserRouter>
       <Routes>
-        {/* This maps URL "/" to your EnvelopeListView */}
         <Route path="/" element={<EnvelopeListView />} />
         
-        {/* We will build SettingsView later */}
+        {/* 2. ADD THIS ROUTE */}
+        <Route path="/envelope/:id" element={<EnvelopeDetail />} />
+        
         <Route path="/settings" element={<div className="p-4">Settings Page Coming Soon</div>} />
       </Routes>
     </BrowserRouter>
