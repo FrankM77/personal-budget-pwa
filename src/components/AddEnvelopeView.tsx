@@ -70,6 +70,11 @@ export const AddEnvelopeView: React.FC = () => {
                   id="balance"
                   value={initialBalance}
                   onChange={(e) => setInitialBalance(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                      e.preventDefault();
+                    }
+                  }}
                   placeholder="0.00"
                   step="0.01"
                   className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"

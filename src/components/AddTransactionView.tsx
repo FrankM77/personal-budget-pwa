@@ -90,6 +90,11 @@ export const AddTransactionView: React.FC = () => {
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                    e.preventDefault();
+                  }
+                }}
                 placeholder="0.00"
                 step="0.01"
                 className={`w-48 bg-transparent text-5xl font-bold text-left focus:outline-none placeholder-gray-300 ${themeColor}`}

@@ -358,8 +358,8 @@ export const useEnvelopeStore = create<EnvelopeState>()(
 
           // Check if this is a transfer (has a transferId)
           const isTransfer = !!transaction.transferId;
-          let transactionsToDelete = [transactionId];
-          let envelopesToUpdate: string[] = [transaction.envelopeId];
+          const transactionsToDelete = [transactionId];
+          const envelopesToUpdate: string[] = [transaction.envelopeId];
 
           if (isTransfer) {
             // Find the paired transaction

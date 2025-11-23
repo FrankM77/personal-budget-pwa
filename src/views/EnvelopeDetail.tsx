@@ -41,7 +41,7 @@ const EnvelopeDetail: React.FC = () => {
     // Handle case where envelope is not found (404 equivalent)
     if (!currentEnvelope) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-900 text-white">
+            <div className="flex justify-center items-center h-screen bg-white dark:bg-black text-gray-900 dark:text-white">
                 <p>Envelope not found.</p>
             </div>
         );
@@ -72,10 +72,10 @@ const EnvelopeDetail: React.FC = () => {
 
     // Translate SwiftUI 'List' structure to Tailwind/Flexbox (Rule #1)
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-4">
+        <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white p-4">
             
             {/* --- Navigation Bar / Toolbar (Rule #4 / #1) --- */}
-            <header className="flex justify-between items-center pb-4 sticky top-0 bg-gray-900 z-10 border-b border-gray-800">
+            <header className="flex justify-between items-center pb-4 sticky top-0 bg-white dark:bg-black z-10 border-b border-gray-100 dark:border-zinc-800">
                 <button 
                     onClick={() => { 
                         const newName = prompt('Rename envelope:', currentEnvelope.name);
@@ -83,51 +83,57 @@ const EnvelopeDetail: React.FC = () => {
                             renameEnvelope(id, newName);
                         }
                     }} 
-                    className="text-blue-500 font-medium"
+                    className="text-blue-600 dark:text-green-400 font-medium"
                 >
                     Rename
                 </button>
-                <h1 className="text-xl font-semibold">{currentEnvelope.name}</h1>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{currentEnvelope.name}</h1>
                 <button 
                     onClick={handleDone} 
-                    className="text-blue-500 font-bold"
+                    className="text-blue-600 dark:text-green-400 font-bold"
                 >
                     Done
                 </button>
             </header>
 
             {/* --- List Section 1: Balance Details (Rule #1: HStack/VStack -> Flexbox) --- */}
-            <section className="mt-4 bg-gray-800 rounded-lg p-4 shadow-lg mb-4">
+            <section className="mt-4 bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-lg mb-4 border border-gray-100 dark:border-zinc-800">
                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg font-headline">Current Balance</span>
-                    <span className={`text-xl font-bold ${currentEnvelope.currentBalance < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    <span className="text-lg font-headline text-gray-900 dark:text-white">Current Balance</span>
+                    <span
+                      className={`text-xl font-bold ${
+                        currentEnvelope.currentBalance < 0
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-green-600 dark:text-green-400'
+                      }`}
+                    >
                         {formatCurrency(currentEnvelope.currentBalance)}
                     </span>
                 </div>
-                <div className="flex justify-between items-center text-sm text-gray-400">
+                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-zinc-400">
                     <span>Last Updated</span>
                     <span>{formatDate(currentEnvelope.lastUpdated)}</span>
                 </div>
             </section>
 
             {/* --- List Section 2: Action Buttons (Rule #1: Section -> Grouped Div) --- */}
-            <section className="bg-gray-800 rounded-lg shadow-lg mb-4 divide-y divide-gray-700">
+            <section className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg mb-4 divide-y divide-gray-100 dark:divide-zinc-800 border border-gray-100 dark:border-zinc-800">
                 <button 
-                    className="flex items-center w-full p-4 text-left text-green-500 hover:bg-gray-700 transition duration-150"
+                    className="flex items-center w-full p-4 text-left text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition duration-150"
                     onClick={() => setShowingAddMoney(true)}
                 >
                     <ArrowUpCircle className="w-5 h-5 mr-3" />
                     Add Money
                 </button>
                 <button 
-                    className="flex items-center w-full p-4 text-left text-red-500 hover:bg-gray-700 transition duration-150"
+                    className="flex items-center w-full p-4 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition duration-150"
                     onClick={() => setShowingSpendMoney(true)}
                 >
                     <ArrowDownCircle className="w-5 h-5 mr-3" />
                     Spend Money
                 </button>
                 <button 
-                    className="flex items-center w-full p-4 text-left text-blue-500 hover:bg-gray-700 transition duration-150"
+                    className="flex items-center w-full p-4 text-left text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition duration-150"
                     onClick={() => setShowingTransfer(true)}
                 >
                     <ArrowRightLeft className="w-5 h-5 mr-3" />
@@ -137,10 +143,10 @@ const EnvelopeDetail: React.FC = () => {
 
             {/* --- List Section 3: Transaction History --- */}
             <section className="mt-6">
-                <h2 className="text-sm font-semibold uppercase text-gray-400 mb-2 px-2">Transaction History</h2>
-                <div className="bg-gray-800 rounded-lg shadow-lg divide-y divide-gray-700">
+                <h2 className="text-sm font-semibold uppercase text-gray-500 dark:text-zinc-400 mb-2 px-2">Transaction History</h2>
+                <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg divide-y divide-gray-100 dark:divide-zinc-800 border border-gray-100 dark:border-zinc-800">
                     {envelopeTransactions.length === 0 ? (
-                        <p className="p-4 text-center text-gray-500">
+                        <p className="p-4 text-center text-gray-500 dark:text-zinc-400">
                             No transactions yet for this envelope.
                         </p>
                     ) : (
@@ -159,7 +165,7 @@ const EnvelopeDetail: React.FC = () => {
             {/* --- List Section 4: Delete Button --- */}
             <div className="mt-8">
                 <button 
-                    className="w-full py-3 px-4 rounded-lg bg-gray-800 text-red-500 font-semibold hover:bg-gray-700 transition duration-150 flex items-center justify-center"
+                    className="w-full py-3 px-4 rounded-lg bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition duration-150 flex items-center justify-center border border-gray-100 dark:border-zinc-800"
                     onClick={() => {
                         if (confirm(`Are you sure you want to delete "${currentEnvelope.name}"? This will delete all transactions.`)) {
                             handleDeleteEnvelope();
