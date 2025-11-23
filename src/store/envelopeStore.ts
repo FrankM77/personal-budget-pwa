@@ -20,49 +20,11 @@ interface EnvelopeState {
   deleteTransaction: (transactionId: string) => void;
 }
 
-// Mock data for initial state
-const mockEnvelopes: Envelope[] = [
-  {
-    id: uuidv4(),
-    name: 'Groceries',
-    currentBalance: 500,
-    lastUpdated: new Date().toISOString(),
-    isActive: true,
-    orderIndex: 0,
-  },
-  {
-    id: uuidv4(),
-    name: 'Mortgage',
-    currentBalance: 2000,
-    lastUpdated: new Date().toISOString(),
-    isActive: true,
-    orderIndex: 1,
-  },
-  {
-    id: uuidv4(),
-    name: 'Entertainment',
-    currentBalance: 300,
-    lastUpdated: new Date().toISOString(),
-    isActive: true,
-    orderIndex: 2,
-  },
-  {
-    id: uuidv4(),
-    name: 'Emergency Fund',
-    currentBalance: 5000,
-    lastUpdated: new Date().toISOString(),
-    isActive: true,
-    orderIndex: 3,
-  },
-];
-
-const mockTransactions: Transaction[] = [];
-
 export const useEnvelopeStore = create<EnvelopeState>()(
   persist(
     (set) => ({
-      envelopes: mockEnvelopes,
-      transactions: mockTransactions,
+      envelopes: [],
+      transactions: [],
 
       // Add a new envelope with optional initial balance
       addEnvelope: (name: string, initialBalance: number = 0) => {

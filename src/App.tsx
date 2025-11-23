@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { EnvelopeListView } from './views/EnvelopeListView';
 // 1. ADD THIS IMPORT
 import EnvelopeDetail from './views/EnvelopeDetail'; 
@@ -60,7 +60,7 @@ function App() {
 
   // Main App View
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<EnvelopeListView />} />
         
@@ -73,7 +73,7 @@ function App() {
         
         <Route path="/settings" element={<SettingsView />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
