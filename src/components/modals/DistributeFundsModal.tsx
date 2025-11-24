@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useEnvelopeStore } from '../../store/envelopeStore'; // Correct import path
+import { useEnvelopeStore } from '../../store/envelopeStore';
 
 interface DistributeFundsModalProps {
   isOpen: boolean;
@@ -8,21 +8,18 @@ interface DistributeFundsModalProps {
 }
 
 export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOpen, onClose }) => {
-  // Use the specific action from your store
   const { envelopes, addToEnvelope } = useEnvelopeStore();
   
   const [depositAmount, setDepositAmount] = useState<string>('');
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [note, setNote] = useState<string>('');
   
-  // Filter active envelopes and sort by orderIndex
   const activeEnvelopes = useMemo(() => 
     envelopes
       .filter(e => e.isActive)
       .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)), 
   [envelopes]);
 
-  // Computed Math
   const depositValue = parseFloat(depositAmount) || 0;
   
   const totalDistributed = useMemo(() => {
@@ -30,8 +27,6 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
   }, [allocations]);
 
   const remainingAmount = depositValue - totalDistributed;
-  
-  // Validation Logic
   const isValid = depositValue > 0 && Math.abs(remainingAmount) < 0.01;
 
   const handleAllocationChange = (id: string, value: string) => {
@@ -44,16 +39,11 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
 
   const handleApply = () => {
     if (!isValid) return;
-
-    // Loop through allocations and trigger the store action for each
     Object.entries(allocations).forEach(([id, amount]) => {
       if (amount > 0) {
-        // This calls your store's logic which creates a Transaction AND updates currentBalance
         addToEnvelope(id, amount, note || 'Deposit', new Date());
       }
     });
-    
-    // Reset and Close
     setDepositAmount('');
     setAllocations({});
     setNote('');
@@ -64,14 +54,17 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black sm:bg-gray-100 dark:sm:bg-black">
-      {/* Header */}
-      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
-        <button onClick={onClose} className="text-blue-600 dark:text-blue-400 font-medium">Cancel</button>
-        <h2 className="font-semibold text-gray-900 dark:text-white">Distribute Funds</h2>
+      {/* FIX: Applied Safe Area Padding Logic
+        - Old: py-3
+        - New: pt-[calc(env(safe-area-inset-top)+12px)] pb-3
+      */}
+      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 flex items-center justify-between shadow-sm shrink-0">
+        <button onClick={onClose} className="text-blue-600 dark:text-blue-400 font-medium text-base">Cancel</button>
+        <h2 className="font-semibold text-gray-900 dark:text-white text-lg">Distribute Funds</h2>
         <button 
           onClick={handleApply}
           disabled={!isValid}
-          className={`font-bold ${
+          className={`font-bold text-base ${
             isValid
               ? 'text-blue-600 dark:text-blue-400'
               : 'text-gray-300 dark:text-zinc-600'
@@ -93,16 +86,12 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
             <div className="flex items-center">
               <span className="text-2xl font-bold text-blue-600 dark:text-blue-400 mr-2">$</span>
               <input 
-                type="number" 
+                type="number"
+                inputMode="decimal" 
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
-                    e.preventDefault();
-                  }
-                }}
                 placeholder="0.00"
-                className="text-3xl font-bold text-black dark:text-white w-full focus:outline-none bg-white dark:bg-zinc-800 placeholder-gray-300 dark:placeholder-zinc-600 appearance-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="text-3xl font-bold text-black dark:text-white w-full focus:outline-none bg-white dark:bg-zinc-900 placeholder-gray-300 dark:placeholder-zinc-600 appearance-none"
                 autoFocus
               />
             </div>
@@ -144,7 +133,7 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
             placeholder="Distribution Note (Optional)" 
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full p-2 text-sm bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-zinc-600"
+            className="w-full p-3 text-sm bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-zinc-600"
           />
         </div>
 
@@ -166,7 +155,6 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
                     )}
                   </div>
                   <div className="text-xs text-gray-400 dark:text-zinc-400">
-                    {/* Updated to use 'currentBalance' from your store */}
                     Current: ${env.currentBalance.toFixed(2)}
                   </div>
                 </div>
@@ -175,15 +163,11 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500">$</span>
                   <input 
                     type="number"
+                    inputMode="decimal"
                     value={allocations[env.id] === 0 ? '' : allocations[env.id]}
                     onChange={(e) => handleAllocationChange(env.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
-                        e.preventDefault();
-                      }
-                    }}
                     placeholder="0"
-                    className="w-full pl-6 pr-6 py-2 text-right bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none font-mono text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-zinc-600 appearance-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full pl-6 pr-6 py-2 text-right bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none font-mono text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-zinc-600 appearance-none"
                   />
                 </div>
               </div>
