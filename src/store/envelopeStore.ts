@@ -305,11 +305,12 @@ export const useEnvelopeStore = create<EnvelopeState>()(
         set((state) => {
           // Find the transaction to delete
           const transaction = state.transactions.find((tx) => tx.id === transactionId);
-          
+
           if (!transaction) {
             console.warn('Transaction not found');
             return state;
           }
+
 
           // Calculate the balance reversal
           // If it was income, we need to subtract it back
@@ -335,41 +336,46 @@ export const useEnvelopeStore = create<EnvelopeState>()(
             }
           }
 
+          const updatedEnvelopes = state.envelopes.map((env) => {
+            // Update the envelope of the deleted transaction
+            if (env.id === transaction.envelopeId) {
+              const newBalance = env.currentBalance + balanceReversal;
+              return {
+                ...env,
+                currentBalance: newBalance,
+                lastUpdated: new Date().toISOString(),
+              };
+            }
+
+            // If there's a paired transfer transaction, update that envelope too
+            if (isTransfer && envelopesToUpdate.includes(env.id) && env.id !== transaction.envelopeId) {
+              const pairedTx = state.transactions.find(
+                (tx) => tx.transferId === transaction.transferId && tx.id !== transactionId
+              );
+              if (pairedTx && pairedTx.envelopeId === env.id) {
+                const pairedReversal = pairedTx.type === 'Income'
+                  ? -pairedTx.amount
+                  : pairedTx.amount;
+                const newBalance = env.currentBalance + pairedReversal;
+                return {
+                  ...env,
+                  currentBalance: newBalance,
+                  lastUpdated: new Date().toISOString(),
+                };
+              }
+            }
+
+            return env;
+          });
+
+
           return {
             // Remove the transaction(s)
             transactions: state.transactions.filter(
               (tx) => !transactionsToDelete.includes(tx.id)
             ),
             // Update the envelope balance(s)
-            envelopes: state.envelopes.map((env) => {
-              // Update the envelope of the deleted transaction
-              if (env.id === transaction.envelopeId) {
-                return {
-                  ...env,
-                  currentBalance: env.currentBalance + balanceReversal,
-                  lastUpdated: new Date().toISOString(),
-                };
-              }
-              
-              // If there's a paired transfer transaction, update that envelope too
-              if (isTransfer && envelopesToUpdate.includes(env.id) && env.id !== transaction.envelopeId) {
-                const pairedTx = state.transactions.find(
-                  (tx) => tx.transferId === transaction.transferId && tx.id !== transactionId
-                );
-                if (pairedTx && pairedTx.envelopeId === env.id) {
-                  const pairedReversal = pairedTx.type === 'Income' 
-                    ? -pairedTx.amount 
-                    : pairedTx.amount;
-                  return {
-                    ...env,
-                    currentBalance: env.currentBalance + pairedReversal,
-                    lastUpdated: new Date().toISOString(),
-                  };
-                }
-              }
-              
-              return env;
-            }),
+            envelopes: updatedEnvelopes,
           };
         });
       },

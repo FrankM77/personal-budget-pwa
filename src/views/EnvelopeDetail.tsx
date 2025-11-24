@@ -28,7 +28,7 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, deleteEnvelope, renameEnvelope } = useEnvelopeStore();
+    const { envelopes, transactions, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction } = useEnvelopeStore();
     
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
     const navigate = useNavigate();
@@ -69,7 +69,7 @@ const EnvelopeDetail: React.FC = () => {
             ...transaction,
             reconciled: !transaction.reconciled,
         };
-        useEnvelopeStore.getState().updateTransaction(updatedTx);
+        updateTransaction(updatedTx);
     }; 
 
     // Translate SwiftUI 'List' structure to Tailwind/Flexbox (Rule #1)
@@ -162,7 +162,7 @@ const EnvelopeDetail: React.FC = () => {
                                     exit={{ opacity: 0, height: 0 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    <SwipeableRow onDelete={() => useEnvelopeStore.getState().deleteTransaction(transaction.id)}>
+                                    <SwipeableRow onDelete={() => deleteTransaction(transaction.id)}>
                                         <EnvelopeTransactionRow
                                             transaction={transaction}
                                             onReconcile={() => handleReconcile(transaction)}

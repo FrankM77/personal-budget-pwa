@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, useAnimation } from "framer-motion";
 import type { PanInfo } from "framer-motion";
 import { Trash2 } from "lucide-react";
@@ -15,7 +15,13 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
   threshold = -100,
 }) => {
   const controls = useAnimation();
-  const [isDeleted, setIsDeleted] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartTime = useRef<number>(0);
+
+  const handleDragStart = () => {
+    setIsDragging(true);
+    dragStartTime.current = Date.now();
+  };
 
   const handleDragEnd = async (
     _: MouseEvent | TouchEvent | PointerEvent,
@@ -24,20 +30,18 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
     const offset = info.offset.x;
     const velocity = info.velocity.x;
 
+    // Keep dragging state for a short time to prevent immediate clicks
+    setTimeout(() => setIsDragging(false), 100);
+
     // Trigger if dragged past threshold OR flicked fast to the left
     if (offset < threshold || (offset < -50 && velocity < -500)) {
-      setIsDeleted(true);
-      // Animate off screen to the left
-      await controls.start({ x: -500, transition: { duration: 0.2 } });
+      // Don't animate here - let AnimatePresence handle the exit animation
       onDelete();
     } else {
       // "Rubber band" snap back to origin
       controls.start({ x: 0 });
     }
   };
-
-  // If deleted, we keep it hidden until the parent removes it from the DOM
-  if (isDeleted) return null;
 
   return (
     <div className="relative w-full overflow-hidden mb-2 rounded-xl group">
@@ -52,11 +56,15 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
         drag="x"
         dragConstraints={{ left: -500, right: 0 }} // Cannot drag right
         dragElastic={0.1} // iOS-like resistance
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         animate={controls}
         className="relative bg-white dark:bg-zinc-900 z-10 rounded-xl"
         // Critical: "pan-y" allows vertical scrolling while touching this element
-        style={{ touchAction: "pan-y" }} 
+        style={{
+          touchAction: "pan-y",
+          pointerEvents: isDragging ? "none" : "auto"
+        }}
       >
         {children}
       </motion.div>
