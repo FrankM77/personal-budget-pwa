@@ -27,7 +27,7 @@ This project involved porting a native iOS application (built with Swift, SwiftU
 ### A. The PWA Shell (Infrastructure)
 * **Offline First:** Implemented `vite-plugin-pwa` with `registerType: 'autoUpdate'`. Verified functionality in Airplane Mode.
 * **Native Physics:** Added global CSS to `index.css` to prevent "rubber-banding" (overscroll), disable text selection on UI elements, and remove tap highlights to mimic UIKit behavior.
-* **Safe Areas:** Implemented `viewport-fit=cover` and dynamic padding to handle the iPhone Notch and Dynamic Island.
+* **Safe Areas (Dynamic Island):** Implemented dynamic padding logic (`pt-[calc(env(safe-area-inset-top)+12px)]`) across all sticky headers. This ensures buttons remain clickable and visible on iPhone 15/16 Pro Max devices.
 
 ### B. State Management (The Brain)
 * **Persist Middleware:** Replaced Core Data with `zustand/persist`. Data is automatically saved to the browser's Local Storage on every change.
@@ -44,15 +44,18 @@ This project involved porting a native iOS application (built with Swift, SwiftU
 ### Core Views
 1.  **`EnvelopeListView` (Dashboard):** Mirrors the main iOS screen. Handles sorting by `orderIndex` and calculating global totals.
 2.  **`EnvelopeDetail`:** The "Detail View." Handles navigation parameters and serves as the hub for adding/spending money.
-3.  **`TransactionHistoryView`:** A global list of all transactions. Features a complex **Collapsible Filter Panel** (ported from SwiftUI) allowing deep searching, date filtering, and type filtering.
+3.  **`TransactionHistoryView`:** A global list of all transactions. Features a native-style **Collapsible Filter Panel** (ported from SwiftUI) allowing deep searching, date filtering, and type filtering.
 
 ### Modals & Forms
 1.  **`TransactionModal`:** A reusable component for "Add," "Spend," and "Edit" actions. It preserves the user's context (staying inside the Envelope view) rather than navigating away.
-2.  **`TransferModal`:** specialized logic to move funds between envelopes (preventing self-transfers).
-3.  **`EnvelopeTransactionRow`:** A highly polished, reusable list item component. It features conditional rendering for badges (Expense/Income/Transfer) and handles interaction logic.
+2.  **`TransferModal`:** Specialized logic to move funds between envelopes (preventing self-transfers).
+3.  **`DistributeFundsModal`:** A "Payday" tool that allows allocating a lump sum across multiple envelopes with percentage calculations.
+4.  **`EnvelopeTransactionRow`:** A highly polished, reusable list item component. It features conditional rendering for badges (Expense/Income/Transfer), displays Envelope Names in global views, and handles interaction logic.
 
 ### Settings & Data Safety
-* **`SettingsView`:** Includes a custom JSON Import/Export engine. This allows users to backup their data (saving to iOS Files) and restore it, mitigating the risk of browser cache clearing.
+* **`SettingsView`:** Includes a custom Data Management engine.
+    * **JSON Import/Export:** Allows full backup/restore to iOS Files.
+    * **CSV Export:** Allows exporting transaction history to Excel/Numbers.
 * **Theme Toggle:** Supports Light, Dark, and System modes.
 
 ---
@@ -63,6 +66,7 @@ This project involved porting a native iOS application (built with Swift, SwiftU
 * **iOS Inputs:** Fixed the numeric keypad to ensure the decimal point appears on iOS (`inputMode="decimal"`) and fixed Date Pickers appearing white-on-white in Dark Mode.
 * **Edit Functionality:** Restored the ability to edit transactions by clicking rows in the Global History, which required dynamic parent-envelope lookups.
 * **Visual Consistency:** Standardized the "Inset Grouped" look for lists and ensured full Dark Mode compatibility across all components.
+* **Dynamic Island Occlusion:** Fixed headers on iPhone Pro Max devices where the status bar blocked interaction.
 
 ---
 
@@ -71,6 +75,6 @@ This project involved porting a native iOS application (built with Swift, SwiftU
 * **Data:** Encourage regular backups via the Settings menu since `localStorage` is not permanent cloud storage.
 
 ## 7. Future Roadmap & To-Dos
-* **Export Enhancements:** Expand the existing JSON backup in Settings to include **CSV export**. This will allow users to manipulate their budget data in Excel or Numbers.
+* **Distribute Funds Templates:** Port the "Save/Load Template" functionality from the iOS app. This includes logic to save a distribution pattern when the remaining balance is $0 and a UI to recall saved templates for quick allocations.
 * **Cloud Sync:** Migrate the persistence layer from `localStorage` to **Firebase** (or Supabase). This is required to enable real-time multi-device synchronization (e.g., using the budget on both iPad and iPhone simultaneously).
 * **Cloud Backup & Restore:** Implement remote snapshotting/auth. This allows users to log in and restore their data if a device is lost, moving beyond the current manual file-based export system.

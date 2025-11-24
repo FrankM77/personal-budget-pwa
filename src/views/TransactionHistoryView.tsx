@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter, Search, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion'; // <--- NEW IMPORT
 import { useEnvelopeStore } from '../store/envelopeStore';
+import { SwipeableRow } from '../components/ui/SwipeableRow'; // <--- NEW IMPORT
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import TransactionModal from '../components/modals/TransactionModal';
 import type { Transaction } from '../models/types';
 
 export const TransactionHistoryView: React.FC = () => {
   const navigate = useNavigate();
-  const { transactions, envelopes, updateTransaction } = useEnvelopeStore();
+  // Added deleteTransaction to the destructuring
+  const { transactions, envelopes, updateTransaction, deleteTransaction } = useEnvelopeStore();
   
   // --- 1. Filter State (Matching Swift @State) ---
   const [showFilters, setShowFilters] = useState(false);
@@ -57,7 +60,6 @@ export const TransactionHistoryView: React.FC = () => {
         }
 
         // 4. Date Range (Inclusive)
-        // We simply compare YYYY-MM-DD strings here which works for ISO dates
         const tDate = t.date.split('T')[0];
         if (tDate < startDate || tDate > endDate) {
           return false;
@@ -110,7 +112,7 @@ export const TransactionHistoryView: React.FC = () => {
         </button>
       </header>
 
-      {/* --- Collapsible Filter Panel (Pushes content down) --- */}
+      {/* --- Collapsible Filter Panel --- */}
       <div 
         className={`overflow-hidden transition-all duration-300 ease-in-out bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 ${
           showFilters ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
@@ -220,24 +222,39 @@ export const TransactionHistoryView: React.FC = () => {
               No transactions match your filters.
             </div>
           ) : (
-            filteredTransactions.map((transaction) => {
-              const env = envelopes.find(e => e.id === transaction.envelopeId);
-              return (
-                <EnvelopeTransactionRow
-                  key={transaction.id}
-                  transaction={transaction}
-                  envelopeName={env?.name || 'Unknown Envelope'}
-                  onReconcile={() => handleReconcile(transaction)}
-                  onEdit={() => {
-                    if (env) {
-                      setEditingTransaction(transaction);
-                    } else {
-                      alert("Cannot edit: Envelope deleted.");
-                    }
-                  }}
-                />
-              );
-            })
+            // WRAPPER 1: AnimatePresence allows items to animate OUT when removed
+            <AnimatePresence initial={false} mode="popLayout">
+              {filteredTransactions.map((transaction) => {
+                const env = envelopes.find(e => e.id === transaction.envelopeId);
+                return (
+                  // WRAPPER 2: Motion Div handles the collapse animation (height -> 0)
+                  <motion.div
+                    key={transaction.id}
+                    layout
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {/* WRAPPER 3: SwipeableRow handles the gesture */}
+                    <SwipeableRow onDelete={() => deleteTransaction(transaction.id)}>
+                      <EnvelopeTransactionRow
+                        transaction={transaction}
+                        envelopeName={env?.name || 'Unknown Envelope'}
+                        onReconcile={() => handleReconcile(transaction)}
+                        onEdit={() => {
+                          if (env) {
+                            setEditingTransaction(transaction);
+                          } else {
+                            alert("Cannot edit: Envelope deleted.");
+                          }
+                        }}
+                      />
+                    </SwipeableRow>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           )}
         </div>
       </div>
