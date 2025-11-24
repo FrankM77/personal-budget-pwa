@@ -75,7 +75,7 @@ const EnvelopeDetail: React.FC = () => {
         <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white p-4">
             
             {/* --- Navigation Bar / Toolbar (Rule #4 / #1) --- */}
-            <header className="flex justify-between items-center pb-4 sticky top-0 bg-white dark:bg-black z-10 border-b border-gray-100 dark:border-zinc-800">
+            <header className="flex justify-between items-center pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 bg-white dark:bg-black z-10 border-b border-gray-100 dark:border-zinc-800">
                 <button 
                     onClick={() => { 
                         const newName = prompt('Rename envelope:', currentEnvelope.name);

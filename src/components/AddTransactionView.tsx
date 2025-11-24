@@ -15,7 +15,7 @@ export const AddTransactionView: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
-      <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 py-3 sticky top-0 z-10 flex items-center justify-between">
+      <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-10 flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
           className="text-blue-600 dark:text-blue-400 font-medium"

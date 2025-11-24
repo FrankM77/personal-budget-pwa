@@ -23,7 +23,7 @@ export const EnvelopeListView: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar */}
-      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-3 pb-4 sticky top-0 z-10">
+      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 z-10">
         <div className="flex justify-end gap-4 text-blue-500">
           <button onClick={() => navigate('/transactions')}>
             <ListIcon size={22} />
