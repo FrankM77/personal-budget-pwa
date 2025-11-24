@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter, Search, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'; // <--- NEW IMPORT
 import { useEnvelopeStore } from '../store/envelopeStore';
+import { useToastStore } from '../stores/useToastStore';
 import { SwipeableRow } from '../components/ui/SwipeableRow'; // <--- NEW IMPORT
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import TransactionModal from '../components/modals/TransactionModal';
@@ -11,7 +12,8 @@ import type { Transaction } from '../models/types';
 export const TransactionHistoryView: React.FC = () => {
   const navigate = useNavigate();
   // Added deleteTransaction to the destructuring
-  const { transactions, envelopes, updateTransaction, deleteTransaction } = useEnvelopeStore();
+  const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction } = useEnvelopeStore();
+  const { showToast } = useToastStore();
   
   // --- 1. Filter State (Matching Swift @State) ---
   const [showFilters, setShowFilters] = useState(false);
@@ -237,7 +239,15 @@ export const TransactionHistoryView: React.FC = () => {
                     transition={{ duration: 0.2 }}
                   >
                     {/* WRAPPER 3: SwipeableRow handles the gesture */}
-                    <SwipeableRow onDelete={() => deleteTransaction(transaction.id)}>
+                    <SwipeableRow onDelete={() => {
+                      const transactionToDelete = { ...transaction }; // Create a copy
+                      deleteTransaction(transaction.id);
+                      showToast(
+                        'Transaction deleted',
+                        'neutral',
+                        () => restoreTransaction(transactionToDelete)
+                      );
+                    }}>
                       <EnvelopeTransactionRow
                         transaction={transaction}
                         envelopeName={env?.name || 'Unknown Envelope'}

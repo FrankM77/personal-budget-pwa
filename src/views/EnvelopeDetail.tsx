@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEnvelopeStore } from '../store/envelopeStore';
+import { useToastStore } from '../stores/useToastStore';
 import type { Transaction } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
@@ -28,7 +29,8 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction } = useEnvelopeStore();
+    const { envelopes, transactions, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction } = useEnvelopeStore();
+    const { showToast } = useToastStore();
     
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
     const navigate = useNavigate();
@@ -162,7 +164,15 @@ const EnvelopeDetail: React.FC = () => {
                                     exit={{ opacity: 0, height: 0 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    <SwipeableRow onDelete={() => deleteTransaction(transaction.id)}>
+                                    <SwipeableRow onDelete={() => {
+                                      const transactionToDelete = { ...transaction }; // Create a copy
+                                      deleteTransaction(transaction.id);
+                                      showToast(
+                                        'Transaction deleted',
+                                        'neutral',
+                                        () => restoreTransaction(transactionToDelete)
+                                      );
+                                    }}>
                                         <EnvelopeTransactionRow
                                             transaction={transaction}
                                             onReconcile={() => handleReconcile(transaction)}

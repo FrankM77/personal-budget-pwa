@@ -18,6 +18,7 @@ interface EnvelopeState {
   updateTransaction: (updatedTx: Transaction) => void;
   transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => void;
   deleteTransaction: (transactionId: string) => void;
+  restoreTransaction: (transaction: Transaction) => void;
 }
 
 export const useEnvelopeStore = create<EnvelopeState>()(
@@ -376,6 +377,37 @@ export const useEnvelopeStore = create<EnvelopeState>()(
             ),
             // Update the envelope balance(s)
             envelopes: updatedEnvelopes,
+          };
+        });
+      },
+
+      // Restore a previously deleted transaction
+      restoreTransaction: (transaction: Transaction) => {
+        set((state) => {
+          // Check if transaction already exists (avoid duplicates)
+          const exists = state.transactions.some((tx) => tx.id === transaction.id);
+          if (exists) {
+            console.warn('Transaction already exists, skipping restore');
+            return state;
+          }
+
+          // Calculate balance impact (opposite of delete)
+          const balanceImpact = transaction.type === 'Income'
+            ? transaction.amount  // Add income back
+            : -transaction.amount; // Subtract expense back
+
+          return {
+            transactions: [...state.transactions, transaction],
+            envelopes: state.envelopes.map((env) => {
+              if (env.id === transaction.envelopeId) {
+                return {
+                  ...env,
+                  currentBalance: env.currentBalance + balanceImpact,
+                  lastUpdated: new Date().toISOString(),
+                };
+              }
+              return env;
+            }),
           };
         });
       },

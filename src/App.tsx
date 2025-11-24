@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { EnvelopeListView } from './views/EnvelopeListView';
 // 1. ADD THIS IMPORT
-import EnvelopeDetail from './views/EnvelopeDetail'; 
+import EnvelopeDetail from './views/EnvelopeDetail';
 import { SettingsView } from './components/SettingsView';
 import { AddEnvelopeView } from './components/AddEnvelopeView';
 import { AddTransactionView } from './components/AddTransactionView';
 import { TransactionHistoryView } from './views/TransactionHistoryView';
+import { Toast } from './components/ui/Toast';
 import { useThemeStore } from './store/themeStore';
 
 function App() {
@@ -60,20 +61,25 @@ function App() {
 
   // Main App View
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<EnvelopeListView />} />
-        
-        {/* 2. ADD THIS ROUTE */}
-        <Route path="/envelope/:id" element={<EnvelopeDetail />} />
-        <Route path="/add-envelope" element={<AddEnvelopeView />} />
-        <Route path="/add-transaction" element={<AddTransactionView />} />
-        {/* Inside your App.tsx Router configuration */}
-        <Route path="/transactions" element={<TransactionHistoryView />} />
-        
-        <Route path="/settings" element={<SettingsView />} />
-      </Routes>
-    </HashRouter>
+    <>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<EnvelopeListView />} />
+
+          {/* 2. ADD THIS ROUTE */}
+          <Route path="/envelope/:id" element={<EnvelopeDetail />} />
+          <Route path="/add-envelope" element={<AddEnvelopeView />} />
+          <Route path="/add-transaction" element={<AddTransactionView />} />
+          {/* Inside your App.tsx Router configuration */}
+          <Route path="/transactions" element={<TransactionHistoryView />} />
+
+          <Route path="/settings" element={<SettingsView />} />
+        </Routes>
+      </HashRouter>
+
+      {/* Global Toast Notifications */}
+      <Toast />
+    </>
   );
 }
 
