@@ -6,7 +6,7 @@ import { useThemeStore } from '../store/themeStore';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
-  const { envelopes, transactions } = useEnvelopeStore();
+  const { envelopes, transactions, distributionTemplates, importData, resetData } = useEnvelopeStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const { theme, setTheme } = useThemeStore();
@@ -15,10 +15,12 @@ export const SettingsView: React.FC = () => {
   const handleExport = () => {
     try {
       const dataToExport = {
+        appVersion: '2.0 (PWA)',
+        exportDate: new Date().toISOString(),
+        appSettings: { theme },
         envelopes,
         transactions,
-        exportDate: new Date().toISOString(),
-        version: '1.0'
+        distributionTemplates,
       };
 
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
@@ -112,16 +114,14 @@ export const SettingsView: React.FC = () => {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
 
-        // Simple Validation
-        if (!Array.isArray(parsed.envelopes) || !Array.isArray(parsed.transactions)) {
-          throw new Error('Invalid file format: Missing envelopes or transactions arrays.');
+        const result = importData(parsed);
+        if (!result.success) {
+          throw new Error(result.message);
         }
 
-        // Direct State Manipulation (Zustand)
-        useEnvelopeStore.setState({
-          envelopes: parsed.envelopes,
-          transactions: parsed.transactions
-        });
+        if (parsed.appSettings?.theme) {
+          setTheme(parsed.appSettings.theme);
+        }
 
         setMessage({ type: 'success', text: 'Data restored successfully!' });
         setTimeout(() => setMessage(null), 3000);
@@ -138,10 +138,7 @@ export const SettingsView: React.FC = () => {
   // 3. RESET LOGIC
   const handleReset = () => {
     if (window.confirm('Are you sure? This will delete ALL envelopes and transactions permanently.')) {
-      useEnvelopeStore.setState({
-        envelopes: [],
-        transactions: []
-      });
+      resetData();
       setMessage({ type: 'success', text: 'All data has been cleared.' });
       setTimeout(() => setMessage(null), 3000);
     }
