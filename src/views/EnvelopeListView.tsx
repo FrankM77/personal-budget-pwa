@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Settings, List as ListIcon, Share, GitBranch, Wallet } from 'lucide-react';
+import { PlusCircle, Settings, List as ListIcon, GitBranch, Wallet } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { DistributeFundsModal } from '../components/modals/DistributeFundsModal';
 import { useNavigate } from 'react-router-dom';
