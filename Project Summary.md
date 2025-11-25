@@ -1,80 +1,61 @@
-# Project Summary: Swift-to-PWA Migration (House Budget App)
+# Project Update: UI Polish & Feature Parity (House Budget PWA)
 
 ## 1. Executive Summary
-This project involved porting a native iOS application (built with Swift, SwiftUI, and Core Data) into a high-performance Progressive Web App (PWA). The goal was to maintain the business logic, data persistence, and "native feel" while moving to a web-based stack (React, TypeScript, Vite, Tailwind CSS).
+Today's sprint focused on bridging the gap between a "functional web app" and a "native-feeling experience." We implemented complex gesture controls, data safety mechanisms, and advanced business logic to achieve **100% feature parity** with the original iOS application.
 
-**Final Status:** Production Ready 🟢
-**Deploy Strategy:** GitHub Pages with PWA Offline Capabilities.
-
----
-
-## 2. Technology Stack Transition
-
-| Feature | Native iOS (Original) | PWA (New) |
-| :--- | :--- | :--- |
-| **UI Framework** | SwiftUI | React + Tailwind CSS |
-| **Language** | Swift | TypeScript |
-| **State Management** | `@State`, `@ObservedObject` | React Hooks (`useState`) |
-| **Global Store** | `EnvironmentObject` | Zustand |
-| **Persistence** | Core Data / CloudKit | Zustand Middleware (`localStorage`) |
-| **Navigation** | `NavigationStack` | `react-router-dom` (HashRouter) |
-| **Deployment** | App Store / TestFlight | GitHub Pages (Service Worker) |
+**Current Status:** Phase 1 Complete (Local PWA) 🟢
 
 ---
 
-## 3. Key Architectural Decisions
+## 2. Key Features Implemented
 
-### A. The PWA Shell (Infrastructure)
-* **Offline First:** Implemented `vite-plugin-pwa` with `registerType: 'autoUpdate'`. Verified functionality in Airplane Mode.
-* **Native Physics:** Added global CSS to `index.css` to prevent "rubber-banding" (overscroll), disable text selection on UI elements, and remove tap highlights to mimic UIKit behavior.
-* **Safe Areas (Dynamic Island):** Implemented dynamic padding logic (`pt-[calc(env(safe-area-inset-top)+12px)]`) across all sticky headers. This ensures buttons remain clickable and visible on iPhone 15/16 Pro Max devices.
+### A. Native-Like Interactions (Swipe-to-Delete)
+We replaced standard delete buttons with iOS-style gesture physics using `framer-motion`.
+* **The Physics:** Implemented `dragElastic={0.1}` to mimic the "heavy" resistance feel of Apple's `UIScrollView`.
+* **The Stack:** Created a `SwipeableRow` component that layers the content over a red "Delete" background.
+* **Gesture Conflict Resolution:** Solved the specific issue where tapping a row to edit would accidentally trigger a swipe, or swiping would trigger a click. Implemented strict `touchAction: "pan-y"` CSS rules to differentiate scrolling from swiping.
 
-### B. State Management (The Brain)
-* **Persist Middleware:** Replaced Core Data with `zustand/persist`. Data is automatically saved to the browser's Local Storage on every change.
-* **Direct Store Access:** Views connect directly to the store (e.g., `const { envelopes } = useEnvelopeStore()`) rather than passing data down via props, preventing prop-drilling.
+### B. Data Safety (The "Undo" System)
+To maintain a fast UI without annoying "Are you sure?" popups, we adopted the "Optimistic UI + Undo" pattern found in modern mail apps.
+* **Global Toast System:** Built a centralized notification store (`useToastStore`).
+* **Restore Logic:** Added a `restoreTransaction` action to the Zustand store.
+* **The Flow:** When a user swipes to delete, the row vanishes instantly, but a Toast appears at the bottom of the screen for 4 seconds allowing a one-tap restoration of data.
 
-### C. Navigation & Routing
-* **State Restoration:** Unlike iOS (passing objects), the PWA passes IDs in the URL (e.g., `/envelope/:id`). The view looks up the object from the store upon loading.
-* **The "Dispatcher" Pattern:** The global Floating Action Button (FAB) on the dashboard was converted from a generic form into an **Envelope Selector**. It routes the user to the specific `EnvelopeDetail` view, streamlining the UI.
+### C. Distribute Funds Templates
+Ported the complex "Payday Split" logic from the Swift `EnvelopeViewModel`.
+* **Template Schema:** Added `DistributionTemplate` to the data model to store exact allocation amounts.
+* **Store Logic:** Implemented `saveTemplate` and `deleteTemplate`.
+* **UI Integration:** Updated the `DistributeFundsModal` to allow users to:
+    1.  Save a balanced distribution pattern.
+    2.  Recall saved patterns via a "Load Template" sub-modal.
+    3.  Automatically pre-populate transaction notes (e.g., "Payday") from the template.
 
----
-
-## 4. Component Implementation
-
-### Core Views
-1.  **`EnvelopeListView` (Dashboard):** Mirrors the main iOS screen. Handles sorting by `orderIndex` and calculating global totals.
-2.  **`EnvelopeDetail`:** The "Detail View." Handles navigation parameters and serves as the hub for adding/spending money.
-3.  **`TransactionHistoryView`:** A global list of all transactions. Features a native-style **Collapsible Filter Panel** (ported from SwiftUI) allowing deep searching, date filtering, and type filtering.
-
-### Modals & Forms
-1.  **`TransactionModal`:** A reusable component for "Add," "Spend," and "Edit" actions. It preserves the user's context (staying inside the Envelope view) rather than navigating away.
-2.  **`TransferModal`:** Specialized logic to move funds between envelopes (preventing self-transfers).
-3.  **`DistributeFundsModal`:** A "Payday" tool that allows allocating a lump sum across multiple envelopes with percentage calculations.
-4.  **`EnvelopeTransactionRow`:** A highly polished, reusable list item component. It features conditional rendering for badges (Expense/Income/Transfer), displays Envelope Names in global views, and handles interaction logic.
-
-### Settings & Data Safety
-* **`SettingsView`:** Includes a custom Data Management engine.
-    * **JSON Import/Export:** Allows full backup/restore to iOS Files.
-    * **CSV Export:** Allows exporting transaction history to Excel/Numbers.
-* **Theme Toggle:** Supports Light, Dark, and System modes.
+### D. Smart Data Integrity (Self-Cleaning Templates)
+We implemented a critical safeguard to prevent "Ghost Data."
+* **The Problem:** If a user deletes an "Envelope," any saved templates referencing that envelope would break.
+* **The Fix:** Updated the `deleteEnvelope` store action to perform a cascade check. It scans all saved templates and automatically removes the deleted envelope ID from them, ensuring future loads never crash the app.
 
 ---
 
-## 5. Solved Challenges & Regression Fixes
+## 3. Technical Improvements
 
-* **The "Zombie Cache":** Early development faced issues where the Service Worker served old code. Resolved by implementing a "Hard Refresh" protocol and Unregistering workers in DevTools.
-* **iOS Inputs:** Fixed the numeric keypad to ensure the decimal point appears on iOS (`inputMode="decimal"`) and fixed Date Pickers appearing white-on-white in Dark Mode.
-* **Edit Functionality:** Restored the ability to edit transactions by clicking rows in the Global History, which required dynamic parent-envelope lookups.
-* **Visual Consistency:** Standardized the "Inset Grouped" look for lists and ensured full Dark Mode compatibility across all components.
-* **Dynamic Island Occlusion:** Fixed headers on iPhone Pro Max devices where the status bar blocked interaction.
+| Feature | Implementation Detail |
+| :--- | :--- |
+| **Animation** | `framer-motion` used for Layout Animations (rows collapse smoothly when deleted) and Toasts (slide up/down). |
+| **Validation** | "Save Template" button strictly disabled unless `Remaining Amount == $0.00`. |
+| **Type Safety** | Full TypeScript definitions added for all new Store actions and Component props. |
 
 ---
 
-## 6. Next Steps / Maintenance
-* **Deploy:** The app is live. To update, run `npm run build`, commit, push, and perform the "PWA Two-Step" (Force quit and reopen) on the device.
-* **Data:** Encourage regular backups via the Settings menu since `localStorage` is not permanent cloud storage.
+## 4. Known Issues / Deferred
+* **CSV Export:** Attempted implementation but encountered navigation/modal regressions. Reverted to a stable state to prioritize core stability. Deferred to Phase 2.
+* **Service Worker:** Manual configuration caused build path issues. Reverted to standard `vite-plugin-pwa` auto-configuration for reliability.
 
-## 7. Future Roadmap & To-Dos
-* **Distribute Funds Templates:** Port the "Save/Load Template" functionality from the iOS app. This includes logic to save a distribution pattern when the remaining balance is $0 and a UI to recall saved templates for quick allocations.
-* **Cloud Sync:** Migrate the persistence layer from `localStorage` to **Firebase** (or Supabase). This is required to enable real-time multi-device synchronization (e.g., using the budget on both iPad and iPhone simultaneously).
-* **Cloud Backup & Restore:** Implement remote snapshotting/auth. This allows users to log in and restore their data if a device is lost, moving beyond the current manual file-based export system.
+---
+
+## 5. Next Steps (Phase 2: The Cloud)
+With the Local PWA fully functional, the next major architectural shift is **Cloud Synchronization**.
+
+* **Backend:** Firebase (Firestore + Auth).
+* **Authentication:** Google Sign-In.
+* **Goal:** Enable multi-device sync (Desktop <-> Mobile) and replace manual JSON backups with real-time cloud storage.

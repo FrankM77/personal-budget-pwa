@@ -1,97 +1,120 @@
 import React from 'react';
-import { CheckCircle2, Circle } from 'lucide-react';
 import type { Transaction } from '../models/types';
 
 interface Props {
   transaction: Transaction;
-  onReconcile: () => void;
-  onEdit: () => void;
-  envelopeName?: string; // <--- This is the new prop needed
+  envelopeName?: string;
+  onReconcile?: () => void;
+  onEdit?: () => void;
 }
 
-// Helper to format currency
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+// ✅ CRASH-PROOF DATE FORMATTER
+// This handles: Apple Timestamps, Unix Timestamps, ISO Strings, and Nulls
+const formatDateSafe = (date: any) => {
+  if (!date) return 'No Date';
+
+  try {
+    let d: Date;
+
+    if (typeof date === 'number') {
+      // 1. Handle Apple Epoch (Seconds since 2001)
+      // Apple timestamps are small (< 10 Billion). Unix ms are huge (> 1 Trillion).
+      if (date < 10000000000) {
+         // Convert to Unix Milliseconds: (AppleSeconds + 978307200) * 1000
+         d = new Date((date + 978307200) * 1000);
+      } else {
+         // 2. Handle Standard Unix Timestamp (Milliseconds)
+         d = new Date(date);
+      }
+    } else {
+      // 3. Handle ISO Strings or Date Objects
+      d = new Date(date);
+    }
+
+    // Final Safety Check: Is the date valid?
+    if (isNaN(d.getTime())) return "Invalid Date";
+
+    // Format: "Nov 24, 2025"
+    return new Intl.DateTimeFormat('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    }).format(d);
+
+  } catch (e) {
+    console.error("Date error:", e);
+    return "Error";
+  }
 };
 
-// Helper to format date
-const formatDate = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+// Helper: Safe Currency Formatter
+const formatCurrency = (amount: number) => {
+    // Safety check for non-numbers
+    if (typeof amount !== 'number' || isNaN(amount)) return "$0.00";
+    
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+    }).format(Math.abs(amount));
 };
 
-const EnvelopeTransactionRow: React.FC<Props> = ({ transaction, onReconcile, onEdit, envelopeName }) => {
-  // 1. Determine Colors
-  const isIncome = transaction.type === 'Income';
-  const amountColor = isIncome 
-    ? 'text-green-600 dark:text-emerald-400' 
-    : 'text-red-600 dark:text-red-400';
+const EnvelopeTransactionRow: React.FC<Props> = ({ 
+  transaction, 
+  envelopeName,
+  onReconcile,
+  onEdit
+}) => {
   
-  const amountPrefix = isIncome ? '+' : '-';
+  // 1. Defensive Check: If transaction is missing, return nothing (don't crash)
+  if (!transaction) return null;
 
-  // 2. Determine Badge Label
-  const badgeLabel = transaction.transferId ? 'Transfer' : transaction.type;
+  const isIncome = transaction.type === 'Income';
+  const isExpense = transaction.type === 'Expense';
+
+  let amountColor = 'text-gray-900 dark:text-white';
+  if (isIncome) amountColor = 'text-green-600 dark:text-green-400';
+  if (isExpense) amountColor = 'text-red-600 dark:text-red-400';
 
   return (
     <div 
       onClick={onEdit}
-      className="flex justify-between items-start p-4 cursor-pointer transition-colors duration-150 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 group border-b border-gray-100 dark:border-zinc-800 last:border-0"
+      className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 active:bg-gray-50 dark:active:bg-zinc-800 transition-colors cursor-pointer group border-b border-gray-100 dark:border-zinc-800 last:border-0"
     >
-      {/* LEFT SIDE: Info Column */}
-      <div className="flex flex-col gap-1 flex-1 pr-4">
-        {/* Description */}
-        <p className="text-gray-900 dark:text-white font-bold text-base leading-tight">
-          {transaction.description}
-        </p>
-        
-        {/* Date */}
-        <p className="text-xs text-gray-500 dark:text-zinc-500">
-          {formatDate(transaction.date)}
-        </p>
-
-        {/* Envelope Name (Only shows if prop is passed from History View) */}
-        {envelopeName && (
-          <p className="text-xs font-medium text-gray-400 dark:text-zinc-400 mt-0.5">
-            {envelopeName}
-          </p>
-        )}
-      </div>
-
-      {/* RIGHT SIDE: Numbers & Actions */}
-      <div className="flex flex-col items-end gap-2">
-        
-        {/* Top Row: Amount + Checkbox */}
-        <div className="flex items-center gap-3">
-          <span className={`font-bold text-base ${amountColor}`}>
-            {amountPrefix}{formatCurrency(transaction.amount)}
-          </span>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onReconcile();
-            }}
-            className="p-1 -mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
-          >
-            {transaction.reconciled ? (
-              <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-emerald-500" />
-            ) : (
-              <Circle className="w-5 h-5 text-gray-300 dark:text-zinc-600 group-hover:text-gray-400 dark:group-hover:text-zinc-500" />
+      <div className="flex flex-col gap-1 overflow-hidden">
+        {/* Description & Reconciled Badge */}
+        <div className="flex items-center gap-2">
+            <span className="font-medium text-gray-900 dark:text-white truncate">
+                {transaction.description || "No Description"}
+            </span>
+            {transaction.reconciled && (
+                <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">
+                    R
+                </span>
             )}
-          </button>
         </div>
 
-        {/* Bottom Row: Badge */}
-        <span className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded">
-          {badgeLabel}
-        </span>
+        {/* Date & Envelope Name */}
+        <div className="text-xs text-gray-500 dark:text-zinc-500 flex items-center gap-1">
+            {/* ✅ CALLING SAFE FORMATTER */}
+            <span>{formatDateSafe(transaction.date)}</span>
+            {envelopeName && (
+                <>
+                    <span>•</span>
+                    <span className="text-blue-500 dark:text-blue-400 truncate max-w-[150px]">
+                        {envelopeName}
+                    </span>
+                </>
+            )}
+        </div>
+      </div>
 
+      {/* Amount */}
+      <div className={`font-bold font-mono whitespace-nowrap ${amountColor}`}>
+        {isExpense ? '-' : isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
       </div>
     </div>
   );
 };
 
+// ✅ Default Export to prevent import errors
 export default EnvelopeTransactionRow;

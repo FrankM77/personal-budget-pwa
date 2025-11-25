@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AlertCircle, Save, Download, Trash2, X } from 'lucide-react';
+import { Save, Download, Trash2, X } from 'lucide-react';
 import { useEnvelopeStore } from '../../store/envelopeStore'; 
 import type { DistributionTemplate } from '../../models/types'; 
 

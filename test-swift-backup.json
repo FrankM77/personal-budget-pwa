@@ -1,0 +1,35 @@
+{
+  "appVersion": "1.0 (Swift)",
+  "backupDate": 1730000000,
+  "appSettings": { "isDarkMode": true },
+  "envelopes": [
+    {
+      "id": "env-1",
+      "name": "Groceries",
+      "currentBalance": 150.50,
+      "lastUpdated": 1728000000,
+      "isActive": true,
+      "orderIndex": 0
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx-1",
+      "date": 1727000000,
+      "amount": 50.25,
+      "description": "Weekly groceries",
+      "envelopeId": "env-1",
+      "reconciled": false,
+      "type": "Expense"
+    }
+  ],
+  "distributionTemplates": [
+    {
+      "id": "template-1",
+      "name": "Monthly Split",
+      "distributions": ["env-1", 100.0],
+      "lastUsed": 1725000000,
+      "note": "Test template"
+    }
+  ]
+}

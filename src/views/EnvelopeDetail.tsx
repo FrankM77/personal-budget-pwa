@@ -19,9 +19,28 @@ const formatCurrency = (amount: number): string => {
 };
 
 // Helper to format date
-const formatDate = (date: Date | string): string => {
-    // Ensuring it's a Date object if a string/ISO date was passed
-    const d = typeof date === 'string' ? new Date(date) : date;
+const formatDate = (date: Date | string | number): string => {
+    // Handle different date formats
+    let d: Date;
+
+    if (typeof date === 'string') {
+        d = new Date(date);
+    } else if (typeof date === 'number') {
+        // Convert numeric date (legacy Apple timestamp) to Date
+        const APPLE_EPOCH_OFFSET = 978307200;
+        const jsTimestamp = (date + APPLE_EPOCH_OFFSET) * 1000;
+        d = new Date(jsTimestamp);
+    } else if (date instanceof Date) {
+        d = date;
+    } else {
+        return 'Invalid Date';
+    }
+
+    // Check if the date is valid
+    if (isNaN(d.getTime())) {
+        return 'Invalid Date';
+    }
+
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 

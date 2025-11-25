@@ -35,7 +35,25 @@ export const TransactionHistoryView: React.FC = () => {
 
   // --- 3. The Filter Logic (Matching Swift Computed Property) ---
   const filteredTransactions = useMemo(() => {
-    return transactions
+    // Sanitize transactions - ensure dates are valid strings, convert if needed
+    const sanitizedTransactions = transactions.map(t => {
+      if (!t) return null;
+
+      let dateStr = t.date;
+      if (typeof t.date === 'number') {
+        // Convert numeric date (legacy data) to ISO string
+        // Assume it's Apple timestamp (seconds since 2001)
+        const APPLE_EPOCH_OFFSET = 978307200;
+        const jsTimestamp = (t.date + APPLE_EPOCH_OFFSET) * 1000;
+        dateStr = new Date(jsTimestamp).toISOString();
+      } else if (!t.date || typeof t.date !== 'string') {
+        return null; // Skip invalid transactions
+      }
+
+      return { ...t, date: dateStr };
+    }).filter(Boolean) as Transaction[];
+
+    return sanitizedTransactions
       .filter((t) => {
         // 1. Search Text (Description OR Envelope Name OR Amount)
         if (searchText) {
@@ -62,6 +80,9 @@ export const TransactionHistoryView: React.FC = () => {
         }
 
         // 4. Date Range (Inclusive)
+        if (!t.date || typeof t.date !== 'string') {
+          return false; // Skip transactions with invalid dates
+        }
         const tDate = t.date.split('T')[0];
         if (tDate < startDate || tDate > endDate) {
           return false;

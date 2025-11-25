@@ -1,18 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { Envelope, Transaction, DistributionTemplate } from '../models/types'; // Make sure DistributionTemplate is in types.ts
+import type { Envelope, Transaction, DistributionTemplate } from '../models/types';
 
 interface EnvelopeState {
   envelopes: Envelope[];
   transactions: Transaction[];
-  distributionTemplates: DistributionTemplate[]; // <--- ADDED
+  distributionTemplates: DistributionTemplate[];
 
   // Envelope actions
   addEnvelope: (name: string, initialBalance: number) => void;
   deleteEnvelope: (id: string) => void;
   renameEnvelope: (id: string, newName: string) => void;
-  
+
   // Transaction actions
   addToEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => void;
   spendFromEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => void;
@@ -22,9 +22,51 @@ interface EnvelopeState {
   restoreTransaction: (transaction: Transaction) => void;
 
   // Template actions
-  saveTemplate: (name: string, distributions: Record<string, number>, note?: string) => void; // <--- ADDED
-  deleteTemplate: (id: string) => void; // <--- ADDED
+  saveTemplate: (name: string, distributions: Record<string, number>, note?: string) => void;
+  deleteTemplate: (id: string) => void;
+
+  // Data management actions
+  importData: (data: any) => { success: boolean; message: string };
+  resetData: () => void;
 }
+
+// Helper: Convert Apple Timestamp (Seconds since 2001) to JS ISO String
+const parseDate = (dateValue: number | string): string => {
+  // Handle null/undefined values
+  if (dateValue == null) {
+    return new Date().toISOString();
+  }
+
+  if (typeof dateValue === 'string') return dateValue; // Already ISO
+
+  // Apple Epoch (Jan 1 2001) is 978307200 seconds after Unix Epoch (Jan 1 1970)
+  const APPLE_EPOCH_OFFSET = 978307200;
+
+  // If the number is small (like 785731563), it's Apple time.
+  // If it's huge (like 1700000000000), it's JS time.
+  // Cutoff: Year 1980 in unix seconds is ~3e8. Apple numbers are around 7e8.
+  if (dateValue < 2000000000) {
+      const jsTimestamp = (dateValue + APPLE_EPOCH_OFFSET) * 1000;
+      return new Date(jsTimestamp).toISOString();
+  }
+
+  return new Date(dateValue).toISOString();
+};
+
+// Helper: Convert Swift Flat Array ["key", val, "key", val] to Object {key: val}
+const parseDistributions = (dist: any): Record<string, number> => {
+  if (!Array.isArray(dist)) return dist; // Already an object
+
+  const result: Record<string, number> = {};
+  for (let i = 0; i < dist.length; i += 2) {
+    const key = dist[i];
+    const val = dist[i+1];
+    if (typeof key === 'string' && typeof val === 'number') {
+      result[key] = val;
+    }
+  }
+  return result;
+};
 
 export const useEnvelopeStore = create<EnvelopeState>()(
   persist(
@@ -418,6 +460,57 @@ export const useEnvelopeStore = create<EnvelopeState>()(
         set((state) => ({
           distributionTemplates: state.distributionTemplates.filter(t => t.id !== id)
         }));
+      },
+
+      // Data management actions
+      resetData: () => {
+        set({ envelopes: [], transactions: [], distributionTemplates: [] });
+      },
+
+      importData: (data: any) => {
+        try {
+          // 1. Basic Validation
+          if (!data.envelopes || !data.transactions) {
+            throw new Error("Invalid backup format: Missing core data.");
+          }
+
+          // 2. Process Envelopes (Convert dates)
+          const newEnvelopes = data.envelopes.map((env: any) => ({
+            ...env,
+            lastUpdated: parseDate(env.lastUpdated),
+            // Ensure numeric values are numbers
+            currentBalance: Number(env.currentBalance),
+            orderIndex: Number(env.orderIndex || 0)
+          }));
+
+          // 3. Process Transactions (Convert dates, ensure types)
+          const newTransactions = data.transactions.map((tx: any) => ({
+            ...tx,
+            date: parseDate(tx.date),
+            amount: Number(tx.amount),
+            // Ensure IDs are present
+            id: tx.id || uuidv4()
+          }));
+
+          // 4. Process Templates (Handle Swift Array format)
+          const newTemplates = (data.distributionTemplates || []).map((t: any) => ({
+            ...t,
+            lastUsed: parseDate(t.lastUsed),
+            distributions: parseDistributions(t.distributions || t.allocations) // Handle both naming conventions
+          }));
+
+          // 5. Apply to State
+          set({
+            envelopes: newEnvelopes,
+            transactions: newTransactions,
+            distributionTemplates: newTemplates
+          });
+
+          return { success: true, message: "Restored successfully!" };
+        } catch (error) {
+          console.error("Import failed:", error);
+          return { success: false, message: "Failed to import data. Check file format." };
+        }
       },
     }),
     {

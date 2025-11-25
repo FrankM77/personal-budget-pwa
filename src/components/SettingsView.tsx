@@ -50,10 +50,23 @@ export const SettingsView: React.FC = () => {
       const rows = transactions.map(t => {
         const envName = envelopes.find(e => e.id === t.envelopeId)?.name || 'Unknown';
         // Escape quotes in description just in case
-        const safeDesc = t.description.replace(/"/g, '""'); 
-        
+        const safeDesc = t.description.replace(/"/g, '""');
+
+        // Safe date extraction - handle both string and numeric dates
+        let dateStr = 'Invalid Date';
+        if (t.date) {
+          if (typeof t.date === 'string') {
+            dateStr = t.date.split('T')[0];
+          } else if (typeof t.date === 'number') {
+            // Convert numeric date (legacy data) to ISO string
+            const APPLE_EPOCH_OFFSET = 978307200;
+            const jsTimestamp = (t.date + APPLE_EPOCH_OFFSET) * 1000;
+            dateStr = new Date(jsTimestamp).toISOString().split('T')[0];
+          }
+        }
+
         return [
-          t.date.split('T')[0], // YYYY-MM-DD
+          dateStr, // YYYY-MM-DD
           `"${safeDesc}"`,      // Wrapped in quotes for safety
           t.amount.toFixed(2),
           t.type,
