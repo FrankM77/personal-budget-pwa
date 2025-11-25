@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Settings, List as ListIcon, Share, GitBranch, Wallet, Check } from 'lucide-react';
+import { PlusCircle, Settings, List as ListIcon, Share, GitBranch, Wallet } from 'lucide-react';
 import { useEnvelopeStore } from '../store/envelopeStore';
 import { DistributeFundsModal } from '../components/modals/DistributeFundsModal';
 import { useNavigate } from 'react-router-dom';
@@ -107,27 +107,15 @@ export const EnvelopeListView: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`font-bold ${
-                        env.currentBalance < 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-green-600 dark:text-emerald-400'
-                      }`}
-                    >
-                      ${env.currentBalance.toFixed(2)}
-                    </span>
-                    <Check
-                      size={16}
-                      className={
-                        env.currentBalance < 0
-                          ? 'text-red-500 dark:text-red-400'
-                          : 'text-green-500 dark:text-emerald-400'
-                      }
-                      fill="currentColor"
-                      fillOpacity={0.2}
-                    />
-                  </div>
+                  <span
+                    className={`font-bold ${
+                      env.currentBalance < 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-green-600 dark:text-emerald-400'
+                    }`}
+                  >
+                    ${env.currentBalance.toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>

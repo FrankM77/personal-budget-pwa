@@ -1,4 +1,5 @@
 import React from 'react';
+import { CheckCircle2, Circle } from 'lucide-react';
 import type { Transaction } from '../models/types';
 
 interface Props {
@@ -108,9 +109,36 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Amount */}
-      <div className={`font-bold font-mono whitespace-nowrap ${amountColor}`}>
-        {isExpense ? '-' : isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
+      {/* Amount & Reconcile */}
+      <div className="flex items-center gap-2">
+        <div className={`font-bold font-mono whitespace-nowrap ${amountColor}`}>
+          {isExpense ? '-' : isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
+        </div>
+        {onReconcile ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReconcile();
+            }}
+            className="p-1.5 rounded-full border border-transparent hover:border-green-200 dark:hover:border-green-500 transition-colors"
+            aria-label={transaction.reconciled ? 'Mark as unreconciled' : 'Mark as reconciled'}
+          >
+            {transaction.reconciled ? (
+              <CheckCircle2 className="text-green-500" size={20} />
+            ) : (
+              <Circle className="text-gray-400" size={20} />
+            )}
+          </button>
+        ) : (
+          <span>
+            {transaction.reconciled ? (
+              <CheckCircle2 className="text-green-500" size={20} />
+            ) : (
+              <Circle className="text-gray-400" size={20} />
+            )}
+          </span>
+        )}
       </div>
     </div>
   );
