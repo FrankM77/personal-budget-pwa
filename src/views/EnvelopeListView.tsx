@@ -1,37 +1,88 @@
-import React, { useState } from 'react';
-import { PlusCircle, Settings, List as ListIcon, GitBranch, Wallet } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, Settings, List as ListIcon, GitBranch, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { DistributeFundsModal } from '../components/modals/DistributeFundsModal';
 import { useNavigate } from 'react-router-dom';
 
 export const EnvelopeListView: React.FC = () => {
-  const { envelopes } = useEnvelopeStore();
+  const { envelopes, transactions, fetchData, isOnline, pendingSync, syncData, isLoading, getEnvelopeBalance } = useEnvelopeStore();
   const [isDistributeOpen, setIsDistributeOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Sort envelopes by orderIndex
+  // Load data from Firebase on mount (only if no data exists)
+  useEffect(() => {
+    if (envelopes.length === 0) {
+      fetchData();
+    }
+  }, []); // Empty dependency array - only run once on mount
+
+  // Sort envelopes by name (since orderIndex doesn't exist in new structure)
   const sortedEnvelopes = [...envelopes].sort(
-    (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+    (a, b) => a.name.localeCompare(b.name)
   );
 
-  // Calculate Total Balance dynamically from current envelope balances
+  // Calculate Total Balance dynamically from computed envelope balances
+  console.log('🔄 EnvelopeListView render - calculating balances');
+  console.log('📊 Current envelopes:', envelopes.length);
+  console.log('💰 Current transactions:', transactions.length);
+
   const totalBalance = envelopes.reduce(
-    (sum, env) => sum + env.currentBalance,
+    (sum, env) => {
+      const balance = getEnvelopeBalance(env.id!);
+      console.log(`💵 Envelope ${env.name} (${env.id}): $${balance.toNumber().toFixed(2)}`);
+      return sum + balance.toNumber();
+    },
     0
   );
+
+  console.log('💸 Total balance:', totalBalance);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 z-10">
-        <div className="flex justify-end gap-4 text-blue-500">
-          <button onClick={() => navigate('/transactions')}>
-            <ListIcon size={22} />
-          </button>
-          <button onClick={() => navigate('/settings')}>
-            <Settings size={22} />
-          </button>
+        <div className="flex justify-between items-center">
+          {/* Sync Status */}
+          <div className="flex items-center gap-2">
+            {isLoading ? (
+              <div className="flex items-center gap-1 text-blue-500">
+                <RefreshCw size={16} className="animate-spin" />
+                <span className="text-sm font-medium">Loading...</span>
+              </div>
+            ) : isOnline ? (
+              pendingSync ? (
+                <button
+                  onClick={syncData}
+                  className="flex items-center gap-1 text-orange-500 hover:text-orange-600 transition-colors"
+                  title="Sync pending - tap to sync"
+                >
+                  <RefreshCw size={16} />
+                  <span className="text-sm font-medium">Sync</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1 text-green-500">
+                  <Wifi size={16} />
+                  <span className="text-sm font-medium">Online</span>
+                </div>
+              )
+            ) : (
+              <div className="flex items-center gap-1 text-gray-500">
+                <WifiOff size={16} />
+                <span className="text-sm font-medium">Offline</span>
+              </div>
+            )}
           </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4 text-blue-500">
+            <button onClick={() => navigate('/transactions')}>
+              <ListIcon size={22} />
+            </button>
+            <button onClick={() => navigate('/settings')}>
+              <Settings size={22} />
+            </button>
+          </div>
+        </div>
 
         <div className="mt-4">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">House Expenses</h1>
@@ -50,7 +101,7 @@ export const EnvelopeListView: React.FC = () => {
                   : 'text-red-600 dark:text-red-400'
               }`}
             >
-              ${totalBalance.toFixed(2)}
+              {totalBalance < 0 ? '-' : ''}${Math.abs(totalBalance).toFixed(2)}
             </span>
           </div>
 
@@ -106,12 +157,12 @@ export const EnvelopeListView: React.FC = () => {
 
                   <span
                     className={`font-bold ${
-                      env.currentBalance < 0
+                      getEnvelopeBalance(env.id!).toNumber() < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-emerald-400'
                     }`}
                   >
-                    ${env.currentBalance.toFixed(2)}
+                    {getEnvelopeBalance(env.id!).toNumber() < 0 ? '-' : ''}${Math.abs(getEnvelopeBalance(env.id!).toNumber()).toFixed(2)}
                   </span>
                 </div>
               ))}

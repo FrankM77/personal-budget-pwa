@@ -7,7 +7,7 @@ import { useThemeStore } from '../stores/themeStore';
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { envelopes, transactions, distributionTemplates, importData, resetData } = useEnvelopeStore();
+  const { envelopes, transactions, resetData, getEnvelopeBalance } = useEnvelopeStore();
   const { theme, setTheme } = useThemeStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -25,13 +25,11 @@ export const SettingsView: React.FC = () => {
   const dataSummary = useMemo(() => {
     const envelopeCount = envelopes.length;
     const transactionCount = transactions.length;
-    const templateCount = distributionTemplates.length;
-    const totalBalance = envelopes.reduce((sum, env) => sum + Number(env.currentBalance ?? 0), 0);
+    const templateCount = 0; // Templates not implemented in new store yet
+    const totalBalance = envelopes.reduce((sum, env) => sum + getEnvelopeBalance(env.id!).toNumber(), 0);
 
-    const latestEnvelope = envelopes.reduce((max, env) => {
-      const ts = Date.parse(env.lastUpdated ?? '');
-      return Number.isNaN(ts) ? max : Math.max(max, ts);
-    }, 0);
+    // New store doesn't have lastUpdated, so use latest transaction date
+    const latestEnvelope = 0;
 
     const latestTransaction = transactions.reduce((max, tx) => {
       let ts = 0;
@@ -60,7 +58,7 @@ export const SettingsView: React.FC = () => {
       totalBalance,
       lastUpdated,
     };
-  }, [envelopes, transactions, distributionTemplates]);
+  }, [envelopes, transactions]);
 
   const handleBackup = () => {
     try {
@@ -71,9 +69,13 @@ export const SettingsView: React.FC = () => {
           theme,
           isDarkMode,
         },
-        envelopes,
+        envelopes: envelopes.map(env => ({
+          ...env,
+          currentBalance: getEnvelopeBalance(env.id!).toNumber(), // Use computed balance for backup compatibility
+          lastUpdated: new Date().toISOString()
+        })),
         transactions,
-        distributionTemplates,
+        distributionTemplates: [], // Not implemented in new store
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -336,17 +338,17 @@ export const SettingsView: React.FC = () => {
           </div>
         </section>
 
-        {/* Template Management */}
+        {/* Template Management - Not implemented in Firebase version yet */}
         <section>
           <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Template Management</h2>
           <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-gray-100 dark:border-zinc-800 shadow-sm flex items-center gap-3">
             <CheckCircle className="text-green-500" size={20} />
             <div>
               <div className="text-gray-900 dark:text-white font-medium">
-                {distributionTemplates.length > 0 ? `${distributionTemplates.length} templates saved` : 'No templates yet'}
+                Templates coming soon
               </div>
               <div className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
-                Templates automatically ignore envelopes that have been deleted.
+                Distribution templates will be implemented in a future update.
               </div>
             </div>
           </div>

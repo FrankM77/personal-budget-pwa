@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useToastStore } from '../stores/toastStore';
-import type { Transaction } from '../models/types';
+import type { Transaction } from '../stores/envelopeStore';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
 import TransferModal from '../components/modals/TransferModal';
@@ -19,18 +19,27 @@ const formatCurrency = (amount: number): string => {
 };
 
 // Helper to format date
-const formatDate = (date: Date | string | number): string => {
+const formatDate = (date: any): string => {
     // Handle different date formats
     let d: Date;
 
-    if (typeof date === 'string') {
+    // 1. Handle Firebase Timestamp objects
+    if (date && typeof date === 'object' && date.toDate && typeof date.toDate === 'function') {
+        d = date.toDate();
+    }
+    // 2. Handle strings
+    else if (typeof date === 'string') {
         d = new Date(date);
-    } else if (typeof date === 'number') {
+    }
+    // 3. Handle numbers (timestamps)
+    else if (typeof date === 'number') {
         // Convert numeric date (legacy Apple timestamp) to Date
         const APPLE_EPOCH_OFFSET = 978307200;
         const jsTimestamp = (date + APPLE_EPOCH_OFFSET) * 1000;
         d = new Date(jsTimestamp);
-    } else if (date instanceof Date) {
+    }
+    // 4. Handle Date objects
+    else if (date instanceof Date) {
         d = date;
     } else {
         return 'Invalid Date';
@@ -48,7 +57,7 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction } = useEnvelopeStore();
+    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance } = useEnvelopeStore();
     const { showToast } = useToastStore();
     
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
@@ -58,16 +67,32 @@ const EnvelopeDetail: React.FC = () => {
     const [showingTransfer, setShowingTransfer] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
+    // Load data from Firebase on mount (only if no data exists)
+    useEffect(() => {
+      if (envelopes.length === 0) {
+        fetchData();
+      }
+    }, []); // Empty dependency array - only run once on mount
+
     // Filter and sort transactions (similar to the envelopeTransactions computed property)
     const currentEnvelope = envelopes.find(e => e.id === id);
 
+
     // Handle case where envelope is not found (404 equivalent)
     if (!currentEnvelope) {
-        return (
-            <div className="flex justify-center items-center h-screen bg-white dark:bg-black text-gray-900 dark:text-white">
-                <p>Envelope not found.</p>
-            </div>
-        );
+        if (isLoading) {
+            return (
+                <div className="flex justify-center items-center h-screen bg-white dark:bg-black text-gray-900 dark:text-white">
+                    <p>Loading envelope...</p>
+                </div>
+            );
+        } else {
+            return (
+                <div className="flex justify-center items-center h-screen bg-white dark:bg-black text-gray-900 dark:text-white">
+                    <p>Envelope not found.</p>
+                </div>
+            );
+        }
     }
 
     const envelopeTransactions = transactions
@@ -125,17 +150,17 @@ const EnvelopeDetail: React.FC = () => {
                     <span className="text-lg font-headline text-gray-900 dark:text-white">Current Balance</span>
                     <span
                       className={`text-xl font-bold ${
-                        currentEnvelope.currentBalance < 0
+                        getEnvelopeBalance(currentEnvelope.id!).toNumber() < 0
                           ? 'text-red-600 dark:text-red-400'
                           : 'text-green-600 dark:text-green-400'
                       }`}
                     >
-                        {formatCurrency(currentEnvelope.currentBalance)}
+                        {formatCurrency(getEnvelopeBalance(currentEnvelope.id!).toNumber())}
                     </span>
                 </div>
                 <div className="flex justify-between items-center text-sm text-gray-500 dark:text-zinc-400">
-                    <span>Last Updated</span>
-                    <span>{formatDate(currentEnvelope.lastUpdated)}</span>
+                    <span>Budget</span>
+                    <span>{formatCurrency(currentEnvelope.budget || 0)}</span>
                 </div>
             </section>
 

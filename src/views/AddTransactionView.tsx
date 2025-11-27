@@ -7,10 +7,9 @@ export const AddTransactionView: React.FC = () => {
   const navigate = useNavigate();
   const { envelopes } = useEnvelopeStore();
 
-  // Sort envelopes by orderIndex (same as main screen)
+  // Sort envelopes by name (since orderIndex doesn't exist in new structure)
   const sortedEnvelopes = [...envelopes]
-    .filter(e => e.isActive)
-    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
@@ -55,7 +54,7 @@ export const AddTransactionView: React.FC = () => {
                         {env.name}
                       </span>
                       <span className="text-sm text-gray-500 dark:text-zinc-400">
-                        ${env.currentBalance.toFixed(2)}
+                        Balance calculation not available here
                       </span>
                     </div>
 

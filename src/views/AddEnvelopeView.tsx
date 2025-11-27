@@ -5,7 +5,7 @@ import { useEnvelopeStore } from '../stores/envelopeStore';
 
 export const AddEnvelopeView: React.FC = () => {
   const navigate = useNavigate();
-  const { addEnvelope } = useEnvelopeStore();
+  const { createEnvelope } = useEnvelopeStore();
 
   const [name, setName] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
@@ -18,7 +18,12 @@ export const AddEnvelopeView: React.FC = () => {
     const balanceValue = parseFloat(initialBalance);
     const finalBalance = isNaN(balanceValue) ? 0 : balanceValue;
 
-    addEnvelope(name, finalBalance);
+    createEnvelope({
+      name,
+      budget: finalBalance,
+      spent: 0,
+      category: 'General'
+    });
     navigate('/');
   };
 

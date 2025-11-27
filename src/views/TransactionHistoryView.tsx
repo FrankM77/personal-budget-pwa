@@ -7,7 +7,7 @@ import { useToastStore } from '../stores/toastStore';
 import { SwipeableRow } from '../components/ui/SwipeableRow'; // <--- NEW IMPORT
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import TransactionModal from '../components/modals/TransactionModal';
-import type { Transaction } from '../models/types';
+import type { Transaction } from '../stores/envelopeStore';
 
 export const TransactionHistoryView: React.FC = () => {
   const navigate = useNavigate();
@@ -59,7 +59,7 @@ export const TransactionHistoryView: React.FC = () => {
         if (searchText) {
           const searchLower = searchText.toLowerCase();
           const envName = envelopes.find(e => e.id === t.envelopeId)?.name.toLowerCase() || '';
-          const amountStr = t.amount.toFixed(2);
+          const amountStr = parseFloat(t.amount).toFixed(2);
           
           const matches = 
             t.description.toLowerCase().includes(searchLower) ||

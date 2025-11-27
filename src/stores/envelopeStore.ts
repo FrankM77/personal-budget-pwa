@@ -1,521 +1,612 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
-import type { Envelope, Transaction, DistributionTemplate } from '../models/types';
+import { Decimal } from 'decimal.js';
+import { Timestamp } from 'firebase/firestore';
+import { TransactionService } from '../services/TransactionService';
+import { EnvelopeService } from '../services/EnvelopeService';
 
-interface EnvelopeState {
-  envelopes: Envelope[];
-  transactions: Transaction[];
-  distributionTemplates: DistributionTemplate[];
-
-  // Envelope actions
-  addEnvelope: (name: string, initialBalance: number) => void;
-  deleteEnvelope: (id: string) => void;
-  renameEnvelope: (id: string, newName: string) => void;
-
-  // Transaction actions
-  addToEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => void;
-  spendFromEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => void;
-  updateTransaction: (updatedTx: Transaction) => void;
-  transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => void;
-  deleteTransaction: (transactionId: string) => void;
-  restoreTransaction: (transaction: Transaction) => void;
-
-  // Template actions
-  saveTemplate: (name: string, distributions: Record<string, number>, note?: string) => void;
-  deleteTemplate: (id: string) => void;
-
-  // Data management actions
-  importData: (data: any) => { success: boolean; message: string };
-  resetData: () => void;
+// --- Types ---
+export interface Transaction {
+  id?: string;
+  description: string;
+  amount: string; // Match schema type (stored as string)
+  envelopeId: string;
+  date: string; // Keep as string for store, convert to Timestamp for services
+  type: 'income' | 'expense';
+  userId?: string;
+  transferId?: string;
+  reconciled?: boolean;
 }
 
-// Helper: Convert Apple Timestamp (Seconds since 2001) to JS ISO String
-const parseDate = (dateValue: number | string): string => {
-  // Handle null/undefined values
-  if (dateValue == null) {
-    return new Date().toISOString();
+export interface Envelope {
+  id?: string;
+  name: string;
+  budget?: number;
+  category?: string;
+  currentBalance?: number;
+  lastUpdated?: string;
+  isActive?: boolean;
+  orderIndex?: number;
+}
+
+interface EnvelopeStore {
+  envelopes: Envelope[];
+  transactions: Transaction[];
+  isLoading: boolean;
+  error: string | null;
+  isOnline: boolean;
+  pendingSync: boolean;
+
+  // Actions
+  fetchData: () => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'userId'>) => Promise<void>;
+  createEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<void>;
+  addToEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
+  spendFromEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
+  transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
+  deleteEnvelope: (envelopeId: string) => Promise<void>;
+  deleteTransaction: (transactionId: string) => Promise<void>;
+  updateTransaction: (updatedTx: Transaction) => Promise<void>;
+  restoreTransaction: (transaction: Transaction) => Promise<void>;
+  importData: (data: any) => { success: boolean; message: string };
+  resetData: () => void;
+  syncData: () => Promise<void>;
+  updateOnlineStatus: () => Promise<void>;
+  getEnvelopeBalance: (envelopeId: string) => Decimal;
+}
+
+// Temporary Hardcoded ID for Phase 2
+const TEST_USER_ID = "test-user-123";
+
+// Enhanced online/offline detection (silent)
+const checkOnlineStatus = async (): Promise<boolean> => {
+  if (typeof navigator === 'undefined' || !navigator.onLine) return false;
+
+  try {
+    // Try to fetch a small resource to verify actual connectivity (silent)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+    await fetch('https://www.google.com/favicon.ico', {
+      method: 'HEAD',
+      mode: 'no-cors',
+      cache: 'no-cache',
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+    return true;
+  } catch {
+    // Silent failure - don't log network errors
+    return false;
   }
-
-  if (typeof dateValue === 'string') return dateValue; // Already ISO
-
-  // Apple Epoch (Jan 1 2001) is 978307200 seconds after Unix Epoch (Jan 1 1970)
-  const APPLE_EPOCH_OFFSET = 978307200;
-
-  // If the number is small (like 785731563), it's Apple time.
-  // If it's huge (like 1700000000000), it's JS time.
-  // Cutoff: Year 1980 in unix seconds is ~3e8. Apple numbers are around 7e8.
-  if (dateValue < 2000000000) {
-      const jsTimestamp = (dateValue + APPLE_EPOCH_OFFSET) * 1000;
-      return new Date(jsTimestamp).toISOString();
-  }
-
-  return new Date(dateValue).toISOString();
 };
 
-// Helper: Convert Swift Flat Array ["key", val, "key", val] to Object {key: val}
-const parseDistributions = (dist: any): Record<string, number> => {
-  if (!Array.isArray(dist)) return dist; // Already an object
+// Helper: Check if error is network-related
+const isNetworkError = (error: any): boolean => {
+  return error?.code === 'unavailable' ||
+         error?.code === 'cancelled' ||
+         error?.message?.includes('network') ||
+         error?.message?.includes('offline') ||
+         error?.message?.includes('Failed to fetch') ||
+         !navigator.onLine;
+};
 
-  const result: Record<string, number> = {};
-  for (let i = 0; i < dist.length; i += 2) {
-    const key = dist[i];
-    const val = dist[i+1];
-    if (typeof key === 'string' && typeof val === 'number') {
-      result[key] = val;
+export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
+  envelopes: [],
+  transactions: [],
+  isLoading: false,
+  error: null,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  pendingSync: false,
+
+  /**
+   * SYNC: Pulls all data from Firestore (Like Pull-to-Refresh)
+   * Works offline thanks to Firestore persistence
+   */
+  fetchData: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      // Fetch collections in parallel (works offline with Firestore persistence)
+      const [fetchedEnvelopes, fetchedTransactions] = await Promise.all([
+        EnvelopeService.getAllEnvelopes(TEST_USER_ID),
+        TransactionService.getAllTransactions(TEST_USER_ID)
+      ]);
+
+      // Merge with existing data to preserve locally created items that might not be in Firebase yet
+      set((state) => {
+        // Convert Firebase Timestamps to strings for store compatibility
+        const convertTimestamps = (transactions: any[]): Transaction[] => {
+          return transactions.map(tx => ({
+            ...tx,
+            date: tx.date && typeof tx.date === 'object' && tx.date.toDate ?
+              tx.date.toDate().toISOString() : tx.date // Convert Timestamp to ISO string
+          }));
+        };
+
+        // Merge: prefer Firebase data, but keep local items that aren't in Firebase yet
+        const mergedEnvelopes = (fetchedEnvelopes as unknown as Envelope[]).concat(
+          state.envelopes.filter(env => !fetchedEnvelopes.some(fetched => fetched.id === env.id))
+        );
+
+        const mergedTransactions = convertTimestamps(fetchedTransactions as any[]).concat(
+          state.transactions.filter(tx => !fetchedTransactions.some(fetched => fetched.id === tx.id))
+        );
+
+        return {
+          envelopes: mergedEnvelopes,
+          transactions: mergedTransactions,
+          isLoading: false,
+          pendingSync: false
+        };
+      });
+    } catch (err: any) {
+      console.error("Sync Failed:", err);
+      if (isNetworkError(err)) {
+        // Don't show error for network issues - data might still be available locally
+        set({ isLoading: false, pendingSync: true });
+      } else {
+        set({ error: err.message, isLoading: false });
+      }
     }
-  }
-  return result;
-};
+  },
 
-export const useEnvelopeStore = create<EnvelopeState>()(
-  persist(
-    (set) => ({
+  /**
+   * ACTION: Add Transaction (Offline-First)
+   * Updates local state immediately, syncs with Firebase when possible
+   */
+  addTransaction: async (newTx) => {
+    // Generate temporary ID for immediate UI update
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const transactionWithId = {
+      ...newTx,
+      amount: newTx.amount.toString(), // Convert to string for Firebase
+      id: tempId,
+      userId: TEST_USER_ID
+    };
+
+    // Update local state immediately for responsive UI
+    set((state) => ({
+      transactions: [...state.transactions, transactionWithId],
+      isLoading: true
+    }));
+
+    try {
+      // Try to sync with Firebase (works offline thanks to persistence)
+      const transactionForService = {
+        ...transactionWithId,
+        date: Timestamp.fromDate(new Date(transactionWithId.date))
+      };
+      const savedTx = await TransactionService.addTransaction(transactionForService as any);
+
+      // Replace temp transaction with real one from Firebase
+      console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
+
+      // Convert Timestamp back to string for store compatibility
+      const convertedTx = {
+        ...savedTx,
+        date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
+          savedTx.date.toDate().toISOString() : savedTx.date
+      };
+
+      set((state) => ({
+        transactions: state.transactions.map(tx =>
+          tx.id === tempId ? (convertedTx as Transaction) : tx
+        ),
+        isLoading: false,
+        pendingSync: false
+      }));
+    } catch (err: any) {
+      console.error("Add Transaction Failed:", err);
+      if (isNetworkError(err)) {
+        // Offline: Keep the temp transaction, mark for later sync
+        set({
+          isLoading: false,
+          pendingSync: true,
+          error: null // Don't show error for offline scenarios
+        });
+      } else {
+        // Real error: Remove temp transaction
+        set((state) => ({
+          transactions: state.transactions.filter(tx => tx.id !== tempId),
+          error: err.message,
+          isLoading: false
+        }));
+      }
+    }
+  },
+
+  /**
+   * ACTION: Create Envelope (Offline-First)
+   * Updates local state immediately, syncs with Firebase when possible
+   */
+  createEnvelope: async (newEnv) => {
+    // Generate temporary ID for immediate UI update
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const envelopeWithId = { ...newEnv, id: tempId };
+
+    // Update local state immediately for responsive UI
+    set((state) => ({
+      envelopes: [...state.envelopes, envelopeWithId],
+      isLoading: true
+    }));
+
+    try {
+      // Try to sync with Firebase (works offline thanks to persistence)
+      const envelopeForService = {
+        ...newEnv,
+        userId: TEST_USER_ID
+      } as any; // Type assertion to include userId
+      const savedEnv = await EnvelopeService.createEnvelope(envelopeForService);
+
+      // Replace temp envelope with real one from Firebase
+      set((state) => ({
+        envelopes: state.envelopes.map(env =>
+          env.id === tempId ? (savedEnv as unknown as Envelope) : env
+        ),
+        isLoading: false,
+        pendingSync: false
+      }));
+    } catch (err: any) {
+      console.error("Create Envelope Failed:", err);
+      if (isNetworkError(err)) {
+        // Offline: Keep the temp envelope, mark for later sync
+        set({
+          isLoading: false,
+          pendingSync: true,
+          error: null // Don't show error for offline scenarios
+        });
+      } else {
+        // Real error: Remove temp envelope
+        set((state) => ({
+          envelopes: state.envelopes.filter(env => env.id !== tempId),
+          error: err.message,
+          isLoading: false
+        }));
+      }
+    }
+  },
+
+  /**
+   * SYNC: Manual sync for when coming back online
+   */
+  syncData: async () => {
+    if (!get().isOnline) return;
+
+    set({ pendingSync: true });
+    try {
+      await get().fetchData();
+    } catch (err) {
+      console.error("Manual sync failed:", err);
+    }
+  },
+
+  /**
+   * UPDATE: Online status with actual connectivity check
+   */
+  updateOnlineStatus: async () => {
+    const isActuallyOnline = await checkOnlineStatus();
+    set({ isOnline: isActuallyOnline });
+  },
+
+  /**
+   * ACTION: Add money to envelope (Income) - Offline-First
+   */
+  addToEnvelope: async (envelopeId: string, amount: number, note: string, date?: Date | string) => {
+    const transactionDate = date
+      ? typeof date === 'string' ? date : date.toISOString()
+      : new Date().toISOString();
+
+    await get().addTransaction({
+      description: note,
+      amount: amount.toString(),
+      envelopeId,
+      date: transactionDate,
+      type: 'income'
+    });
+  },
+
+  /**
+   * ACTION: Spend money from envelope (Expense) - Offline-First
+   */
+  spendFromEnvelope: async (envelopeId: string, amount: number, note: string, date?: Date | string) => {
+    const transactionDate = date
+      ? typeof date === 'string' ? date : date.toISOString()
+      : new Date().toISOString();
+
+    await get().addTransaction({
+      description: note,
+      amount: amount.toString(),
+      envelopeId,
+      date: transactionDate,
+      type: 'expense'
+    });
+  },
+
+  /**
+   * ACTION: Transfer funds between envelopes - Offline-First
+   */
+  transferFunds: async (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => {
+    console.log(`Transferring ${amount} from ${fromEnvelopeId} to ${toEnvelopeId} with note: ${note}`);
+    const transactionDate = date
+      ? typeof date === 'string' ? date : date.toISOString()
+      : new Date().toISOString();
+
+    const transferId = `transfer-${Date.now()}-${Math.random()}`;
+
+    // Create expense transaction from source envelope
+    await get().addTransaction({
+      description: `Transfer to ${get().envelopes.find(e => e.id === toEnvelopeId)?.name || 'envelope'}`,
+      amount: amount.toString(),
+      envelopeId: fromEnvelopeId,
+      date: transactionDate,
+      type: 'expense',
+      transferId
+    });
+
+    // Create income transaction to destination envelope
+    await get().addTransaction({
+      description: `Transfer from ${get().envelopes.find(e => e.id === fromEnvelopeId)?.name || 'envelope'}`,
+      amount: amount.toString(),
+      envelopeId: toEnvelopeId,
+      date: transactionDate,
+      type: 'income',
+      transferId
+    });
+  },
+
+  /**
+   * ACTION: Delete envelope - Offline-First (Cascade Delete)
+   */
+  deleteEnvelope: async (envelopeId: string) => {
+    // Find transactions to delete
+    const transactionsToDelete = get().transactions.filter(tx => tx.envelopeId === envelopeId);
+
+    // Update local state immediately (cascade delete)
+    set((state) => ({
+      envelopes: state.envelopes.filter(env => env.id !== envelopeId),
+      transactions: state.transactions.filter(tx => tx.envelopeId !== envelopeId),
+      isLoading: true
+    }));
+
+    try {
+      // Delete envelope from Firebase
+      await EnvelopeService.deleteEnvelope(TEST_USER_ID, envelopeId);
+
+      // Cascade delete: Delete all associated transactions from Firebase
+      for (const transaction of transactionsToDelete) {
+        if (transaction.id && !transaction.id.startsWith('temp-')) {
+          await TransactionService.deleteTransaction(TEST_USER_ID, transaction.id);
+        }
+      }
+
+      set({ isLoading: false });
+    } catch (err: any) {
+      console.error("Delete Envelope Failed:", err);
+      if (isNetworkError(err)) {
+        // Offline: Keep the local deletion, mark for later sync
+        set({
+          isLoading: false,
+          pendingSync: true,
+          error: null
+        });
+      } else {
+        // Real error: Restore the envelope and transactions locally
+        const restoredEnvelope = get().envelopes.find(env => env.id === envelopeId);
+        if (restoredEnvelope) {
+          set((state) => ({
+            envelopes: [...state.envelopes, restoredEnvelope],
+            transactions: [...state.transactions, ...transactionsToDelete],
+            error: err.message,
+            isLoading: false
+          }));
+        } else {
+          set({ error: err.message, isLoading: false });
+        }
+      }
+    }
+  },
+
+  /**
+   * ACTION: Delete transaction - Offline-First
+   */
+  deleteTransaction: async (transactionId: string) => {
+    // Find the transaction to delete
+    const transactionToDelete = get().transactions.find(tx => tx.id === transactionId);
+    if (!transactionToDelete) return;
+
+    // Store references for potential rollback
+    const allTransactionsToDelete = [transactionId];
+
+    // For transfers, also delete the paired transaction
+    if (transactionToDelete.transferId) {
+      const pairedTransaction = get().transactions.find(tx =>
+        tx.transferId === transactionToDelete.transferId && tx.id !== transactionId
+      );
+      if (pairedTransaction && pairedTransaction.id) {
+        allTransactionsToDelete.push(pairedTransaction.id);
+      }
+    }
+
+    // Update local state immediately
+    set((state) => ({
+      transactions: state.transactions.filter(tx => tx.id && !allTransactionsToDelete.includes(tx.id)),
+      isLoading: true
+    }));
+
+    try {
+      // Delete from Firebase (skip temp IDs that haven't been synced yet)
+      const firebaseIdsToDelete = allTransactionsToDelete.filter(txId => !txId.startsWith('temp-'));
+
+      for (const txId of firebaseIdsToDelete) {
+        console.log(`🔄 About to delete transaction ID: ${txId}`);
+        await TransactionService.deleteTransaction(TEST_USER_ID, txId);
+        console.log(`✅ Deleted transaction ID: ${txId}`);
+      }
+
+      console.log(`✅ All transaction deletions completed`);
+      set({ isLoading: false });
+    } catch (err: any) {
+      console.error("Delete Transaction Failed:", err);
+      if (isNetworkError(err)) {
+        // Offline: Keep the local deletion, mark for later sync
+        set({
+          isLoading: false,
+          pendingSync: true,
+          error: null
+        });
+      } else {
+        // Real error: Restore the transactions locally
+        const restoredTransactions = allTransactionsToDelete.map(txId => {
+          // Find the original transaction (this is a simplified approach)
+          return get().transactions.find(tx => tx.id === txId) || transactionToDelete;
+        }).filter(Boolean);
+
+        set((state) => ({
+          transactions: [...state.transactions, ...restoredTransactions],
+          error: err.message,
+          isLoading: false
+        }));
+      }
+    }
+  },
+
+  /**
+   * ACTION: Update transaction - Offline-First
+   */
+  updateTransaction: async (updatedTx: Transaction) => {
+    // Update local state immediately
+    set((state) => ({
+      transactions: state.transactions.map(tx =>
+        tx.id === updatedTx.id ? updatedTx : tx
+      ),
+      isLoading: true
+    }));
+
+    try {
+      // Note: Firebase update would require additional service methods
+      // For now, we keep it local-only
+      set({ isLoading: false });
+    } catch (err: any) {
+      console.error("Update Transaction Failed:", err);
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  /**
+   * ACTION: Restore transaction - Offline-First
+   */
+  restoreTransaction: async (transaction: Transaction) => {
+    // Update local state immediately
+    set((state) => ({
+      transactions: [...state.transactions, transaction],
+      isLoading: true
+    }));
+
+    try {
+      // Note: Firebase restore would require additional service methods
+      // For now, we keep it local-only
+      set({ isLoading: false });
+    } catch (err: any) {
+      console.error("Restore Transaction Failed:", err);
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  /**
+   * ACTION: Import data from backup - Local only
+   */
+  importData: (data: any) => {
+    try {
+      // Basic validation
+      if (!data.envelopes || !data.transactions) {
+        return { success: false, message: "Invalid backup format: Missing core data." };
+      }
+
+      // Convert old format envelopes to new format if needed
+      const newEnvelopes = data.envelopes.map((env: any) => ({
+        id: env.id,
+        name: env.name,
+        budget: env.budget || env.currentBalance || 0,
+        spent: env.spent || 0,
+        category: env.category || 'General'
+      }));
+
+      // Use transactions as-is (they should be compatible)
+      const newTransactions = data.transactions || [];
+
+      // Update store
+      set({
+        envelopes: newEnvelopes,
+        transactions: newTransactions,
+        error: null,
+        pendingSync: false
+      });
+
+      return {
+        success: true,
+        message: `Loaded ${newEnvelopes.length} envelopes and ${newTransactions.length} transactions.`
+      };
+    } catch (error) {
+      console.error("Import failed:", error);
+      return { success: false, message: "Failed to import data. Check file format." };
+    }
+  },
+
+  /**
+   * ACTION: Reset all data - Local only for safety
+   */
+  resetData: () => {
+    set({
       envelopes: [],
       transactions: [],
-      distributionTemplates: [], // <--- ADDED
+      error: null,
+      pendingSync: false
+    });
+  },
 
-      // Add a new envelope with optional initial balance
-      addEnvelope: (name: string, initialBalance: number = 0) => {
-        const newEnvelope: Envelope = {
-          id: uuidv4(),
-          name,
-          currentBalance: initialBalance,
-          lastUpdated: new Date().toISOString(),
-          isActive: true,
-          orderIndex: 0,
-        };
-
-        set((state) => ({
-          envelopes: [...state.envelopes, newEnvelope],
-        }));
-
-        if (initialBalance > 0) {
-          const initialTransaction: Transaction = {
-            id: uuidv4(),
-            date: new Date().toISOString(),
-            amount: initialBalance,
-            description: 'Initial balance',
-            envelopeId: newEnvelope.id,
-            reconciled: false,
-            type: 'Income',
-          };
-
-          set((state) => ({
-            transactions: [...state.transactions, initialTransaction],
-          }));
-        }
-      },
-
-      // Delete an envelope, its transactions, AND clean up templates
-      deleteEnvelope: (id: string) => {
-        set((state) => {
-            // 1. Remove Envelope & Transactions
-            const newEnvelopes = state.envelopes.filter((env) => env.id !== id);
-            const newTransactions = state.transactions.filter((tx) => tx.envelopeId !== id);
-
-            // 2. Clean up Templates (Remove reference to this envelope)
-            const newTemplates = state.distributionTemplates
-              .map((template) => {
-                const newDistributions = { ...template.distributions };
-                if (newDistributions[id]) {
-                  delete newDistributions[id];
-                }
-                return { ...template, distributions: newDistributions };
-              })
-              // Remove empty templates
-              .filter((template) => Object.keys(template.distributions).length > 0);
-
-            return {
-              envelopes: newEnvelopes,
-              transactions: newTransactions,
-              distributionTemplates: newTemplates,
-            };
-        });
-      },
-
-      // Rename an envelope
-      renameEnvelope: (id: string, newName: string) => {
-        set((state) => ({
-          envelopes: state.envelopes.map((env) =>
-            env.id === id ? { ...env, name: newName } : env
-          ),
-        }));
-      },
-
-      // Add money to an envelope (income)
-      addToEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => {
-        const transactionDate = date
-          ? typeof date === 'string'
-            ? date
-            : date.toISOString()
-          : new Date().toISOString();
-
-        const newTransaction: Transaction = {
-          id: uuidv4(),
-          date: transactionDate,
-          amount,
-          description: note,
-          envelopeId,
-          reconciled: false,
-          type: 'Income',
-        };
-
-        set((state) => ({
-          transactions: [...state.transactions, newTransaction],
-          envelopes: state.envelopes.map((env) =>
-            env.id === envelopeId
-              ? {
-                  ...env,
-                  currentBalance: env.currentBalance + amount,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : env
-          ),
-        }));
-      },
-
-      // Spend money from an envelope (expense)
-      spendFromEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => {
-        const transactionDate = date
-          ? typeof date === 'string'
-            ? date
-            : date.toISOString()
-          : new Date().toISOString();
-
-        const newTransaction: Transaction = {
-          id: uuidv4(),
-          date: transactionDate,
-          amount,
-          description: note,
-          envelopeId,
-          reconciled: false,
-          type: 'Expense',
-        };
-
-        set((state) => ({
-          transactions: [...state.transactions, newTransaction],
-          envelopes: state.envelopes.map((env) =>
-            env.id === envelopeId
-              ? {
-                  ...env,
-                  currentBalance: env.currentBalance - amount,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : env
-          ),
-        }));
-      },
-
-      // Transfer funds between envelopes
-      transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => {
-        set((state) => {
-          const transactionDate = date
-            ? typeof date === 'string'
-              ? date
-              : date.toISOString()
-            : new Date().toISOString();
-
-          const fromEnvelope = state.envelopes.find((env) => env.id === fromEnvelopeId);
-          const toEnvelope = state.envelopes.find((env) => env.id === toEnvelopeId);
-
-          if (!fromEnvelope || !toEnvelope) {
-            console.warn('One or both envelopes not found');
-            return state;
-          }
-
-          const transferId = uuidv4();
-
-          const expenseTransaction: Transaction = {
-            id: uuidv4(),
-            date: transactionDate,
-            amount,
-            description: `Transfer to ${toEnvelope.name}`,
-            envelopeId: fromEnvelopeId,
-            reconciled: false,
-            type: 'Expense',
-            transferId,
-          };
-
-          const incomeTransaction: Transaction = {
-            id: uuidv4(),
-            date: transactionDate,
-            amount,
-            description: `Transfer from ${fromEnvelope.name}`,
-            envelopeId: toEnvelopeId,
-            reconciled: false,
-            type: 'Income',
-            transferId,
-          };
-
-          if (note) {
-            expenseTransaction.description += ` (${note})`;
-            incomeTransaction.description += ` (${note})`;
-          }
-
-          return {
-            transactions: [...state.transactions, expenseTransaction, incomeTransaction],
-            envelopes: state.envelopes.map((env) => {
-              if (env.id === fromEnvelopeId) {
-                return {
-                  ...env,
-                  currentBalance: env.currentBalance - amount,
-                  lastUpdated: new Date().toISOString(),
-                };
-              } else if (env.id === toEnvelopeId) {
-                return {
-                  ...env,
-                  currentBalance: env.currentBalance + amount,
-                  lastUpdated: new Date().toISOString(),
-                };
-              }
-              return env;
-            }),
-          };
-        });
-      },
-
-      // Update an existing transaction and adjust envelope balance
-      updateTransaction: (updatedTx: Transaction) => {
-        set((state) => {
-          const oldTransaction = state.transactions.find((tx) => tx.id === updatedTx.id);
-
-          if (!oldTransaction) {
-            console.warn('Transaction not found');
-            return state;
-          }
-
-          let balanceAdjustment = 0;
-
-          if (oldTransaction.envelopeId !== updatedTx.envelopeId) {
-            const oldAmount = oldTransaction.type === 'Income' ? -oldTransaction.amount : oldTransaction.amount;
-            const newAmount = updatedTx.type === 'Income' ? updatedTx.amount : -updatedTx.amount;
-
-            return {
-              transactions: state.transactions.map((tx) =>
-                tx.id === updatedTx.id ? updatedTx : tx
-              ),
-              envelopes: state.envelopes.map((env) => {
-                if (env.id === oldTransaction.envelopeId) {
-                  return {
-                    ...env,
-                    currentBalance: env.currentBalance + oldAmount,
-                    lastUpdated: new Date().toISOString(),
-                  };
-                } else if (env.id === updatedTx.envelopeId) {
-                  return {
-                    ...env,
-                    currentBalance: env.currentBalance + newAmount,
-                    lastUpdated: new Date().toISOString(),
-                  };
-                }
-                return env;
-              }),
-            };
-          }
-
-          if (oldTransaction.type === updatedTx.type) {
-            const amountDiff = updatedTx.amount - oldTransaction.amount;
-            balanceAdjustment = updatedTx.type === 'Income' ? amountDiff : -amountDiff;
-          } else {
-            const revertOld = oldTransaction.type === 'Income' ? -oldTransaction.amount : oldTransaction.amount;
-            const applyNew = updatedTx.type === 'Income' ? updatedTx.amount : -updatedTx.amount;
-            balanceAdjustment = revertOld + applyNew;
-          }
-
-          return {
-            transactions: state.transactions.map((tx) =>
-              tx.id === updatedTx.id ? updatedTx : tx
-            ),
-            envelopes: state.envelopes.map((env) =>
-              env.id === updatedTx.envelopeId
-                ? {
-                    ...env,
-                    currentBalance: env.currentBalance + balanceAdjustment,
-                    lastUpdated: new Date().toISOString(),
-                  }
-                : env
-            ),
-          };
-        });
-      },
-
-      // Delete a transaction and reverse its balance impact (Resilient Version)
-      deleteTransaction: (transactionId: string) => {
-        set((state) => {
-          const transaction = state.transactions.find((tx) => tx.id === transactionId);
-
-          if (!transaction) {
-            console.warn('Transaction not found');
-            return state;
-          }
-
-          const balanceReversal = transaction.type === 'Income'
-            ? -transaction.amount
-            : transaction.amount;
-
-          const isTransfer = !!transaction.transferId;
-          const transactionsToDelete = [transactionId];
-          const envelopesToUpdate: string[] = [transaction.envelopeId];
-
-          if (isTransfer) {
-            const pairedTransaction = state.transactions.find(
-              (tx) => tx.transferId === transaction.transferId && tx.id !== transactionId
-            );
-
-            if (pairedTransaction) {
-              transactionsToDelete.push(pairedTransaction.id);
-              envelopesToUpdate.push(pairedTransaction.envelopeId);
-            }
-          }
-
-          const updatedEnvelopes = state.envelopes.map((env) => {
-            if (env.id === transaction.envelopeId) {
-              const newBalance = env.currentBalance + balanceReversal;
-              return {
-                ...env,
-                currentBalance: newBalance,
-                lastUpdated: new Date().toISOString(),
-              };
-            }
-
-            if (isTransfer && envelopesToUpdate.includes(env.id) && env.id !== transaction.envelopeId) {
-              const pairedTx = state.transactions.find(
-                (tx) => tx.transferId === transaction.transferId && tx.id !== transactionId
-              );
-              if (pairedTx && pairedTx.envelopeId === env.id) {
-                const pairedReversal = pairedTx.type === 'Income'
-                  ? -pairedTx.amount
-                  : pairedTx.amount;
-                const newBalance = env.currentBalance + pairedReversal;
-                return {
-                  ...env,
-                  currentBalance: newBalance,
-                  lastUpdated: new Date().toISOString(),
-                };
-              }
-            }
-
-            return env;
-          });
-
-          return {
-            transactions: state.transactions.filter(
-              (tx) => !transactionsToDelete.includes(tx.id)
-            ),
-            envelopes: updatedEnvelopes,
-          };
-        });
-      },
-
-      // Restore a previously deleted transaction
-      // NOTE: For Transfers, this only restores the single transaction record passed in.
-      // It does not currently restore the paired transfer if it was deleted.
-      restoreTransaction: (transaction: Transaction) => {
-        set((state) => {
-          const exists = state.transactions.some((tx) => tx.id === transaction.id);
-          if (exists) return state;
-
-          const balanceImpact = transaction.type === 'Income'
-            ? transaction.amount
-            : -transaction.amount;
-
-          return {
-            transactions: [...state.transactions, transaction],
-            envelopes: state.envelopes.map((env) => {
-              if (env.id === transaction.envelopeId) {
-                return {
-                  ...env,
-                  currentBalance: env.currentBalance + balanceImpact,
-                  lastUpdated: new Date().toISOString(),
-                };
-              }
-              return env;
-            }),
-          };
-        });
-      },
-
-      // --- TEMPLATE ACTIONS (ADDED) ---
-      saveTemplate: (name: string, distributions: Record<string, number>, note: string = "") => {
-        const cleanDistributions: Record<string, number> = {};
-        Object.entries(distributions).forEach(([envId, amount]) => {
-            if (amount > 0) cleanDistributions[envId] = amount;
-        });
-
-        const newTemplate: DistributionTemplate = {
-          id: uuidv4(),
-          name,
-          distributions: cleanDistributions,
-          lastUsed: new Date().toISOString(),
-          note: note
-        };
-
-        set((state) => ({
-          distributionTemplates: [...state.distributionTemplates, newTemplate]
-        }));
-      },
-
-      deleteTemplate: (id: string) => {
-        set((state) => ({
-          distributionTemplates: state.distributionTemplates.filter(t => t.id !== id)
-        }));
-      },
-
-      // Data management actions
-      resetData: () => {
-        set({ envelopes: [], transactions: [], distributionTemplates: [] });
-      },
-
-      importData: (data: any) => {
-        try {
-          // 1. Basic Validation
-          if (!data.envelopes || !data.transactions) {
-            throw new Error("Invalid backup format: Missing core data.");
-          }
-
-          // 2. Process Envelopes (Convert dates)
-          const newEnvelopes = data.envelopes.map((env: any) => ({
-            ...env,
-            lastUpdated: parseDate(env.lastUpdated),
-            // Ensure numeric values are numbers
-            currentBalance: Number(env.currentBalance),
-            orderIndex: Number(env.orderIndex || 0)
-          }));
-
-          // 3. Process Transactions (Convert dates, ensure types)
-          const newTransactions = data.transactions.map((tx: any) => ({
-            ...tx,
-            date: parseDate(tx.date),
-            amount: Number(tx.amount),
-            // Ensure IDs are present
-            id: tx.id || uuidv4()
-          }));
-
-          // 4. Process Templates (Handle Swift Array format)
-          const newTemplates = (data.distributionTemplates || []).map((t: any) => ({
-            ...t,
-            lastUsed: parseDate(t.lastUsed),
-            distributions: parseDistributions(t.distributions || t.allocations) // Handle both naming conventions
-          }));
-
-          // 5. Apply to State
-          set({
-            envelopes: newEnvelopes,
-            transactions: newTransactions,
-            distributionTemplates: newTemplates
-          });
-
-          return { success: true, message: "Restored successfully!" };
-        } catch (error) {
-          console.error("Import failed:", error);
-          return { success: false, message: "Failed to import data. Check file format." };
-        }
-      },
-    }),
-    {
-      name: 'envelope-storage',
-      storage: createJSONStorage(() => localStorage),
+  /**
+   * COMPUTED: Calculate remaining budget
+   */
+  getEnvelopeBalance: (envelopeId: string) => {
+    const state = get();
+    const envelope = state.envelopes.find(e => e.id === envelopeId);
+    if (!envelope) {
+      console.log(`❌ getEnvelopeBalance: Envelope ${envelopeId} not found`);
+      return new Decimal(0);
     }
-  )
-);
+
+    const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
+    console.log(`📊 getEnvelopeBalance: Envelope ${envelope.name} (${envelopeId}) has ${envelopeTransactions.length} transactions`);
+
+    const expenses = envelopeTransactions.filter(t => t.type === 'expense');
+    const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
+
+    console.log(`💸 getEnvelopeBalance: Envelope ${envelope.name} - Budget: $${envelope.budget || 0}, Spent: $${totalSpent.toNumber()}, Balance: $${new Decimal(envelope.budget || 0).minus(totalSpent).toNumber()}`);
+
+    return new Decimal(envelope.budget || 0).minus(totalSpent);
+  }
+}));
+
+// Setup online/offline detection after store creation
+if (typeof window !== 'undefined') {
+  // Listen to browser online/offline events
+  window.addEventListener('online', async () => {
+    // When coming back online, check connectivity
+    await useEnvelopeStore.getState().updateOnlineStatus();
+
+    // If we're actually online and have pending sync, auto-sync
+    const state = useEnvelopeStore.getState();
+    if (state.isOnline && state.pendingSync) {
+      console.log('🔄 Auto-syncing pending operations...');
+      state.syncData();
+    }
+  });
+  window.addEventListener('offline', () => {
+    useEnvelopeStore.setState({ isOnline: false });
+  });
+
+  // Initial status check (quietly)
+  setTimeout(() => {
+    useEnvelopeStore.getState().updateOnlineStatus();
+  }, 1000); // Delay initial check to avoid immediate noise
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
-import type { Transaction } from '../models/types';
+import type { Transaction } from '../stores/envelopeStore';
 
 interface Props {
   transaction: Transaction;
@@ -10,25 +10,30 @@ interface Props {
 }
 
 // ✅ CRASH-PROOF DATE FORMATTER
-// This handles: Apple Timestamps, Unix Timestamps, ISO Strings, and Nulls
+// This handles: Firebase Timestamps, Apple Timestamps, Unix Timestamps, ISO Strings, and Nulls
 const formatDateSafe = (date: any) => {
   if (!date) return 'No Date';
 
   try {
     let d: Date;
 
-    if (typeof date === 'number') {
-      // 1. Handle Apple Epoch (Seconds since 2001)
+    // 1. Handle Firebase Timestamp objects
+    if (date && typeof date === 'object' && date.toDate && typeof date.toDate === 'function') {
+      d = date.toDate();
+    }
+    // 2. Handle numbers (timestamps)
+    else if (typeof date === 'number') {
       // Apple timestamps are small (< 10 Billion). Unix ms are huge (> 1 Trillion).
       if (date < 10000000000) {
-         // Convert to Unix Milliseconds: (AppleSeconds + 978307200) * 1000
+         // Convert Apple Epoch (Seconds since 2001) to milliseconds
          d = new Date((date + 978307200) * 1000);
       } else {
-         // 2. Handle Standard Unix Timestamp (Milliseconds)
+         // Standard Unix Timestamp (Milliseconds)
          d = new Date(date);
       }
-    } else {
-      // 3. Handle ISO Strings or Date Objects
+    }
+    // 3. Handle ISO Strings or Date Objects
+    else {
       d = new Date(date);
     }
 
@@ -36,10 +41,10 @@ const formatDateSafe = (date: any) => {
     if (isNaN(d.getTime())) return "Invalid Date";
 
     // Format: "Nov 24, 2025"
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     }).format(d);
 
   } catch (e) {
@@ -49,14 +54,17 @@ const formatDateSafe = (date: any) => {
 };
 
 // Helper: Safe Currency Formatter
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: string | number) => {
+    // Convert string to number if needed
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+
     // Safety check for non-numbers
-    if (typeof amount !== 'number' || isNaN(amount)) return "$0.00";
-    
+    if (typeof numAmount !== 'number' || isNaN(numAmount)) return "$0.00";
+
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-    }).format(Math.abs(amount));
+    }).format(Math.abs(numAmount));
 };
 
 const EnvelopeTransactionRow: React.FC<Props> = ({ 
@@ -69,8 +77,8 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
   // 1. Defensive Check: If transaction is missing, return nothing (don't crash)
   if (!transaction) return null;
 
-  const isIncome = transaction.type === 'Income';
-  const isExpense = transaction.type === 'Expense';
+  const isIncome = transaction.type === 'income';
+  const isExpense = transaction.type === 'expense';
 
   let amountColor = 'text-gray-900 dark:text-white';
   if (isIncome) amountColor = 'text-green-600 dark:text-green-400';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash } from 'lucide-react';
 import { useEnvelopeStore } from '../../stores/envelopeStore';
-import type { Transaction, Envelope } from '../../models/types';
+import type { Transaction, Envelope } from '../../stores/envelopeStore';
 
 interface Props {
   isVisible: boolean;
@@ -24,10 +24,20 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
     const timeoutId = window.setTimeout(() => {
       if (mode === 'edit' && initialTransaction) {
-        setAmount(initialTransaction.amount.toString());
+        setAmount(initialTransaction.amount); // Already a string
         setNote(initialTransaction.description);
-        const d = new Date(initialTransaction.date);
-        setDate(d.toISOString().split('T')[0]);
+        try {
+          const d = new Date(initialTransaction.date);
+          if (!isNaN(d.getTime())) {
+            setDate(d.toISOString().split('T')[0]);
+          } else {
+            console.warn('Invalid date in transaction:', initialTransaction.date);
+            setDate(new Date().toISOString().split('T')[0]);
+          }
+        } catch (error) {
+          console.error('Error parsing transaction date:', error);
+          setDate(new Date().toISOString().split('T')[0]);
+        }
       } else {
         setAmount('');
         setNote('');
@@ -42,20 +52,21 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
 
     if (mode === 'add') {
-      addToEnvelope(currentEnvelope.id, numAmount, note, new Date(date));
+      addToEnvelope(currentEnvelope.id!, numAmount, note, new Date(date));
     } else if (mode === 'spend') {
-      spendFromEnvelope(currentEnvelope.id, numAmount, note, new Date(date));
+      spendFromEnvelope(currentEnvelope.id!, numAmount, note, new Date(date));
     } else if (mode === 'edit' && initialTransaction) {
       updateTransaction({
         ...initialTransaction,
-        amount: numAmount,
+        amount: amount, // Keep as string for store
         description: note,
         date: new Date(date).toISOString(),
-        // If editing, we might need to re-evaluate type if the user changes logic, 
+        // If editing, we might need to re-evaluate type if the user changes logic,
         // but for now let's keep the original type or derive it.
         // Simplified: keep original type unless swapping logic is added.
       });
@@ -105,7 +116,13 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                 inputMode="decimal"
                 step="0.01"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Ensure we don't set invalid values
+                  if (value === '' || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
+                    setAmount(value);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
                     e.preventDefault();
@@ -133,10 +150,14 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           {/* Date Input */}
           <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
             <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Date</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                console.log('Date changed to:', e.target.value);
+                setDate(e.target.value);
+              }}
+              required
               className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
             />
           </div>

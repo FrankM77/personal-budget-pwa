@@ -20,10 +20,9 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
   const [showLoadUI, setShowLoadUI] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
 
-  const activeEnvelopes = useMemo(() => 
+  const activeEnvelopes = useMemo(() =>
     envelopes
-      .filter(e => e.isActive)
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)), 
+      .sort((a, b) => a.name.localeCompare(b.name)), // Sort by name since orderIndex might not be set
   [envelopes]);
 
   const depositValue = parseFloat(depositAmount) || 0;
@@ -207,7 +206,7 @@ export const DistributeFundsModal: React.FC<DistributeFundsModalProps> = ({ isOp
                     )}
                   </div>
                   <div className="text-xs text-gray-400 dark:text-zinc-400">
-                    Current: ${env.currentBalance.toFixed(2)}
+                    Budget: ${env.budget?.toFixed(2) || '0.00'}
                   </div>
                 </div>
                 <div className="w-32 relative">
