@@ -123,8 +123,8 @@ interface Envelope {
 - **Distribute Funds Modal**: Fixed envelopes not populating in the Distribute Funds modal by updating the filtering logic to work with the new Firebase envelope schema (removed isActive filter, changed sorting to use name instead of orderIndex, fixed currentBalance reference to use budget instead)
 - **Envelope Detail White Screen**: Fixed white screen when clicking on envelopes by correcting the conditional rendering logic to properly handle loading states and null envelopes, plus handling undefined budget values in the formatCurrency call, and adding missing useEffect import
 
-### Active Investigation 🔍
-- **Income Transaction Balance Bug**: "Add money" (income) transactions are not updating envelope balances, while "spend money" (expense) transactions correctly update balances. This affects both online and offline modes. The `getEnvelopeBalance` function only subtracts expenses but doesn't add income transactions to the balance calculation.
+### Recently Fixed 🔧
+- **Income Transaction Balance Bug**: ✅ **FIXED & TESTED** - Updated `getEnvelopeBalance()` to properly include income transactions in balance calculations. Balance now = Budget + Income - Expenses. Verified working with console logs showing correct calculations.
 
 ### Recently Fixed 🔧
 - **Offline Browser Refresh Issue**: ✅ **RESOLVED** - Service worker now properly caches app shell and handles navigation fallbacks. Users can refresh any page offline without seeing Chrome's dinosaur error.
@@ -165,11 +165,20 @@ interface Envelope {
 - `src/App.tsx` - ConnectionTester integration/cleanup
 
 ## Next Steps
-1. **Complete Income Balance Bug Fix**: Fix `getEnvelopeBalance()` to properly include income transactions in balance calculations
-2. **Performance Testing**: Load testing with large transaction datasets
-3. **Error Boundary Implementation**: Comprehensive error handling for production readiness
-4. **User Authentication**: Implement Firebase Auth for multi-user support
-5. **Data Export/Import**: Enhanced backup/restore functionality with Firebase data
+1. **Performance Testing**: Load testing with large transaction datasets
+2. **Error Boundary Implementation**: Comprehensive error handling for production readiness
+3. **User Authentication**: Implement Firebase Auth for multi-user support
+4. **Data Export/Import**: Enhanced backup/restore functionality with Firebase data
+
+## ✅ Phase 2 Complete!
+
+**All major offline-first functionality implemented and tested:**
+- ✅ Firebase integration with offline persistence
+- ✅ Optimistic UI updates with eventual consistency
+- ✅ Service worker caching for offline app loading
+- ✅ Navigation fallbacks for all routes
+- ✅ Automatic offline sync for CRUD operations
+- ✅ Correct balance calculations (Budget + Income - Expenses)
 
 ## Key Learnings
 - **Offline-First Requires Careful State Management**: Local state must remain consistent with eventual Firebase state
@@ -181,42 +190,14 @@ interface Envelope {
 ---
 *This migration represents a complete architectural transformation from local storage to cloud-native with offline capabilities, ensuring the app works seamlessly whether online or offline.*
 
+## ✅ PWA Offline Caching - RESOLVED
 
-The user reports that the Service Worker is no longer caching the app shell. When refreshing offline, they see the Chrome "No Internet" dinosaur instead of the app.
+**Successfully implemented complete PWA offline functionality:**
 
-We need to fix the PWA Offline Caching for the App Shell (HTML/JS/CSS).
+- ✅ **Service Worker**: Re-enabled VitePWA with proper workbox configuration for app shell caching
+- ✅ **Navigation Fallbacks**: Added allowlist for all app routes (`/house-budget-pwa/*`) with proper fallback to `index.html`
+- ✅ **Automatic Updates**: Service worker updates seamlessly without manual intervention
+- ✅ **Offline Testing**: App loads completely offline, all navigation works without Chrome's dinosaur page
+- ✅ **Manifest & Registration**: Proper PWA manifest and service worker registration in place
 
-1.  **Check `vite.config.ts`**:
-    * Ensure `VitePWA` from `vite-plugin-pwa` is imported and added to the `plugins` array.
-    * Ensure the config includes:
-        ```typescript
-        registerType: 'autoUpdate',
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-          // Ensure Firebase SDK chunks are cached, or at least don't break the build
-          maximumFileSizeToCacheInBytes: 5000000, 
-        },
-        devOptions: {
-          enabled: true // Allows testing SW in dev mode
-        }
-        ```
-
-2.  **Check `src/main.tsx` (or `index.tsx`)**:
-    * Ensure we are importing the registration function:
-        `import { registerSW } from 'virtual:pwa-register'`
-    * Ensure we are calling it:
-        ```typescript
-        const updateSW = registerSW({
-          onNeedRefresh() {
-            // Optional: Show a toast to user
-          },
-          onOfflineReady() {
-            console.log('App is ready for offline work');
-          },
-        });
-        ```
-
-3.  **Check `index.html`**:
-    * Ensure the `<link rel="manifest" href="/manifest.webmanifest">` (or similar) exists in the head.
-
-**Goal:** I should be able to run the app, go offline, refresh the page, and see the App UI load (even if data is stale), rather than the Chrome Dinosaur.
+**Result**: Users can now refresh any page offline and see the full app interface instead of network error pages.

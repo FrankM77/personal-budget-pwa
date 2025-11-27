@@ -634,11 +634,14 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     console.log(`📊 getEnvelopeBalance: Envelope ${envelope.name} (${envelopeId}) has ${envelopeTransactions.length} transactions`);
 
     const expenses = envelopeTransactions.filter(t => t.type === 'expense');
+    const incomes = envelopeTransactions.filter(t => t.type === 'income');
+
     const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
+    const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
 
-    console.log(`💸 getEnvelopeBalance: Envelope ${envelope.name} - Budget: $${envelope.budget || 0}, Spent: $${totalSpent.toNumber()}, Balance: $${new Decimal(envelope.budget || 0).minus(totalSpent).toNumber()}`);
+    console.log(`💸 getEnvelopeBalance: Envelope ${envelope.name} - Budget: $${envelope.budget || 0}, Income: $${totalIncome.toNumber()}, Spent: $${totalSpent.toNumber()}, Balance: $${new Decimal(envelope.budget || 0).plus(totalIncome).minus(totalSpent).toNumber()}`);
 
-    return new Decimal(envelope.budget || 0).minus(totalSpent);
+    return new Decimal(envelope.budget || 0).plus(totalIncome).minus(totalSpent);
   }
 }));
 
