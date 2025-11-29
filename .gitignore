@@ -32,3 +32,6 @@ src/firebase.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase configuration
+src/firebase.ts
