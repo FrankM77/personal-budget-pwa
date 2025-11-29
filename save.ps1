@@ -1,21 +1,29 @@
+param (
+    [Parameter(Mandatory=$false)]
+    [string]$Message
+)
+
 # 1. Add all changes
 Write-Host "📦 Staging all changes..."
 git add .
 
-# 2. Ask for a commit message
-# Read-Host pauses the script and prompts the user
-$commitMessage = Read-Host "📝 Enter your commit message"
+# 2. Check for Commit Message
+# If you didn't provide a message in the command, we try to ask for one.
+if ([string]::IsNullOrWhiteSpace($Message)) {
+    # We force the script to wait a tiny bit to clear any 'ghost' Enter key presses
+    Start-Sleep -Milliseconds 500 
+    $Message = Read-Host "📝 Enter your commit message"
+}
 
-# Check if message is empty
-# We use a .NET string method to check for empty or whitespace-only inputs
-if ([string]::IsNullOrWhiteSpace($commitMessage)) {
+# Double check: Is it still empty?
+if ([string]::IsNullOrWhiteSpace($Message)) {
     Write-Host "❌ Error: Commit message cannot be empty." -ForegroundColor Red
     exit 1
 }
 
 # 3. Commit
-Write-Host "💾 Committing..."
-git commit -m $commitMessage
+Write-Host "💾 Committing with message: '$Message'..."
+git commit -m $Message
 
 # 4. Push
 Write-Host "🚀 Pushing to GitHub..."

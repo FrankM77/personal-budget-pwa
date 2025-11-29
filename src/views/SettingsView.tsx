@@ -1,21 +1,33 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Moon, Sun, Download, Upload, Trash2, CheckCircle, ChevronRight, FileText } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useThemeStore } from '../stores/themeStore';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { envelopes, transactions, resetData, importData, getEnvelopeBalance } = useEnvelopeStore();
-  const { theme, setTheme } = useThemeStore();
+  const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings } = useEnvelopeStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 
   const systemPrefersDark =
     typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false;
-  const isDarkMode = theme === 'dark' || (theme === 'system' && systemPrefersDark);
+
+  // Use appSettings theme, fallback to system
+  const currentTheme = appSettings?.theme ?? 'system';
+
+  // Determine if dark mode is active based on theme setting
+  const isDarkMode = currentTheme === 'dark' || (currentTheme === 'system' && systemPrefersDark);
+
+  // Initialize app settings if they don't exist
+  useEffect(() => {
+    if (!appSettings) {
+      initializeAppSettings().catch(error => {
+        console.error('Failed to initialize app settings:', error);
+      });
+    }
+  }, [appSettings, initializeAppSettings]);
 
   const showStatus = (type: 'success' | 'error', text: string) => {
     setStatusMessage({ type, text });
@@ -25,7 +37,7 @@ export const SettingsView: React.FC = () => {
   const dataSummary = useMemo(() => {
     const envelopeCount = envelopes.length;
     const transactionCount = transactions.length;
-    const templateCount = 0; // Templates not implemented in new store yet
+    const templateCount = distributionTemplates.length;
     const totalBalance = envelopes.reduce((sum, env) => sum + getEnvelopeBalance(env.id!).toNumber(), 0);
 
     // New store doesn't have lastUpdated, so use latest transaction date
@@ -58,16 +70,15 @@ export const SettingsView: React.FC = () => {
       totalBalance,
       lastUpdated,
     };
-  }, [envelopes, transactions]);
+  }, [envelopes, transactions, distributionTemplates]);
 
   const handleBackup = () => {
     try {
       const backupData = {
         appVersion: '2.0 (PWA)',
         backupDate: Date.now(),
-        appSettings: {
-          theme,
-          isDarkMode,
+        appSettings: appSettings || {
+          theme: 'system',
         },
         envelopes: envelopes.map(env => ({
           ...env,
@@ -75,7 +86,7 @@ export const SettingsView: React.FC = () => {
           lastUpdated: new Date().toISOString()
         })),
         transactions,
-        distributionTemplates: [], // Not implemented in new store
+        distributionTemplates,
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -145,7 +156,7 @@ export const SettingsView: React.FC = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const parsed = JSON.parse(e.target?.result as string);
         const result = importData(parsed);
@@ -156,9 +167,19 @@ export const SettingsView: React.FC = () => {
         }
 
         if (parsed.appSettings?.theme) {
-          setTheme(parsed.appSettings.theme);
+          try {
+            await updateAppSettings({ theme: parsed.appSettings.theme });
+          } catch (error) {
+            console.error('Failed to update imported settings:', error);
+          }
         } else if (parsed.appSettings?.isDarkMode !== undefined) {
-          setTheme(parsed.appSettings.isDarkMode ? 'dark' : 'light');
+          // Backward compatibility with old backups
+          try {
+            const theme = parsed.appSettings.isDarkMode ? 'dark' : 'light';
+            await updateAppSettings({ theme });
+          } catch (error) {
+            console.error('Failed to update imported settings:', error);
+          }
         }
 
         showStatus(
@@ -187,11 +208,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const themeOptions: Array<{ label: string; value: 'light' | 'dark' | 'system' }> = [
-    { label: 'Light', value: 'light' },
-    { label: 'Dark', value: 'dark' },
-    { label: 'System', value: 'system' },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
@@ -254,39 +270,41 @@ export const SettingsView: React.FC = () => {
         {/* Appearance */}
         <section>
           <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Appearance</h2>
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
-            <div className="p-4 flex items-center justify-between">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 {isDarkMode ? <Moon className="text-purple-500" size={20} /> : <Sun className="text-orange-500" size={20} />}
-                <span className="text-gray-900 dark:text-white font-medium">Dark Mode</span>
+                <span className="text-gray-900 dark:text-white font-medium">Theme</span>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={isDarkMode}
-                  onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-              </label>
+              <span className="text-sm text-gray-500 dark:text-zinc-400 capitalize">{currentTheme}</span>
             </div>
-            <div className="px-4 pb-4 space-y-3 text-xs text-gray-500 dark:text-zinc-500">
-              <p>Choose your preferred appearance or follow the system default.</p>
-              <div className="flex gap-2">
-                {themeOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setTheme(option.value)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      theme === option.value
-                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-200'
-                        : 'border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+            <div className="text-xs text-gray-500 dark:text-zinc-500 mb-3">
+              Choose your preferred appearance.
+            </div>
+            <div className="flex gap-2">
+              {[
+                { label: 'Light', value: 'light' as const },
+                { label: 'Dark', value: 'dark' as const },
+                { label: 'System', value: 'system' as const }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={async () => {
+                    try {
+                      await updateAppSettings({ theme: option.value });
+                    } catch (error) {
+                      console.error('Failed to update theme setting:', error);
+                    }
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    currentTheme === option.value
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-200'
+                      : 'border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
         </section>

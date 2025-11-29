@@ -28,4 +28,12 @@ export interface DistributionTemplate {
   distributions: Record<string, number>; // Map of EnvelopeID -> Amount
   lastUsed: string;
   note: string;
+  userId?: string;
+}
+
+export interface AppSettings {
+  id: string;
+  userId?: string;
+  theme: 'light' | 'dark' | 'system';
+  // Additional settings can be added here as needed
 }

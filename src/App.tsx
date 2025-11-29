@@ -8,12 +8,12 @@ import { AddEnvelopeView } from './views/AddEnvelopeView';
 import { AddTransactionView } from './views/AddTransactionView';
 import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { Toast } from './components/ui/Toast';
-import { useThemeStore } from './stores/themeStore';
+import { useEnvelopeStore } from './stores/envelopeStore';
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
-  const { theme } = useThemeStore();
+  const { appSettings } = useEnvelopeStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
@@ -23,14 +23,15 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Theme effect: toggle html.dark based on theme preference
+  // Theme effect: toggle html.dark based on app settings theme preference
   useEffect(() => {
     const root = document.documentElement;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const applyTheme = () => {
+      const currentTheme = appSettings?.theme ?? 'system';
       const systemPrefersDark = mediaQuery.matches;
-      const isDark = theme === 'dark' || (theme === 'system' && systemPrefersDark);
+      const isDark = currentTheme === 'dark' || (currentTheme === 'system' && systemPrefersDark);
       if (isDark) {
         root.classList.add('dark');
       } else {
@@ -40,13 +41,13 @@ function App() {
 
     applyTheme();
 
-    if (theme === 'system') {
+    if (appSettings?.theme === 'system') {
       mediaQuery.addEventListener('change', applyTheme);
       return () => mediaQuery.removeEventListener('change', applyTheme);
     }
 
     return undefined;
-  }, [theme]);
+  }, [appSettings]);
 
   // Splash Screen View
   if (showingLaunchScreen) {

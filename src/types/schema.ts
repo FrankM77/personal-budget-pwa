@@ -1,6 +1,15 @@
 import { Timestamp } from 'firebase/firestore';
 import Decimal from 'decimal.js';
 
+// 4. App Settings Type
+// Equivalent to your Swift 'struct AppSettings'
+export interface AppSettings {
+  id: string;
+  userId: string;
+  theme: 'light' | 'dark' | 'system';
+  // Additional settings can be added here as needed
+}
+
 // 1. Transaction Type
 // Equivalent to your Swift 'struct Transaction'
 export interface Transaction {

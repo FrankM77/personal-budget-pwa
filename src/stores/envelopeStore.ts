@@ -3,7 +3,9 @@ import { Decimal } from 'decimal.js';
 import { Timestamp } from 'firebase/firestore';
 import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
-import type { DistributionTemplate } from '../models/types';
+import { DistributionTemplateService } from '../services/DistributionTemplateService';
+import { AppSettingsService } from '../services/AppSettingsService';
+import type { DistributionTemplate, AppSettings } from '../models/types';
 
 // --- Types ---
 export interface Transaction {
@@ -33,6 +35,7 @@ interface EnvelopeStore {
   envelopes: Envelope[];
   transactions: Transaction[];
   distributionTemplates: DistributionTemplate[];
+  appSettings: AppSettings | null;
   isLoading: boolean;
   error: string | null;
   isOnline: boolean;
@@ -52,6 +55,8 @@ interface EnvelopeStore {
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
   saveTemplate: (name: string, distributions: Record<string, number>, note: string) => void;
   deleteTemplate: (templateId: string) => void;
+  updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
+  initializeAppSettings: () => Promise<void>;
   importData: (data: any) => { success: boolean; message: string };
   resetData: () => void;
   syncData: () => Promise<void>;
@@ -100,6 +105,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   envelopes: [],
   transactions: [],
   distributionTemplates: [],
+  appSettings: null,
   isLoading: false,
   error: null,
   isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -113,9 +119,23 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       // Fetch collections in parallel (works offline with Firestore persistence)
-      const [fetchedEnvelopes, fetchedTransactions] = await Promise.all([
-        EnvelopeService.getAllEnvelopes(TEST_USER_ID),
-        TransactionService.getAllTransactions(TEST_USER_ID)
+      const [fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings] = await Promise.all([
+        EnvelopeService.getAllEnvelopes(TEST_USER_ID).catch(err => {
+          console.warn('Failed to fetch envelopes:', err);
+          return [];
+        }),
+        TransactionService.getAllTransactions(TEST_USER_ID).catch(err => {
+          console.warn('Failed to fetch transactions:', err);
+          return [];
+        }),
+        DistributionTemplateService.getAllDistributionTemplates(TEST_USER_ID).catch(err => {
+          console.warn('Failed to fetch templates:', err);
+          return [];
+        }),
+        AppSettingsService.getAppSettings(TEST_USER_ID).catch(err => {
+          console.warn('Failed to fetch settings:', err);
+          return null;
+        })
       ]);
 
       // Merge with existing data to preserve locally created items that might not be in Firebase yet
@@ -138,9 +158,28 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
           state.transactions.filter(tx => !fetchedTransactions.some(fetched => fetched.id === tx.id))
         );
 
+        // Migrate old appSettings format if needed
+        let migratedSettings = fetchedSettings;
+        if (fetchedSettings && 'isDarkMode' in fetchedSettings && !('theme' in fetchedSettings)) {
+          // Migrate from old isDarkMode format to new theme format
+          const oldSettings = fetchedSettings as any;
+          migratedSettings = {
+            ...oldSettings,
+            theme: oldSettings.isDarkMode ? 'dark' : 'light'
+          };
+          // Remove the old field
+          delete (migratedSettings as any).isDarkMode;
+
+          // Update in Firebase to migrate the data
+          AppSettingsService.updateAppSettings(TEST_USER_ID, fetchedSettings.id, { theme: migratedSettings.theme })
+            .catch(err => console.warn('Failed to migrate app settings:', err));
+        }
+
         return {
           envelopes: mergedEnvelopes,
           transactions: mergedTransactions,
+          distributionTemplates: fetchedTemplates as DistributionTemplate[],
+          appSettings: migratedSettings,
           isLoading: false,
           pendingSync: false
         };
@@ -540,17 +579,28 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       // Use transactions as-is (they should be compatible)
       const newTransactions = data.transactions || [];
 
+      // Import distribution templates if present
+      const newTemplates = data.distributionTemplates || [];
+
+      // Import app settings if present
+      const newSettings = data.appSettings || null;
+
       // Update store
       set({
         envelopes: newEnvelopes,
         transactions: newTransactions,
+        distributionTemplates: newTemplates,
+        appSettings: newSettings,
         error: null,
         pendingSync: false
       });
 
+      const templateCount = newTemplates.length;
+      const settingsImported = newSettings ? 'Settings imported.' : '';
+
       return {
         success: true,
-        message: `Loaded ${newEnvelopes.length} envelopes and ${newTransactions.length} transactions.`
+        message: `Loaded ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions${templateCount > 0 ? `, ${templateCount} templates` : ''}.${settingsImported ? ` ${settingsImported}` : ''}`
       };
     } catch (error) {
       console.error("Import failed:", error);
@@ -566,6 +616,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       envelopes: [],
       transactions: [],
       distributionTemplates: [],
+      appSettings: null,
       error: null,
       pendingSync: false
     });
@@ -596,27 +647,132 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   /**
    * ACTION: Save distribution template
    */
-  saveTemplate: (name: string, distributions: Record<string, number>, note: string) => {
-    const newTemplate: DistributionTemplate = {
-      id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name,
-      distributions,
-      note,
-      lastUsed: new Date().toISOString()
-    };
+  saveTemplate: async (name: string, distributions: Record<string, number>, note: string) => {
+    try {
+      const templateData: DistributionTemplate = {
+        id: `temp-${Date.now()}`, // Temporary ID, will be replaced by Firebase
+        userId: TEST_USER_ID,
+        name,
+        note,
+        lastUsed: new Date().toISOString(),
+        distributions
+      };
 
-    set((state) => ({
-      distributionTemplates: [...state.distributionTemplates, newTemplate]
-    }));
+      // Try Firebase save first
+      const savedTemplate = await DistributionTemplateService.createDistributionTemplate(templateData);
+
+      set((state) => ({
+        distributionTemplates: [...state.distributionTemplates, savedTemplate]
+      }));
+
+      console.log('✅ Template saved to Firebase:', savedTemplate);
+    } catch (error) {
+      console.error('❌ Failed to save template to Firebase, saving locally:', error);
+
+      // Fallback: save locally if Firebase fails
+      const localTemplate: DistributionTemplate = {
+        id: `local-${Date.now()}`,
+        userId: TEST_USER_ID,
+        name,
+        note,
+        lastUsed: new Date().toISOString(),
+        distributions
+      };
+
+      set((state) => ({
+        distributionTemplates: [...state.distributionTemplates, localTemplate]
+      }));
+
+      console.log('✅ Template saved locally as fallback:', localTemplate);
+    }
   },
 
   /**
    * ACTION: Delete distribution template
    */
-  deleteTemplate: (templateId: string) => {
-    set((state) => ({
-      distributionTemplates: state.distributionTemplates.filter(t => t.id !== templateId)
-    }));
+  deleteTemplate: async (templateId: string) => {
+    try {
+      await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, templateId);
+
+      set((state) => ({
+        distributionTemplates: state.distributionTemplates.filter(t => t.id !== templateId)
+      }));
+
+      console.log('✅ Template deleted from Firebase:', templateId);
+    } catch (error) {
+      console.error('❌ Failed to delete template from Firebase:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * ACTION: Update app settings
+   */
+  updateAppSettings: async (settings: Partial<AppSettings>) => {
+    const state = get();
+
+    if (!state.appSettings) {
+      // If no settings exist, create them first
+      try {
+        await state.initializeAppSettings();
+        // Now that settings exist, update them with the new values
+        const newState = get();
+        if (newState.appSettings) {
+          // Merge the new settings with the initialized defaults
+          const updatedSettings = { ...newState.appSettings, ...settings };
+          set({ appSettings: updatedSettings });
+          await AppSettingsService.updateAppSettings(TEST_USER_ID, newState.appSettings.id, settings);
+          console.log('✅ App settings updated successfully');
+        }
+      } catch (error) {
+        console.error('❌ Failed to initialize/update settings:', error);
+      }
+      return;
+    }
+
+    try {
+      set((state) => ({
+        appSettings: { ...state.appSettings!, ...settings }
+      }));
+
+      await AppSettingsService.updateAppSettings(TEST_USER_ID, state.appSettings!.id, settings);
+      console.log('✅ App settings updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update app settings:', error);
+      // Revert on failure
+      set((state) => ({
+        appSettings: state.appSettings // Keep original
+      }));
+      throw error;
+    }
+  },
+
+  /**
+   * ACTION: Initialize app settings for new user
+   */
+  initializeAppSettings: async () => {
+    try {
+      const defaultSettings: Omit<AppSettings, 'id'> = {
+        userId: TEST_USER_ID,
+        theme: 'system'
+      };
+
+      const createdSettings = await AppSettingsService.createAppSettings(defaultSettings);
+
+      set({ appSettings: createdSettings });
+
+      console.log('✅ App settings initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize app settings:', error);
+      // Set default settings locally if Firebase fails
+      set({
+        appSettings: {
+          id: 'local-settings',
+          userId: TEST_USER_ID,
+          theme: 'system'
+        }
+      });
+    }
   },
 
   /**
