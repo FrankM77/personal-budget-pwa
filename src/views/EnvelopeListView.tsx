@@ -44,31 +44,37 @@ export const EnvelopeListView: React.FC = () => {
         <div className="flex justify-between items-center">
           {/* Sync Status */}
           <div className="flex items-center gap-2">
-            {isLoading ? (
-              <div className="flex items-center gap-1 text-blue-500">
-                <RefreshCw size={16} className="animate-spin" />
-                <span className="text-sm font-medium">Loading...</span>
-              </div>
-            ) : isOnline ? (
-              pendingSync ? (
+            {isOnline ? (
+              isLoading ? (
+                <div className="flex items-center gap-1 text-blue-500">
+                  <span className="text-lg animate-spin">🔄</span>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span className="text-sm font-medium">Syncing...</span>
+                </div>
+              ) : pendingSync ? (
                 <button
                   onClick={syncData}
                   className="flex items-center gap-1 text-orange-500 hover:text-orange-600 transition-colors"
                   title="Sync pending - tap to sync"
                 >
+                  <span className="text-lg">⚠️</span>
                   <RefreshCw size={16} />
                   <span className="text-sm font-medium">Sync</span>
                 </button>
               ) : (
                 <div className="flex items-center gap-1 text-green-500">
+                  <span className="text-lg">✅</span>
                   <Wifi size={16} />
-                  <span className="text-sm font-medium">Online</span>
+                  <span className="text-sm font-medium">Synced</span>
                 </div>
               )
             ) : (
               <div className="flex items-center gap-1 text-gray-500">
+                <span className="text-lg">⚠️</span>
                 <WifiOff size={16} />
-                <span className="text-sm font-medium">Offline</span>
+                <span className="text-sm font-medium">
+                  {isLoading ? 'Offline (Saving...)' : 'Offline'}
+                </span>
               </div>
             )}
           </div>
