@@ -93,12 +93,44 @@ const checkOnlineStatus = async (): Promise<boolean> => {
 
 // Helper: Check if error is network-related
 const isNetworkError = (error: any): boolean => {
-  return error?.code === 'unavailable' ||
-         error?.code === 'cancelled' ||
-         error?.message?.includes('network') ||
-         error?.message?.includes('offline') ||
-         error?.message?.includes('Failed to fetch') ||
-         !navigator.onLine;
+  // More comprehensive network error detection
+  const errorCode = error?.code?.toLowerCase() || '';
+  const errorMessage = error?.message?.toLowerCase() || '';
+  const errorName = error?.name?.toLowerCase() || '';
+
+  // Firebase specific error codes
+  if (errorCode === 'unavailable' || errorCode === 'cancelled') {
+    return true;
+  }
+
+  // Network-related message patterns
+  if (errorMessage.includes('network') ||
+      errorMessage.includes('offline') ||
+      errorMessage.includes('disconnected') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('timeout')) {
+    return true;
+  }
+
+  // Browser network errors
+  if (errorMessage.includes('err_internet_disconnected') ||
+      errorMessage.includes('err_network_changed') ||
+      errorMessage.includes('err_connection_refused')) {
+    return true;
+  }
+
+  // Check navigator state as fallback
+  if (!navigator.onLine) {
+    return true;
+  }
+
+  // Firebase WebChannel errors often have undefined name/message but are network related
+  if (errorName === 'undefined' && errorMessage === 'undefined') {
+    return true;
+  }
+
+  return false;
 };
 
 export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
@@ -149,14 +181,38 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
           }));
         };
 
+        // Convert Firebase envelopes to store format
+        const convertEnvelope = (firebaseEnv: any): Envelope => ({
+          id: firebaseEnv.id,
+          name: firebaseEnv.name,
+          budget: firebaseEnv.currentBalance || 0,
+          category: undefined, // Firebase envelopes don't have category
+          currentBalance: firebaseEnv.currentBalance,
+          lastUpdated: firebaseEnv.lastUpdated,
+          isActive: firebaseEnv.isActive ?? true,
+          orderIndex: firebaseEnv.orderIndex ?? 0
+        });
+
+        const storeEnvelopes = fetchedEnvelopes.map(convertEnvelope);
+
         // Merge: prefer Firebase data, but keep local items that aren't in Firebase yet
-        const mergedEnvelopes = (fetchedEnvelopes as unknown as Envelope[]).concat(
-          state.envelopes.filter(env => !fetchedEnvelopes.some(fetched => fetched.id === env.id))
+        const mergedEnvelopeIds = new Set([...state.envelopes.map(e => e.id), ...fetchedEnvelopes.map(e => e.id)]);
+        const localOnlyEnvelopes = state.envelopes.filter(env => env.id && !fetchedEnvelopes.some(fetched => fetched.id === env.id) && !env.id.startsWith('temp-'));
+        const localOnlyTransactions = state.transactions.filter(tx =>
+          tx.id && !fetchedTransactions.some(fetched => fetched.id === tx.id) &&
+          (!tx.id.startsWith('temp-') || mergedEnvelopeIds.has(tx.envelopeId)) // Keep temp transactions if they belong to a known envelope
         );
 
-        const mergedTransactions = convertTimestamps(fetchedTransactions as any[]).concat(
-          state.transactions.filter(tx => !fetchedTransactions.some(fetched => fetched.id === tx.id))
-        );
+        console.log(`🔄 fetchData merge details:`);
+        console.log(`  Store envelopes:`, state.envelopes.map(e => ({ id: e.id, name: e.name })));
+        console.log(`  Firebase envelopes:`, fetchedEnvelopes.map(e => ({ id: e.id, name: e.name })));
+        console.log(`  Store transactions:`, state.transactions.map(t => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
+        console.log(`  Firebase transactions:`, fetchedTransactions.map(t => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
+        console.log(`  Local-only envelopes:`, localOnlyEnvelopes.map(e => ({ id: e.id, name: e.name })));
+        console.log(`  Local-only transactions:`, localOnlyTransactions.map(t => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
+
+        const mergedEnvelopes = storeEnvelopes.concat(localOnlyEnvelopes);
+        const mergedTransactions = convertTimestamps(fetchedTransactions as any[]).concat(localOnlyTransactions);
 
         // Migrate old appSettings format if needed
         let migratedSettings: AppSettings | null = fetchedSettings;
@@ -217,48 +273,59 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       isLoading: true
     }));
 
-    try {
-      // Try to sync with Firebase (works offline thanks to persistence)
-      const transactionForService = {
-        ...transactionWithId,
-        date: Timestamp.fromDate(new Date(transactionWithId.date))
-      };
-      const savedTx = await TransactionService.addTransaction(transactionForService as any);
+    // Only try to sync if the envelopeId is not a temp ID
+    // (Transactions created with temp envelopeIds will sync after envelope syncs)
+    if (!newTx.envelopeId.startsWith('temp-')) {
+      try {
+        // Try to sync with Firebase (works offline thanks to persistence)
+        const transactionForService = {
+          ...transactionWithId,
+          date: Timestamp.fromDate(new Date(transactionWithId.date))
+        };
+        const savedTx = await TransactionService.addTransaction(transactionForService as any);
 
-      // Replace temp transaction with real one from Firebase
-      console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
+        // Replace temp transaction with real one from Firebase
+        console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
 
-      // Convert Timestamp back to string for store compatibility
-      const convertedTx = {
-        ...savedTx,
-        date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
-          savedTx.date.toDate().toISOString() : savedTx.date
-      };
+        // Convert Timestamp back to string for store compatibility
+        const convertedTx = {
+          ...savedTx,
+          date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
+            savedTx.date.toDate().toISOString() : savedTx.date
+        };
 
-      set((state) => ({
-        transactions: state.transactions.map(tx =>
-          tx.id === tempId ? (convertedTx as Transaction) : tx
-        ),
-        isLoading: false,
-        pendingSync: false
-      }));
-    } catch (err: any) {
-      console.error("Add Transaction Failed:", err);
-      if (isNetworkError(err)) {
-        // Offline: Keep the temp transaction, mark for later sync
-        set({
-          isLoading: false,
-          pendingSync: true,
-          error: null // Don't show error for offline scenarios
-        });
-      } else {
-        // Real error: Remove temp transaction
         set((state) => ({
-          transactions: state.transactions.filter(tx => tx.id !== tempId),
-          error: err.message,
-          isLoading: false
+          transactions: state.transactions.map(tx =>
+            tx.id === tempId ? (convertedTx as Transaction) : tx
+          ),
+          isLoading: false,
+          pendingSync: false
         }));
+      } catch (err: any) {
+        console.error("Add Transaction Failed:", err);
+        if (isNetworkError(err)) {
+          // Offline: Keep the temp transaction, mark for later sync
+          set({
+            isLoading: false,
+            pendingSync: true,
+            error: null // Don't show error for offline scenarios
+          });
+        } else {
+          // Real error: Remove temp transaction
+          set((state) => ({
+            transactions: state.transactions.filter(tx => tx.id !== tempId),
+            error: err.message,
+            isLoading: false
+          }));
+        }
       }
+    } else {
+      // Transaction has temp envelopeId, don't try to sync yet
+      console.log(`⏳ Skipping Firebase sync for transaction with temp envelopeId: ${newTx.envelopeId}`);
+      set({
+        isLoading: false,
+        pendingSync: true // Mark for later sync when envelope gets real ID
+      });
     }
   },
 
@@ -284,52 +351,138 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       isLoading: true
     }));
 
+    // ALWAYS create the initial deposit transaction locally first (for immediate UI feedback)
+    if (hasInitialDeposit) {
+      console.log(`💰 Creating initial deposit transaction locally first: ${envelopeWithId.name} (tempId: ${tempId})`);
+      try {
+        await get().addTransaction({
+          description: 'Initial Deposit',
+          amount: newEnv.budget!.toString(),
+          envelopeId: tempId, // Use temp ID initially
+          date: new Date().toISOString(),
+          type: 'income'
+        });
+        console.log(`✅ Initial deposit transaction created locally`);
+
+        // Test balance calculation immediately
+        const testBalance = get().getEnvelopeBalance(tempId);
+        console.log(`💵 Test balance for temp envelope ${tempId}: $${testBalance.toNumber()}`);
+
+      } catch (error) {
+        console.error(`❌ Failed to create initial deposit transaction locally:`, error);
+      }
+    }
+
+    // Now try to sync with Firebase
     try {
-      // Try to sync with Firebase (works offline thanks to persistence)
+      console.log("📡 Attempting Firebase envelope creation...");
       const envelopeForService = {
         ...envelopeData,
         userId: TEST_USER_ID
-      } as any; // Type assertion to include userId
+      } as any;
       const savedEnv = await EnvelopeService.createEnvelope(envelopeForService);
+      console.log("✅ Firebase envelope creation successful:", savedEnv);
 
       // Replace temp envelope with real one from Firebase
+      // Convert Firebase envelope to store format
+      const storeEnvelope: Envelope = {
+        id: savedEnv.id,
+        name: savedEnv.name,
+        budget: savedEnv.currentBalance || 0, // Use currentBalance as budget
+        category: undefined, // Firebase envelopes don't have category
+        currentBalance: savedEnv.currentBalance,
+        lastUpdated: savedEnv.lastUpdated,
+        isActive: savedEnv.isActive ?? true,
+        orderIndex: savedEnv.orderIndex ?? 0
+      };
+
       set((state) => ({
         envelopes: state.envelopes.map(env =>
-          env.id === tempId ? (savedEnv as unknown as Envelope) : env
+          env.id === tempId ? storeEnvelope : env
         ),
         isLoading: false,
         pendingSync: false
       }));
 
-      // If there's an initial deposit, create an income transaction
+      // Update any transactions that reference the temp envelope ID and sync them
       if (hasInitialDeposit) {
-        console.log(`💰 Creating initial deposit transaction for envelope: ${savedEnv.name} (ID: ${savedEnv.id})`);
-        try {
-          await get().addTransaction({
-            description: 'Initial Deposit',
-            amount: newEnv.budget!.toString(),
-            envelopeId: savedEnv.id,
-            date: new Date().toISOString(),
-            type: 'income'
-          });
-          console.log(`✅ Initial deposit transaction created`);
-        } catch (error) {
-          console.error(`❌ Failed to create initial deposit transaction:`, error);
+        console.log(`🔄 Updating transactions from temp envelope ID ${tempId} to real ID ${savedEnv.id}`);
+        console.log(`📊 Transactions before update:`, get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
+
+        // Update envelopeId for transactions
+        set((state) => ({
+          transactions: state.transactions.map(tx =>
+            tx.envelopeId === tempId ? { ...tx, envelopeId: savedEnv.id } : tx
+          )
+        }));
+
+        console.log(`📊 Transactions after envelopeId update:`, get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
+
+        // Now sync any transactions that were waiting for this envelope
+        const transactionsToSync = get().transactions.filter(tx =>
+          tx.envelopeId === savedEnv.id && tx.id && tx.id.startsWith('temp-')
+        );
+
+        console.log(`📡 Found ${transactionsToSync.length} transactions to sync for envelope ${savedEnv.id}:`, transactionsToSync.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId })));
+
+        for (const tx of transactionsToSync) {
+          try {
+            console.log(`📤 Syncing transaction:`, tx);
+            const transactionForService = {
+              ...tx,
+              date: Timestamp.fromDate(new Date(tx.date))
+            };
+            const savedTx = await TransactionService.addTransaction(transactionForService as any);
+
+            console.log(`✅ Transaction synced:`, savedTx);
+
+            // Replace temp transaction with real one
+            const convertedTx = {
+              ...savedTx,
+              date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
+                savedTx.date.toDate().toISOString() : savedTx.date
+            };
+
+            console.log(`🔄 Replacing temp transaction ${tx.id} with Firebase transaction ${savedTx.id}`);
+            set((state) => ({
+              transactions: state.transactions.map(t =>
+                t.id === tx.id ? (convertedTx as Transaction) : t
+              )
+            }));
+
+          } catch (syncError) {
+            console.error(`❌ Failed to sync transaction ${tx.id}:`, syncError);
+          }
         }
+
+        console.log(`📊 Final transactions after sync:`, get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
+        set({ pendingSync: false });
+        console.log(`✅ All transactions synced for envelope ${savedEnv.id}`);
       }
+
     } catch (err: any) {
       console.error("Create Envelope Failed:", err);
+      console.log("Error details:", {
+        code: err?.code,
+        message: err?.message,
+        name: err?.name,
+        isNetworkError: isNetworkError(err)
+      });
+
+      // For offline/network errors, keep the local envelope and mark for later sync
       if (isNetworkError(err)) {
-        // Offline: Keep the temp envelope, mark for later sync
+        console.log(`🔄 Treating as offline scenario - keeping temp envelope and transactions`);
         set({
           isLoading: false,
           pendingSync: true,
-          error: null // Don't show error for offline scenarios
+          error: null
         });
       } else {
-        // Real error: Remove temp envelope
+        // For real errors, remove the local envelope
+        console.log(`❌ Real error - removing temp envelope`);
         set((state) => ({
           envelopes: state.envelopes.filter(env => env.id !== tempId),
+          transactions: state.transactions.filter(tx => tx.envelopeId !== tempId),
           error: err.message,
           isLoading: false
         }));
@@ -864,7 +1017,9 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   },
 
   /**
-   * COMPUTED: Calculate remaining budget
+   * COMPUTED: Calculate envelope balance (purely transaction-based)
+   * Note: Since we use transactions for all money movements (including initial deposits),
+   * the balance is purely calculated from income minus expenses, ignoring the budget field.
    */
   getEnvelopeBalance: (envelopeId: string) => {
     const state = get();
@@ -883,9 +1038,10 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
     const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
 
-    console.log(`💸 getEnvelopeBalance: Envelope ${envelope.name} - Budget: $${envelope.budget || 0}, Income: $${totalIncome.toNumber()}, Spent: $${totalSpent.toNumber()}, Balance: $${new Decimal(envelope.budget || 0).plus(totalIncome).minus(totalSpent).toNumber()}`);
+    const balance = totalIncome.minus(totalSpent);
+    console.log(`💸 getEnvelopeBalance: Envelope ${envelope.name} - Income: $${totalIncome.toNumber()}, Spent: $${totalSpent.toNumber()}, Balance: $${balance.toNumber()}`);
 
-    return new Decimal(envelope.budget || 0).plus(totalIncome).minus(totalSpent);
+    return balance;
   }
 }));
 

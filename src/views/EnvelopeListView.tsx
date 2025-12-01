@@ -47,7 +47,6 @@ export const EnvelopeListView: React.FC = () => {
             {isOnline ? (
               isLoading ? (
                 <div className="flex items-center gap-1 text-blue-500">
-                  <span className="text-lg animate-spin">🔄</span>
                   <RefreshCw size={16} className="animate-spin" />
                   <span className="text-sm font-medium">Syncing...</span>
                 </div>
@@ -57,20 +56,17 @@ export const EnvelopeListView: React.FC = () => {
                   className="flex items-center gap-1 text-orange-500 hover:text-orange-600 transition-colors"
                   title="Sync pending - tap to sync"
                 >
-                  <span className="text-lg">⚠️</span>
                   <RefreshCw size={16} />
                   <span className="text-sm font-medium">Sync</span>
                 </button>
               ) : (
                 <div className="flex items-center gap-1 text-green-500">
-                  <span className="text-lg">✅</span>
                   <Wifi size={16} />
                   <span className="text-sm font-medium">Synced</span>
                 </div>
               )
             ) : (
               <div className="flex items-center gap-1 text-gray-500">
-                <span className="text-lg">⚠️</span>
                 <WifiOff size={16} />
                 <span className="text-sm font-medium">
                   {isLoading ? 'Offline (Saving...)' : 'Offline'}
