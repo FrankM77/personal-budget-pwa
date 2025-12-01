@@ -722,6 +722,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    * ACTION: Update transaction - Offline-First
    */
   updateTransaction: async (updatedTx: Transaction) => {
+    console.log('🔄 updateTransaction called:', updatedTx);
+
     // Update local state immediately
     set((state) => ({
       transactions: state.transactions.map(tx =>
@@ -731,12 +733,42 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     }));
 
     try {
-      // Note: Firebase update would require additional service methods
-      // For now, we keep it local-only
+      // Try Firebase update first with timeout for offline detection
+      const firebasePromise = TransactionService.updateTransaction(TEST_USER_ID, updatedTx.id!, {
+        description: updatedTx.description,
+        amount: updatedTx.amount,
+        envelopeId: updatedTx.envelopeId,
+        date: Timestamp.fromDate(new Date(updatedTx.date)),
+        type: updatedTx.type
+      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 5000)
+      );
+
+      await Promise.race([firebasePromise, timeoutPromise]);
+      console.log('✅ Transaction updated in Firebase');
+
       set({ isLoading: false });
     } catch (err: any) {
       console.error("Update Transaction Failed:", err);
-      set({ error: err.message, isLoading: false });
+      console.log('🔍 Error details:', {
+        name: (err as any)?.name || 'Unknown',
+        message: (err as any)?.message || 'Unknown',
+        code: (err as any)?.code || 'Unknown',
+        isNetworkError: isNetworkError(err)
+      });
+
+      // For offline/network errors, keep the local changes and mark for later sync
+      if (isNetworkError(err)) {
+        console.log(`🔄 Treating as offline scenario - keeping local transaction update`);
+        set({
+          isLoading: false,
+          pendingSync: true,
+          error: null
+        });
+      } else {
+        set({ error: err.message, isLoading: false });
+      }
     }
   },
 
