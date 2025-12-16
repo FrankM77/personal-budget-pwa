@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useToastStore } from '../stores/toastStore';
-import type { Transaction } from '../stores/envelopeStore';
+import type { Transaction } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
 import TransferModal from '../components/modals/TransferModal';
@@ -141,7 +141,7 @@ const EnvelopeDetail: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center text-sm text-gray-500 dark:text-zinc-400">
                     <span>Budget</span>
-                    <span>{formatCurrency(currentEnvelope.budget || 0)}</span>
+                    <span>{formatCurrency(currentEnvelope.currentBalance || 0)}</span>
                 </div>
             </section>
 

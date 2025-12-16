@@ -26,8 +26,9 @@ export const AddEnvelopeView: React.FC = () => {
 
     createEnvelope({
       name,
-      budget: finalBalance,
-      category: 'General',
+      currentBalance: finalBalance,
+      lastUpdated: new Date().toISOString(),
+      isActive: true,
       orderIndex: nextOrderIndex
     });
     navigate('/');

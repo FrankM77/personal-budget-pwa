@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
-import type { Transaction } from '../stores/envelopeStore';
+import type { Transaction } from '../models/types';
 
 interface Props {
   transaction: Transaction;

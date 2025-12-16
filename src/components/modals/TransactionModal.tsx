@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash } from 'lucide-react';
 import { useEnvelopeStore } from '../../stores/envelopeStore';
-import type { Transaction, Envelope } from '../../stores/envelopeStore';
+import type { Transaction, Envelope } from '../../models/types';
 
 interface Props {
   isVisible: boolean;
@@ -24,7 +24,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
     const timeoutId = window.setTimeout(() => {
       if (mode === 'edit' && initialTransaction) {
-        setAmount(initialTransaction.amount); // Already a string
+        setAmount(initialTransaction.amount.toString()); // Convert number to string
         setNote(initialTransaction.description);
         try {
           const d = new Date(initialTransaction.date);
@@ -63,7 +63,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
     } else if (mode === 'edit' && initialTransaction) {
       updateTransaction({
         ...initialTransaction,
-        amount: amount, // Keep as string for store
+        amount: numAmount, // Use the parsed number amount
         description: note,
         date: new Date(date).toISOString(),
         // If editing, we might need to re-evaluate type if the user changes logic,

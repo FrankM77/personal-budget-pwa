@@ -5,7 +5,7 @@ import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
-import type { DistributionTemplate, AppSettings } from '../models/types';
+import type { DistributionTemplate, AppSettings, Transaction, Envelope } from '../models/types';
 
 // Fallback data loading when Firebase is unavailable
 const loadFallbackData = async (): Promise<any> => {
@@ -27,30 +27,6 @@ const loadFallbackData = async (): Promise<any> => {
   }
   return null;
 };
-
-// --- Types ---
-export interface Transaction {
-  id?: string;
-  description: string;
-  amount: string; // Match schema type (stored as string)
-  envelopeId: string;
-  date: string; // Keep as string for store, convert to Timestamp for services
-  type: 'income' | 'expense';
-  userId?: string;
-  transferId?: string;
-  reconciled?: boolean;
-}
-
-export interface Envelope {
-  id?: string;
-  name: string;
-  budget?: number;
-  category?: string;
-  currentBalance?: number;
-  lastUpdated?: string;
-  isActive?: boolean;
-  orderIndex?: number;
-}
 
 interface EnvelopeStore {
   envelopes: Envelope[];
@@ -247,7 +223,9 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
           return transactions.map(tx => ({
             ...tx,
             date: tx.date && typeof tx.date === 'object' && tx.date.toDate ?
-              tx.date.toDate().toISOString() : tx.date // Convert Timestamp to ISO string
+              tx.date.toDate().toISOString() : tx.date, // Convert Timestamp to ISO string
+            type: tx.type === 'income' ? 'Income' : tx.type === 'expense' ? 'Expense' : tx.type === 'transfer' ? 'Transfer' : tx.type, // Convert to TitleCase
+            amount: typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount // Ensure amount is number
           }));
         };
 
@@ -255,19 +233,17 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         const convertEnvelope = (firebaseEnv: any): Envelope => ({
           id: firebaseEnv.id,
           name: firebaseEnv.name,
-          budget: firebaseEnv.currentBalance || 0,
-          category: undefined, // Firebase envelopes don't have category
-          currentBalance: firebaseEnv.currentBalance,
+          currentBalance: firebaseEnv.currentBalance || 0,
           lastUpdated: firebaseEnv.lastUpdated,
           isActive: firebaseEnv.isActive ?? true,
           orderIndex: firebaseEnv.orderIndex ?? 0
         });
 
         // MIGRATION: Update envelopes that don't have orderIndex
-        const envelopesToUpdate = fetchedEnvelopes.filter(env => !('orderIndex' in env));
+        const envelopesToUpdate = fetchedEnvelopes.filter((env: any) => !('orderIndex' in env));
         if (envelopesToUpdate.length > 0) {
           console.log(`🔄 Migrating ${envelopesToUpdate.length} envelopes to add orderIndex...`);
-          envelopesToUpdate.forEach((env, index) => {
+          envelopesToUpdate.forEach((env: any, index: number) => {
             // Assign sequential orderIndex starting from 0
             // This ensures consistent ordering across store and Firebase
             const orderIndex = index;
@@ -297,30 +273,30 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         } else {
           // Offline: Merge Firebase + local templates
           localOnlyTemplates = state.distributionTemplates.filter(template =>
-            template.id && !fetchedTemplates.some(fetched => fetched.id === template.id)
+            template.id && !fetchedTemplates.some((fetched: any) => fetched.id === template.id)
           );
           mergedTemplates = (fetchedTemplates as DistributionTemplate[]).concat(localOnlyTemplates);
           console.log(`📴 Offline mode: Merged ${fetchedTemplates.length} Firebase + ${localOnlyTemplates.length} local templates`);
         }
 
         console.log(`🔄 fetchData merge details:`);
-        console.log(`  Store envelopes:`, state.envelopes.map(e => ({ id: e.id, name: e.name })));
-        console.log(`  Firebase envelopes:`, fetchedEnvelopes.map(e => ({ id: e.id, name: e.name })));
-        console.log(`  Store transactions:`, state.transactions.map(t => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
-        console.log(`  Firebase transactions:`, fetchedTransactions.map(t => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
-        console.log(`  Store templates:`, state.distributionTemplates.map(t => ({ id: t.id, name: t.name })));
-        console.log(`  Firebase templates:`, fetchedTemplates.map(t => ({ id: t.id, name: t.name })));
-        console.log(`  Local-only envelopes:`, localOnlyEnvelopes.map(e => ({ id: e.id, name: e.name })));
-        console.log(`  Local-only transactions:`, localOnlyTransactions.map(t => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
-        console.log(`  Local-only templates:`, localOnlyTemplates.map(t => ({ id: t.id, name: t.name })));
+        console.log(`  Store envelopes:`, state.envelopes.map((e: Envelope) => ({ id: e.id, name: e.name })));
+        console.log(`  Firebase envelopes:`, (fetchedEnvelopes as Envelope[]).map((e: Envelope) => ({ id: e.id, name: e.name })));
+        console.log(`  Store transactions:`, state.transactions.map((t: Transaction) => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
+        console.log(`  Firebase transactions:`, (fetchedTransactions as Transaction[]).map((t: Transaction) => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
+        console.log(`  Store templates:`, state.distributionTemplates.map((t: DistributionTemplate) => ({ id: t.id, name: t.name })));
+        console.log(`  Firebase templates:`, (fetchedTemplates as DistributionTemplate[]).map((t: DistributionTemplate) => ({ id: t.id, name: t.name })));
+        console.log(`  Local-only envelopes:`, localOnlyEnvelopes.map((e: Envelope) => ({ id: e.id, name: e.name })));
+        console.log(`  Local-only transactions:`, localOnlyTransactions.map((t: Transaction) => ({ id: t.id, envelopeId: t.envelopeId, description: t.description })));
+        console.log(`  Local-only templates:`, localOnlyTemplates.map((t: DistributionTemplate) => ({ id: t.id, name: t.name })));
 
-        console.log(`  Total merged templates:`, mergedTemplates.length, mergedTemplates.map(t => ({ id: t.id, name: t.name })));
+        console.log(`  Total merged templates:`, mergedTemplates.length, mergedTemplates.map((t: DistributionTemplate) => ({ id: t.id, name: t.name })));
 
         const mergedEnvelopes = storeEnvelopes.concat(localOnlyEnvelopes);
         const mergedTransactions = convertTimestamps(fetchedTransactions as any[]).concat(localOnlyTransactions);
 
-        console.log(`  Local-only envelopes:`, localOnlyEnvelopes.map(e => ({ id: e.id, name: e.name })));
-        console.log(`  Merged envelopes will be:`, mergedEnvelopes.length, mergedEnvelopes.map(e => ({ id: e.id, name: e.name })));
+        console.log(`  Local-only envelopes:`, localOnlyEnvelopes.map((e: Envelope) => ({ id: e.id, name: e.name })));
+        console.log(`  Merged envelopes will be:`, mergedEnvelopes.length, mergedEnvelopes.map((e: Envelope) => ({ id: e.id, name: e.name })));
 
         // Migrate old appSettings format if needed
         let migratedSettings: AppSettings | null = fetchedSettings;
@@ -370,9 +346,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     const tempId = `temp-${Date.now()}-${Math.random()}`;
     const transactionWithId = {
       ...newTx,
-      amount: newTx.amount.toString(), // Convert to string for Firebase
       id: tempId,
-      userId: TEST_USER_ID
+      userId: TEST_USER_ID as string
     };
 
     // Update local state immediately for responsive UI
@@ -388,6 +363,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         // Try to sync with Firebase (works offline thanks to persistence)
         const transactionForService = {
           ...transactionWithId,
+          amount: transactionWithId.amount.toString(), // Convert to string for Firebase
+          type: transactionWithId.type.toLowerCase() as 'income' | 'expense' | 'transfer', // Convert to lowercase for Firebase
           date: Timestamp.fromDate(new Date(transactionWithId.date))
         };
         const savedTx = await TransactionService.addTransaction(transactionForService as any);
@@ -396,11 +373,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
 
         // Convert Timestamp back to string for store compatibility
-        const convertedTx = {
-          ...savedTx,
-          date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
-            savedTx.date.toDate().toISOString() : savedTx.date
-        };
+        const convertedTx = convertFirebaseTransaction(savedTx);
 
         set((state) => ({
           transactions: state.transactions.map(tx =>
@@ -442,11 +415,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    * Updates local state immediately, syncs with Firebase when possible
    */
   createEnvelope: async (newEnv) => {
-    // For initial deposits, use transaction system instead of budget field
+    // For initial deposits, use transaction system instead of initialBalance field
     // This ensures all money movements are properly tracked as transactions
-    const hasInitialDeposit = newEnv.budget && newEnv.budget > 0;
+    const hasInitialDeposit = newEnv.currentBalance && newEnv.currentBalance > 0;
     const envelopeData = hasInitialDeposit
-      ? { ...newEnv, budget: 0, orderIndex: newEnv.orderIndex ?? 0 } // Set budget to 0, use transactions for balance
+      ? { ...newEnv, currentBalance: 0, orderIndex: newEnv.orderIndex ?? 0 } // Set currentBalance to 0, use transactions for balance
       : { ...newEnv, orderIndex: newEnv.orderIndex ?? 0 };
 
     // Generate temporary ID for immediate UI update
@@ -465,10 +438,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       try {
         await get().addTransaction({
           description: 'Initial Deposit',
-          amount: newEnv.budget!.toString(),
+          amount: newEnv.currentBalance!,
           envelopeId: tempId, // Use temp ID initially
           date: new Date().toISOString(),
-          type: 'income'
+          type: 'Income',
+          reconciled: false
         });
         console.log(`✅ Initial deposit transaction created locally`);
 
@@ -484,11 +458,12 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     // Now try to sync with Firebase
     try {
       console.log("📡 Attempting Firebase envelope creation...");
-      const envelopeForService = {
+      const envelopeForService: Envelope & { userId: string } = {
         ...envelopeData,
-        userId: TEST_USER_ID
-      } as any;
-      const savedEnv = await EnvelopeService.createEnvelope(envelopeForService);
+        id: '', // Temporary ID, will be replaced by Firebase
+        userId: TEST_USER_ID as string
+      };
+      const savedEnv: Envelope = await EnvelopeService.createEnvelope(envelopeForService);
       console.log("✅ Firebase envelope creation successful:", savedEnv);
 
       // Replace temp envelope with real one from Firebase
@@ -496,12 +471,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       const storeEnvelope: Envelope = {
         id: savedEnv.id,
         name: savedEnv.name,
-        budget: savedEnv.currentBalance || 0, // Use currentBalance as budget
-        category: undefined, // Firebase envelopes don't have category
         currentBalance: savedEnv.currentBalance,
         lastUpdated: savedEnv.lastUpdated,
         isActive: savedEnv.isActive ?? true,
-        orderIndex: savedEnv.orderIndex ?? 0
+        orderIndex: savedEnv.orderIndex ?? 0,
+        userId: savedEnv.userId
       };
 
       set((state) => ({
@@ -519,12 +493,12 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
         // Update envelopeId for transactions
         set((state) => ({
-          transactions: state.transactions.map(tx =>
+          transactions: state.transactions.map((tx: Transaction) =>
             tx.envelopeId === tempId ? { ...tx, envelopeId: savedEnv.id } : tx
           )
         }));
 
-        console.log(`📊 Transactions after envelopeId update:`, get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
+        console.log(`📊 Transactions after envelopeId update:`, get().transactions.map((tx: Transaction) => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
 
         // Now sync any transactions that were waiting for this envelope
         const transactionsToSync = get().transactions.filter(tx =>
@@ -538,6 +512,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
             console.log(`📤 Syncing transaction:`, tx);
             const transactionForService = {
               ...tx,
+              amount: tx.amount.toString(), // Convert to string for Firebase
+              type: tx.type.toLowerCase() as 'income' | 'expense' | 'transfer', // Convert to lowercase for Firebase
               date: Timestamp.fromDate(new Date(tx.date))
             };
             const savedTx = await TransactionService.addTransaction(transactionForService as any);
@@ -547,6 +523,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
             // Replace temp transaction with real one
             const convertedTx = {
               ...savedTx,
+              amount: typeof savedTx.amount === 'string' ? parseFloat(savedTx.amount) : savedTx.amount,
+              type: savedTx.type === 'income' ? 'Income' : savedTx.type === 'expense' ? 'Expense' : savedTx.type === 'transfer' ? 'Transfer' : savedTx.type,
               date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
                 savedTx.date.toDate().toISOString() : savedTx.date
             };
@@ -648,10 +626,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
     await get().addTransaction({
       description: note,
-      amount: amount.toString(),
+      amount: amount,
       envelopeId,
       date: transactionDate,
-      type: 'income'
+      type: 'Income',
+      reconciled: false
     });
   },
 
@@ -665,10 +644,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
     await get().addTransaction({
       description: note,
-      amount: amount.toString(),
+      amount: amount,
       envelopeId,
       date: transactionDate,
-      type: 'expense'
+      type: 'Expense',
+      reconciled: false
     });
   },
 
@@ -686,21 +666,23 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     // Create expense transaction from source envelope
     await get().addTransaction({
       description: `Transfer to ${get().envelopes.find(e => e.id === toEnvelopeId)?.name || 'envelope'}`,
-      amount: amount.toString(),
+      amount: amount,
       envelopeId: fromEnvelopeId,
       date: transactionDate,
-      type: 'expense',
-      transferId
+      type: 'Expense',
+      transferId,
+      reconciled: false
     });
 
     // Create income transaction to destination envelope
     await get().addTransaction({
       description: `Transfer from ${get().envelopes.find(e => e.id === fromEnvelopeId)?.name || 'envelope'}`,
-      amount: amount.toString(),
+      amount: amount,
       envelopeId: toEnvelopeId,
       date: transactionDate,
-      type: 'income',
-      transferId
+      type: 'Income',
+      transferId,
+      reconciled: false
     });
   },
 
@@ -841,10 +823,10 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       // Try Firebase update first with timeout for offline detection
       const firebasePromise = TransactionService.updateTransaction(TEST_USER_ID, updatedTx.id!, {
         description: updatedTx.description,
-        amount: updatedTx.amount,
+        amount: updatedTx.amount.toString(),
         envelopeId: updatedTx.envelopeId,
         date: Timestamp.fromDate(new Date(updatedTx.date)),
-        type: updatedTx.type
+        type: updatedTx.type.toLowerCase() as any
       });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 5000)
@@ -1407,7 +1389,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 }));
 
 // Helper functions for real-time sync data conversion
-const convertFirebaseTransaction = (firebaseTx: any) => ({
+const convertFirebaseTransaction = (firebaseTx: any): Transaction => ({
   id: firebaseTx.id,
   date: firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : firebaseTx.date,
   amount: parseFloat(firebaseTx.amount) || 0,
@@ -1419,7 +1401,7 @@ const convertFirebaseTransaction = (firebaseTx: any) => ({
   userId: firebaseTx.userId || undefined
 });
 
-const convertFirebaseEnvelope = (firebaseEnv: any) => ({
+const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   id: firebaseEnv.id,
   name: firebaseEnv.name || '',
   currentBalance: firebaseEnv.currentBalance || 0,
@@ -1429,7 +1411,7 @@ const convertFirebaseEnvelope = (firebaseEnv: any) => ({
   userId: firebaseEnv.userId || undefined
 });
 
-const convertFirebaseTemplate = (firebaseTemplate: any) => ({
+const convertFirebaseTemplate = (firebaseTemplate: any): DistributionTemplate => ({
   id: firebaseTemplate.id,
   name: firebaseTemplate.name || '',
   distributions: firebaseTemplate.distributions || {},

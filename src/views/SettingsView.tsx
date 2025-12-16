@@ -131,7 +131,7 @@ export const SettingsView: React.FC = () => {
         return [
           dateStr,
           `"${safeDesc}"`,
-          parseFloat(t.amount).toFixed(2),
+          (t.amount as number).toFixed(2),
           t.type,
           `"${envName}"`,
           t.reconciled ? 'Yes' : 'No',
