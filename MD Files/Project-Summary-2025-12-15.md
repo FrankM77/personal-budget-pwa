@@ -96,6 +96,7 @@
 - **Reset Data Offline-First Pattern**: Implemented robust offline-first `resetData` functionality, ensuring complete data deletion from local state and Firebase, even when offline. This includes a `resetPending` flag and `performFirebaseReset` function.
 - **Distribution Template Type Mismatches**: Resolved conflicting `DistributionTemplate` definitions and implemented conversion layers to ensure correct data storage and retrieval from Firebase (e.g., `number` to `string` for amounts, `string` to `Timestamp` for dates).
 - **Transaction Type Inconsistencies**: Standardized `TransactionType` (`'Income'`, `'Expense'`, `'Transfer'`) across models and implemented conversion logic to handle lowercase Firebase types.
+- **Transaction Type Storage Consistency**: Fixed critical bug where initial deposit transactions (created with envelopes) were stored in Firebase as TitleCase (`"Income"`) while regular transactions were stored as lowercase (`"income"`). Updated envelope sync code to consistently convert all transaction types to lowercase before Firebase storage, ensuring uniform data format and proper balance calculations/color coding.
 - **Rename Envelope / Restore Transaction Sync**: Ensured `renameEnvelope` and `restoreTransaction` operations correctly sync changes to Firebase, maintaining cross-device consistency.
 
 ### UI & Logic Corrections
