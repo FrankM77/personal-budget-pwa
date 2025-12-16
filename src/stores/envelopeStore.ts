@@ -85,6 +85,11 @@ interface EnvelopeStore {
   syncData: () => Promise<void>;
   updateOnlineStatus: () => Promise<void>;
   getEnvelopeBalance: (envelopeId: string) => Decimal;
+
+  // Template cleanup utilities
+  cleanupOrphanedTemplates: () => Promise<void>;
+  updateTemplateEnvelopeReferences: (oldEnvelopeId: string, newEnvelopeId: string) => Promise<void>;
+  removeEnvelopeFromTemplates: (envelopeId: string) => Promise<void>;
 }
 
 // Temporary Hardcoded ID for Phase 2
@@ -724,6 +729,9 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         }
       }
 
+      // Clean up templates that reference the deleted envelope
+      await get().removeEnvelopeFromTemplates(envelopeId);
+
       set({ isLoading: false });
     } catch (err: any) {
       console.error("Delete Envelope Failed:", err);
@@ -1274,6 +1282,103 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     }
   },
 
+  // Template cleanup utilities
+  cleanupOrphanedTemplates: async () => {
+    console.log('🧹 Cleaning up orphaned templates...');
+    const templates = get().distributionTemplates;
+    const envelopes = get().envelopes;
+    const envelopeIds = new Set(envelopes.map(env => env.id));
+
+    let cleanedCount = 0;
+    for (const template of templates) {
+      const originalDistributions = { ...template.distributions };
+      const cleanedDistributions: Record<string, number> = {};
+
+      // Keep only distributions for existing envelopes
+      for (const [envId, amount] of Object.entries(template.distributions)) {
+        if (envelopeIds.has(envId)) {
+          cleanedDistributions[envId] = amount;
+        }
+      }
+
+      // If template has no valid distributions left, delete it
+      if (Object.keys(cleanedDistributions).length === 0) {
+        console.log(`🗑️ Deleting orphaned template: ${template.name}`);
+        await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, template.id);
+        cleanedCount++;
+      }
+      // If template changed, update it
+      else if (JSON.stringify(cleanedDistributions) !== JSON.stringify(originalDistributions)) {
+        console.log(`🔧 Updating template ${template.name} - removed orphaned envelope references`);
+        await DistributionTemplateService.updateDistributionTemplate(TEST_USER_ID, template.id, {
+          distributions: cleanedDistributions
+        });
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`✅ Cleaned up ${cleanedCount} templates`);
+    } else {
+      console.log('✅ No orphaned templates found');
+    }
+  },
+
+  updateTemplateEnvelopeReferences: async (oldEnvelopeId: string, newEnvelopeId: string) => {
+    console.log(`🔄 Updating template references: ${oldEnvelopeId} → ${newEnvelopeId}`);
+    const templates = get().distributionTemplates;
+    let updatedCount = 0;
+
+    for (const template of templates) {
+      if (template.distributions[oldEnvelopeId] !== undefined) {
+        const updatedDistributions = { ...template.distributions };
+        updatedDistributions[newEnvelopeId] = updatedDistributions[oldEnvelopeId];
+        delete updatedDistributions[oldEnvelopeId];
+
+        console.log(`📝 Updating template: ${template.name}`);
+        await DistributionTemplateService.updateDistributionTemplate(TEST_USER_ID, template.id, {
+          distributions: updatedDistributions
+        });
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      console.log(`✅ Updated ${updatedCount} templates with new envelope reference`);
+    }
+  },
+
+  removeEnvelopeFromTemplates: async (envelopeId: string) => {
+    console.log(`🗑️ Removing envelope ${envelopeId} from all templates`);
+    const templates = get().distributionTemplates;
+    let updatedCount = 0;
+    let deletedCount = 0;
+
+    for (const template of templates) {
+      if (template.distributions[envelopeId] !== undefined) {
+        const updatedDistributions = { ...template.distributions };
+        delete updatedDistributions[envelopeId];
+
+        // If no distributions left, delete the template
+        if (Object.keys(updatedDistributions).length === 0) {
+          console.log(`🗑️ Deleting template ${template.name} - no envelopes left`);
+          await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, template.id);
+          deletedCount++;
+        } else {
+          console.log(`📝 Removing envelope from template: ${template.name}`);
+          await DistributionTemplateService.updateDistributionTemplate(TEST_USER_ID, template.id, {
+            distributions: updatedDistributions
+          });
+          updatedCount++;
+        }
+      }
+    }
+
+    if (updatedCount > 0 || deletedCount > 0) {
+      console.log(`✅ Updated ${updatedCount} templates, deleted ${deletedCount} empty templates`);
+    }
+  },
+
   /**
    * COMPUTED: Calculate envelope balance (purely transaction-based)
    * Note: Since we use transactions for all money movements (including initial deposits),
@@ -1289,8 +1394,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
     const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
 
-    const expenses = envelopeTransactions.filter(t => t.type === 'expense');
-    const incomes = envelopeTransactions.filter(t => t.type === 'income');
+    const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+    const incomes = envelopeTransactions.filter(t => t.type === 'Income');
 
     const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
     const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
@@ -1301,8 +1406,101 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   }
 }));
 
-// Setup online/offline detection after store creation
+// Helper functions for real-time sync data conversion
+const convertFirebaseTransaction = (firebaseTx: any) => ({
+  id: firebaseTx.id,
+  date: firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : firebaseTx.date,
+  amount: parseFloat(firebaseTx.amount) || 0,
+  description: firebaseTx.description || '',
+  envelopeId: firebaseTx.envelopeId || '',
+  reconciled: firebaseTx.reconciled || false,
+  type: firebaseTx.type === 'income' ? 'Income' : firebaseTx.type === 'expense' ? 'Expense' : 'Transfer',
+  transferId: firebaseTx.transferId || undefined,
+  userId: firebaseTx.userId || undefined
+});
+
+const convertFirebaseEnvelope = (firebaseEnv: any) => ({
+  id: firebaseEnv.id,
+  name: firebaseEnv.name || '',
+  currentBalance: firebaseEnv.currentBalance || 0,
+  lastUpdated: firebaseEnv.lastUpdated,
+  isActive: firebaseEnv.isActive ?? true,
+  orderIndex: firebaseEnv.orderIndex ?? 0,
+  userId: firebaseEnv.userId || undefined
+});
+
+const convertFirebaseTemplate = (firebaseTemplate: any) => ({
+  id: firebaseTemplate.id,
+  name: firebaseTemplate.name || '',
+  distributions: firebaseTemplate.distributions || {},
+  lastUsed: firebaseTemplate.lastUsed?.toDate?.() ? firebaseTemplate.lastUsed.toDate().toISOString() : firebaseTemplate.lastUsed || new Date().toISOString(),
+  note: firebaseTemplate.note || '',
+  userId: firebaseTemplate.userId || undefined
+});
+
+// Setup real-time Firebase subscriptions for cross-tab/device sync
+const setupRealtimeSubscriptions = () => {
+  console.log('🔄 Setting up real-time Firebase subscriptions...');
+
+  // Subscribe to envelopes
+  const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(TEST_USER_ID, (firebaseEnvelopes) => {
+    const currentState = useEnvelopeStore.getState();
+    // Only sync if we're online and don't have pending local changes
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+      console.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
+      const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope);
+      useEnvelopeStore.setState({ envelopes });
+    }
+  });
+
+  // Subscribe to transactions
+  const unsubscribeTransactions = TransactionService.subscribeToTransactions(TEST_USER_ID, (firebaseTransactions) => {
+    const currentState = useEnvelopeStore.getState();
+    // Only sync if we're online and don't have pending local changes
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+      console.log('🔄 Real-time sync: Transactions updated', firebaseTransactions.length);
+      const transactions = firebaseTransactions.map(convertFirebaseTransaction);
+      useEnvelopeStore.setState({ transactions });
+    }
+  });
+
+  // Subscribe to distribution templates
+  const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(TEST_USER_ID, (firebaseTemplates) => {
+    const currentState = useEnvelopeStore.getState();
+    // Only sync if we're online and don't have pending local changes
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+      console.log('🔄 Real-time sync: Templates updated', firebaseTemplates.length);
+      const distributionTemplates = firebaseTemplates.map(convertFirebaseTemplate);
+      useEnvelopeStore.setState({ distributionTemplates });
+    }
+  });
+
+  // Subscribe to app settings
+  const unsubscribeSettings = AppSettingsService.subscribeToAppSettings(TEST_USER_ID, (firebaseSettings) => {
+    const currentState = useEnvelopeStore.getState();
+    // Only sync if we're online and don't have pending local changes
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+      console.log('🔄 Real-time sync: Settings updated', firebaseSettings ? 'found' : 'null');
+      useEnvelopeStore.setState({ appSettings: firebaseSettings });
+    }
+  });
+
+  // Store unsubscribe functions for cleanup if needed
+  (window as any).__firebaseUnsubscribers = {
+    envelopes: unsubscribeEnvelopes,
+    transactions: unsubscribeTransactions,
+    templates: unsubscribeTemplates,
+    settings: unsubscribeSettings
+  };
+
+  console.log('✅ Real-time subscriptions active - cross-device sync enabled');
+};
+
+// Setup online/offline detection and real-time sync after store creation
 if (typeof window !== 'undefined') {
+  // Set up real-time subscriptions first
+  setupRealtimeSubscriptions();
+
   // Listen to browser online/offline events
   window.addEventListener('online', async () => {
     // When coming back online, check connectivity

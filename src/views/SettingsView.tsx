@@ -1,16 +1,17 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText } from 'lucide-react';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, RefreshCw, Loader } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings } = useEnvelopeStore();
+  const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings, cleanupOrphanedTemplates } = useEnvelopeStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
   });
+  const [isCleaningTemplates, setIsCleaningTemplates] = useState(false);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 
@@ -203,6 +204,20 @@ export const SettingsView: React.FC = () => {
     event.target.value = '';
   };
 
+  const handleCleanupTemplates = async () => {
+    setIsCleaningTemplates(true);
+    try {
+      showStatus('success', 'Scanning templates for orphaned references...');
+      await cleanupOrphanedTemplates();
+      showStatus('success', 'Orphaned templates have been cleaned up successfully.');
+    } catch (error) {
+      console.error('Template cleanup failed:', error);
+      showStatus('error', 'Failed to clean up orphaned templates. Check console for details.');
+    } finally {
+      setIsCleaningTemplates(false);
+    }
+  };
+
   const handleReset = async () => {
     if (
       window.confirm(
@@ -361,6 +376,32 @@ export const SettingsView: React.FC = () => {
                 <span className="text-gray-900 dark:text-white font-medium">Export Transactions (CSV)</span>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
+            </button>
+
+            <button
+              onClick={handleCleanupTemplates}
+              disabled={isCleaningTemplates}
+              className={`w-full p-4 flex items-center justify-between transition-colors ${
+                isCleaningTemplates
+                  ? 'bg-gray-50 dark:bg-zinc-800/50 cursor-not-allowed'
+                  : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {isCleaningTemplates ? (
+                  <Loader className="text-blue-500 animate-spin" size={20} />
+                ) : (
+                  <RefreshCw className="text-blue-500" size={20} />
+                )}
+                <span className={`font-medium ${isCleaningTemplates ? 'text-gray-500 dark:text-zinc-400' : 'text-gray-900 dark:text-white'}`}>
+                  {isCleaningTemplates ? 'Cleaning Templates...' : 'Clean Up Orphaned Templates'}
+                </span>
+              </div>
+              {isCleaningTemplates ? (
+                <div className="text-gray-400 text-sm">Working...</div>
+              ) : (
+                <ChevronRight className="text-gray-400" size={18} />
+              )}
             </button>
 
             <input

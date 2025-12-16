@@ -123,15 +123,21 @@ const EnvelopeDetail: React.FC = () => {
             <section className="mt-4 bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-lg mb-4 border border-gray-100 dark:border-zinc-800">
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-headline text-gray-900 dark:text-white">Current Balance</span>
-                    <span
-                      className={`text-xl font-bold ${
-                        getEnvelopeBalance(currentEnvelope.id!).toNumber() < 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-green-600 dark:text-green-400'
-                      }`}
-                    >
-                        {formatCurrency(getEnvelopeBalance(currentEnvelope.id!).toNumber())}
-                    </span>
+                    {(() => {
+                      const balance = getEnvelopeBalance(currentEnvelope.id!).toNumber();
+                      console.log(`Debug: Envelope ${currentEnvelope.name} Balance:`, balance);
+                      return (
+                        <span
+                          className={`text-xl font-bold ${
+                            balance < 0
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-green-600 dark:text-green-400'
+                          }`}
+                        >
+                            {formatCurrency(balance)}
+                        </span>
+                      );
+                    })()}
                 </div>
                 <div className="flex justify-between items-center text-sm text-gray-500 dark:text-zinc-400">
                     <span>Budget</span>

@@ -77,8 +77,8 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
   // 1. Defensive Check: If transaction is missing, return nothing (don't crash)
   if (!transaction) return null;
 
-  const isIncome = transaction.type === 'income';
-  const isExpense = transaction.type === 'expense';
+  const isIncome = transaction.type === 'Income';
+  const isExpense = transaction.type === 'Expense';
 
   let amountColor = 'text-gray-900 dark:text-white';
   if (isIncome) amountColor = 'text-green-600 dark:text-green-400';
