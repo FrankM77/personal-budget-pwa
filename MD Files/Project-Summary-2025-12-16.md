@@ -1,13 +1,14 @@
-# House Budget PWA: Project Summary - 2025-12-15
+# House Budget PWA: Project Summary - 2025-12-16
 
 ## 1. Executive Summary
 
 - Transformation from iOS app to high-performance PWA with full feature parity.
-- Complete Firebase cloud synchronization (envelopes, transactions, distribution templates, app settings).
-- Robust offline-first architecture with automatic cross-device synchronization.
+- Complete Firebase cloud synchronization (envelopes, transactions, distribution templates, app settings) with real-time cross-device updates.
+- Robust offline-first architecture with automatic recovery and synchronization.
 - 3-way theme switching (Light/Dark/System) with Firebase persistence.
 - Service worker caching for complete offline functionality.
 - Professional data export/import with all data types supported.
+- Enhanced user experience with streamlined navigation and account management.
 
 ## 2. Architecture & Tech Stack
 
@@ -34,7 +35,7 @@
 │   ├── icon-512.png
 │   └── vite.svg
 ├── MD Files/
-│   └── Project-Summary-2025-12-15.md
+│   └── Project-Summary-2025-12-16.md
 └── src/
     ├── App.css
     ├── App.tsx
@@ -110,6 +111,24 @@
 - **Transaction Editing Offline**: Transaction editing now works seamlessly online and offline with proper Firebase sync, immediate UI updates, and no data loss during network transitions.
 - **Global FAB Navigation Fix**: Fixed transaction creation flow so clicking "Done" after global FAB transactions navigates to home screen instead of envelope selection screen, matching the behavior of envelope detail transactions.
 
+### UI/UX Improvements (2025-12-16)
+
+- **UserMenu Component**: Created a new `UserMenu` component in the main navigation header displaying current user avatar, name, and providing quick access to settings and logout functionality.
+- **Settings View Cleanup**: Removed the Account section from Settings view since user account management is now handled by the UserMenu component, streamlining the settings interface.
+- **Icon Loading Fix**: Fixed login page icon loading issue by using `import.meta.env.BASE_URL` for proper path resolution in production builds.
+
+### Real-Time Synchronization Enhancements (2025-12-16)
+
+- **Real-Time Sync Activation**: Fixed critical bug where real-time Firebase subscriptions were not being activated on app load or user login, preventing cross-device synchronization.
+- **Subscription Lifecycle Management**: Implemented proper cleanup of Firebase subscriptions on user logout to prevent memory leaks and subscription conflicts.
+- **Duplicate Subscription Prevention**: Added guards to prevent multiple real-time subscription setups that could cause performance issues.
+- **Connectivity Detection Improvements**: Enhanced online status detection with extended timeout and better error handling for more reliable network status reporting.
+
+### Build & Deployment (2025-12-16)
+
+- **TypeScript Compilation Fixes**: Resolved all TypeScript compilation errors including unused variable warnings and proper type assertions for production builds.
+- **Service Worker Updates**: Ensured PWA service worker properly handles offline functionality and cache management.
+
 ## 5. Firebase Testing Guide Summary
 
 This guide outlines comprehensive testing steps for Firebase synchronization features:
@@ -147,11 +166,16 @@ Deploying the House Budget PWA to GitHub Pages involves two main parts:
 
 ### Current Priorities
 
-1.  **Simple Multi-User Login**: Implement a basic login system for two specific users (e.g., you and your brother) to replace `test-user-123`, ensuring data isolation and maintaining offline capability.
+1.  **Connectivity Detection Reliability**: Fix persistent "offline" status on restricted networks (corporate firewalls, VPNs, mobile carriers) that block Google favicon requests used for connectivity testing.
+    -   **Root Cause**: `checkOnlineStatus()` function relies on `https://www.google.com/favicon.ico` fetch, which fails on networks that block Google domains entirely.
+    -   **Impact**: Users with legitimate internet connections appear "offline" indefinitely, preventing sync and showing incorrect status.
+    -   **Solution Approach**: Implement more robust connectivity detection using multiple fallback endpoints and alternative detection methods.
+
+2.  **Simple Multi-User Login**: Implement a basic login system for two specific users (e.g., you and your brother) to replace `test-user-123`, ensuring data isolation and maintaining offline capability.
     -   **Approach**: Focus on a simplified username/password mechanism for these two users, providing a foundation for future full Firebase Auth integration.
-2.  **User Authentication**: Integrate full Firebase Auth for broader multi-user support (planned as a future upgrade after the simple login validation).
-3.  **Performance Testing**: Conduct load testing with large transaction datasets to identify and address any performance bottlenecks.
-4.  **Error Boundaries**: Implement comprehensive error handling and error boundaries throughout the application for improved production readiness.
+3.  **User Authentication**: Integrate full Firebase Auth for broader multi-user support (planned as a future upgrade after the simple login validation).
+4.  **Performance Testing**: Conduct load testing with large transaction datasets to identify and address any performance bottlenecks.
+5.  **Error Boundaries**: Implement comprehensive error handling and error boundaries throughout the application for improved production readiness.
 
 ### Future Enhancements
 
