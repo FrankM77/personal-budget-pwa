@@ -5,6 +5,7 @@ import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
+import { useAuthStore } from './authStore';
 import type { DistributionTemplate, AppSettings, Transaction, Envelope } from '../models/types';
 
 // Fallback data loading when Firebase is unavailable
@@ -55,12 +56,13 @@ interface EnvelopeStore {
   deleteTemplate: (templateId: string) => void;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
   initializeAppSettings: () => Promise<void>;
-  importData: (data: any) => { success: boolean; message: string };
+  importData: (data: any) => Promise<{ success: boolean; message: string }>;
   resetData: () => Promise<void>;
   performFirebaseReset: () => Promise<void>;
   syncData: () => Promise<void>;
   updateOnlineStatus: () => Promise<void>;
   getEnvelopeBalance: (envelopeId: string) => Decimal;
+  handleUserLogout: () => void;
 
   // Template cleanup utilities
   cleanupOrphanedTemplates: () => Promise<void>;
@@ -68,8 +70,30 @@ interface EnvelopeStore {
   removeEnvelopeFromTemplates: (envelopeId: string) => Promise<void>;
 }
 
-// Temporary Hardcoded ID for Phase 2
-const TEST_USER_ID = "test-user-123";
+// Get current user ID from auth store
+const getCurrentUserId = (): string => {
+  const { currentUser } = useAuthStore.getState();
+  if (!currentUser) {
+    throw new Error('No authenticated user found');
+  }
+  return currentUser.id;
+};
+
+// Clear all user data when logging out
+const clearUserData = () => {
+  console.log('🧹 Clearing user data on logout');
+  useEnvelopeStore.setState({
+    envelopes: [],
+    transactions: [],
+    distributionTemplates: [],
+    appSettings: null,
+    isLoading: false,
+    error: null,
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    pendingSync: false,
+    resetPending: false
+  });
+};
 
 // Enhanced online/offline detection (silent)
 const checkOnlineStatus = async (): Promise<boolean> => {
@@ -155,34 +179,35 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    */
   fetchData: async () => {
     const state = get();
-    
+    const userId = getCurrentUserId();
+
     // If reset is pending, perform reset instead of fetching
     if (state.resetPending) {
       console.log('🔄 fetchData: Reset pending detected, performing Firebase reset instead...');
       await get().performFirebaseReset();
       return;
     }
-    
-    console.log('🔄 fetchData: Starting data fetch for user:', TEST_USER_ID);
+
+    console.log('🔄 fetchData: Starting data fetch for user:', userId);
     set({ isLoading: true, error: null });
     try {
       // Fetch collections in parallel (works offline with Firestore persistence)
       console.log('🔄 fetchData: Making Firebase calls...');
       let fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings;
       [fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings] = await Promise.all([
-        EnvelopeService.getAllEnvelopes(TEST_USER_ID).catch(err => {
+        EnvelopeService.getAllEnvelopes(userId).catch(err => {
           console.error('❌ Failed to fetch envelopes:', err);
           return [];
         }),
-        TransactionService.getAllTransactions(TEST_USER_ID).catch(err => {
+        TransactionService.getAllTransactions(userId).catch(err => {
           console.error('❌ Failed to fetch transactions:', err);
           return [];
         }),
-        DistributionTemplateService.getAllDistributionTemplates(TEST_USER_ID).catch(err => {
+        DistributionTemplateService.getAllDistributionTemplates(userId).catch(err => {
           console.error('❌ Failed to fetch templates:', err);
           return [];
         }),
-        AppSettingsService.getAppSettings(TEST_USER_ID).catch(err => {
+        AppSettingsService.getAppSettings(userId).catch(err => {
           console.error('❌ Failed to fetch settings:', err);
           return null;
         })
@@ -247,7 +272,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
             // Assign sequential orderIndex starting from 0
             // This ensures consistent ordering across store and Firebase
             const orderIndex = index;
-            EnvelopeService.saveEnvelope(TEST_USER_ID, { ...env, orderIndex })
+            const userId = getCurrentUserId();
+            EnvelopeService.saveEnvelope(userId, { ...env, orderIndex })
               .then(() => console.log(`✅ Migrated envelope ${env.name} with orderIndex ${orderIndex}`))
               .catch(err => console.warn(`Failed to migrate envelope ${env.id}:`, err));
           });
@@ -312,7 +338,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
           // Update in Firebase to migrate the data
           if (migratedSettings && migratedSettings.id) {
-            AppSettingsService.updateAppSettings(TEST_USER_ID, migratedSettings.id, { theme: migratedSettings.theme })
+            const userId = getCurrentUserId();
+            AppSettingsService.updateAppSettings(userId, migratedSettings.id, { theme: migratedSettings.theme })
               .catch(err => console.warn('Failed to migrate app settings:', err));
           }
         }
@@ -344,10 +371,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   addTransaction: async (newTx) => {
     // Generate temporary ID for immediate UI update
     const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const userId = getCurrentUserId();
     const transactionWithId = {
       ...newTx,
       id: tempId,
-      userId: TEST_USER_ID as string
+      userId: userId
     };
 
     // Update local state immediately for responsive UI
@@ -458,10 +486,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     // Now try to sync with Firebase
     try {
       console.log("📡 Attempting Firebase envelope creation...");
+      const userId = getCurrentUserId();
       const envelopeForService: Envelope & { userId: string } = {
         ...envelopeData,
         id: '', // Temporary ID, will be replaced by Firebase
-        userId: TEST_USER_ID as string
+        userId: userId
       };
       const savedEnv: Envelope = await EnvelopeService.createEnvelope(envelopeForService);
       console.log("✅ Firebase envelope creation successful:", savedEnv);
@@ -617,6 +646,13 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   },
 
   /**
+   * ACTION: Handle user logout by clearing all user data
+   */
+  handleUserLogout: () => {
+    clearUserData();
+  },
+
+  /**
    * ACTION: Add money to envelope (Income) - Offline-First
    */
   addToEnvelope: async (envelopeId: string, amount: number, note: string, date?: Date | string) => {
@@ -702,12 +738,13 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
     try {
       // Delete envelope from Firebase
-      await EnvelopeService.deleteEnvelope(TEST_USER_ID, envelopeId);
+      const userId = getCurrentUserId();
+      await EnvelopeService.deleteEnvelope(userId, envelopeId);
 
       // Cascade delete: Delete all associated transactions from Firebase
       for (const transaction of transactionsToDelete) {
         if (transaction.id && !transaction.id.startsWith('temp-')) {
-          await TransactionService.deleteTransaction(TEST_USER_ID, transaction.id);
+          await TransactionService.deleteTransaction(userId, transaction.id);
         }
       }
 
@@ -770,11 +807,12 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
     try {
       // Delete from Firebase (skip temp IDs that haven't been synced yet)
+      const userId = getCurrentUserId();
       const firebaseIdsToDelete = allTransactionsToDelete.filter(txId => !txId.startsWith('temp-'));
 
       for (const txId of firebaseIdsToDelete) {
         console.log(`🔄 About to delete transaction ID: ${txId}`);
-        await TransactionService.deleteTransaction(TEST_USER_ID, txId);
+        await TransactionService.deleteTransaction(userId, txId);
         console.log(`✅ Deleted transaction ID: ${txId}`);
       }
 
@@ -821,7 +859,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
 
     try {
       // Try Firebase update first with timeout for offline detection
-      const firebasePromise = TransactionService.updateTransaction(TEST_USER_ID, updatedTx.id!, {
+      const userId = getCurrentUserId();
+      const firebasePromise = TransactionService.updateTransaction(userId, updatedTx.id!, {
         description: updatedTx.description,
         amount: updatedTx.amount.toString(),
         envelopeId: updatedTx.envelopeId,
@@ -880,49 +919,131 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   },
 
   /**
-   * ACTION: Import data from backup - Local only
+   * ACTION: Import data from backup - Syncs to Firebase
    */
-  importData: (data: any) => {
+  importData: async (data: any) => {
     try {
       // Basic validation
       if (!data.envelopes || !data.transactions) {
         return { success: false, message: "Invalid backup format: Missing core data." };
       }
 
+      const userId = getCurrentUserId();
+      console.log(`📥 Importing data for user: ${userId}`);
+
       // Convert old format envelopes to new format if needed
       const newEnvelopes = data.envelopes.map((env: any) => ({
-        id: env.id,
+        id: env.id || `imported-${Date.now()}-${Math.random()}`, // Generate ID if missing
         name: env.name,
-        budget: env.budget || env.currentBalance || 0,
-        spent: env.spent || 0,
-        category: env.category || 'General'
+        currentBalance: env.currentBalance || env.budget || 0,
+        lastUpdated: new Date().toISOString(),
+        isActive: env.isActive ?? true,
+        orderIndex: env.orderIndex ?? 0,
+        userId: userId // Ensure userId is set
       }));
 
-      // Use transactions as-is (they should be compatible)
-      const newTransactions = data.transactions || [];
+      // Convert transactions and ensure they have userId
+      const newTransactions = data.transactions.map((tx: any) => ({
+        ...tx,
+        id: tx.id || `imported-${Date.now()}-${Math.random()}`, // Generate ID if missing
+        userId: userId, // Ensure userId is set
+        date: tx.date, // Keep as-is (should be ISO string)
+        amount: typeof tx.amount === 'number' ? tx.amount : parseFloat(tx.amount) || 0,
+        type: tx.type, // Keep as-is
+        reconciled: tx.reconciled ?? false
+      }));
 
       // Import distribution templates if present
-      const newTemplates = data.distributionTemplates || [];
+      const newTemplates = (data.distributionTemplates || []).map((template: any) => ({
+        ...template,
+        id: template.id || `imported-${Date.now()}-${Math.random()}`, // Generate ID if missing
+        userId: userId // Ensure userId is set
+      }));
 
       // Import app settings if present
-      const newSettings = data.appSettings || null;
+      const newSettings = data.appSettings ? {
+        ...data.appSettings,
+        id: data.appSettings.id || `settings-${userId}`,
+        userId: userId // Ensure userId is set
+      } : null;
 
-      // Update store
+      console.log(`📊 Importing: ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions, ${newTemplates.length} templates`);
+
+      // Update local store immediately for responsive UI
       set({
         envelopes: newEnvelopes,
         transactions: newTransactions,
         distributionTemplates: newTemplates,
         appSettings: newSettings,
         error: null,
-        pendingSync: false
+        pendingSync: true // Mark as pending sync since we're syncing to Firebase
       });
+
+      // Sync imported data to Firebase
+      try {
+        console.log('🔄 Syncing imported data to Firebase...');
+
+        // Sync envelopes to Firebase
+        for (const envelope of newEnvelopes) {
+          try {
+            await EnvelopeService.saveEnvelope(userId, envelope);
+            console.log(`✅ Synced envelope: ${envelope.name}`);
+          } catch (error) {
+            console.error(`❌ Failed to sync envelope ${envelope.name}:`, error);
+          }
+        }
+
+        // Sync transactions to Firebase
+        for (const transaction of newTransactions) {
+          try {
+            const firebaseTx = {
+              ...transaction,
+              amount: transaction.amount.toString(), // Firebase expects string
+              type: transaction.type.toLowerCase(), // Firebase uses lowercase
+              date: Timestamp.fromDate(new Date(transaction.date))
+            };
+            await TransactionService.addTransaction(firebaseTx);
+            console.log(`✅ Synced transaction: ${transaction.description}`);
+          } catch (error) {
+            console.error(`❌ Failed to sync transaction ${transaction.description}:`, error);
+          }
+        }
+
+        // Sync templates to Firebase
+        for (const template of newTemplates) {
+          try {
+            await DistributionTemplateService.createDistributionTemplate(template);
+            console.log(`✅ Synced template: ${template.name}`);
+          } catch (error) {
+            console.error(`❌ Failed to sync template ${template.name}:`, error);
+          }
+        }
+
+        // Sync settings to Firebase
+        if (newSettings) {
+          try {
+            await AppSettingsService.createAppSettings(newSettings);
+            console.log('✅ Synced app settings');
+          } catch (error) {
+            console.error('❌ Failed to sync app settings:', error);
+          }
+        }
+
+        console.log('✅ All imported data synced to Firebase');
+        set({ pendingSync: false });
+
+      } catch (syncError) {
+        console.error('❌ Error syncing to Firebase:', syncError);
+        // Keep pendingSync true so it retries later
+        set({ pendingSync: true });
+      }
 
       const templateCount = newTemplates.length;
       const settingsImported = newSettings ? 'Settings imported.' : '';
 
       return {
         success: true,
-        message: `Loaded ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions${templateCount > 0 ? `, ${templateCount} templates` : ''}.${settingsImported ? ` ${settingsImported}` : ''}`
+        message: `Imported and synced ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions${templateCount > 0 ? `, ${templateCount} templates` : ''} to Firebase.${settingsImported ? ` ${settingsImported}` : ''}`
       };
     } catch (error) {
       console.error("Import failed:", error);
@@ -939,23 +1060,24 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     set({ isLoading: true });
 
     try {
+      const userId = getCurrentUserId();
       // Query Firebase directly to get ALL documents from each collection
       console.log('📡 Querying Firebase for all data to delete...');
-      
+
       const [allEnvelopes, allTransactions, allTemplates, allSettings] = await Promise.all([
-        EnvelopeService.getAllEnvelopes(TEST_USER_ID).catch(err => {
+        EnvelopeService.getAllEnvelopes(userId).catch(err => {
           console.error('❌ Failed to fetch envelopes for reset:', err);
           return [];
         }),
-        TransactionService.getAllTransactions(TEST_USER_ID).catch(err => {
+        TransactionService.getAllTransactions(userId).catch(err => {
           console.error('❌ Failed to fetch transactions for reset:', err);
           return [];
         }),
-        DistributionTemplateService.getAllDistributionTemplates(TEST_USER_ID).catch(err => {
+        DistributionTemplateService.getAllDistributionTemplates(userId).catch(err => {
           console.error('❌ Failed to fetch templates for reset:', err);
           return [];
         }),
-        AppSettingsService.getAppSettings(TEST_USER_ID).catch(err => {
+        AppSettingsService.getAppSettings(userId).catch(err => {
           console.error('❌ Failed to fetch settings for reset:', err);
           return null;
         })
@@ -968,7 +1090,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       for (const envelope of allEnvelopes) {
         if (envelope.id) {
           try {
-            await EnvelopeService.deleteEnvelope(TEST_USER_ID, envelope.id);
+            await EnvelopeService.deleteEnvelope(userId, envelope.id);
             deletedEnvelopes++;
             console.log(`✅ Deleted envelope: ${envelope.name || envelope.id}`);
           } catch (error) {
@@ -982,7 +1104,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       for (const transaction of allTransactions) {
         if (transaction.id) {
           try {
-            await TransactionService.deleteTransaction(TEST_USER_ID, transaction.id);
+            await TransactionService.deleteTransaction(userId, transaction.id);
             deletedTransactions++;
             console.log(`✅ Deleted transaction: ${transaction.id}`);
           } catch (error) {
@@ -996,7 +1118,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       for (const template of allTemplates) {
         if (template.id) {
           try {
-            await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, template.id);
+            await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
             deletedTemplates++;
             console.log(`✅ Deleted template: ${template.name || template.id}`);
           } catch (error) {
@@ -1008,7 +1130,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       // Delete app settings if they exist
       if (allSettings?.id) {
         try {
-          await AppSettingsService.deleteAppSettings(TEST_USER_ID, allSettings.id);
+          await AppSettingsService.deleteAppSettings(userId, allSettings.id);
           console.log(`✅ Deleted app settings`);
         } catch (error) {
           console.error(`❌ Failed to delete app settings:`, error);
@@ -1110,9 +1232,10 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   saveTemplate: async (name: string, distributions: Record<string, number>, note: string) => {
     console.log('📝 saveTemplate called with:', { name, distributions, note });
     try {
+      const userId = getCurrentUserId();
       const templateData: DistributionTemplate = {
         id: `temp-${Date.now()}`, // Temporary ID, will be replaced by Firebase
-        userId: TEST_USER_ID,
+        userId: userId,
         name,
         note,
         lastUsed: new Date().toISOString(),
@@ -1155,9 +1278,10 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       });
 
       // Fallback: save locally if Firebase fails
+      const userId = getCurrentUserId();
       const localTemplate: DistributionTemplate = {
         id: `local-${Date.now()}`,
-        userId: TEST_USER_ID,
+        userId,
         name,
         note,
         lastUsed: new Date().toISOString(),
@@ -1181,7 +1305,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    */
   deleteTemplate: async (templateId: string) => {
     try {
-      await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, templateId);
+      const userId = getCurrentUserId();
+      await DistributionTemplateService.deleteDistributionTemplate(userId, templateId);
 
       set((state) => ({
         distributionTemplates: state.distributionTemplates.filter(t => t.id !== templateId)
@@ -1207,10 +1332,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         // Now that settings exist, update them with the new values
         const newState = get();
         if (newState.appSettings) {
-          // Merge the new settings with the initialized defaults
-          const updatedSettings = { ...newState.appSettings, ...settings };
-          set({ appSettings: updatedSettings });
-          await AppSettingsService.updateAppSettings(TEST_USER_ID, newState.appSettings.id, settings);
+        // Merge the new settings with the initialized defaults
+        const updatedSettings = { ...newState.appSettings, ...settings };
+        set({ appSettings: updatedSettings });
+        const userId = getCurrentUserId();
+        await AppSettingsService.updateAppSettings(userId, newState.appSettings.id, settings);
           console.log('✅ App settings updated successfully');
         }
       } catch (error) {
@@ -1224,7 +1350,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         appSettings: { ...state.appSettings!, ...settings }
       }));
 
-      await AppSettingsService.updateAppSettings(TEST_USER_ID, state.appSettings!.id, settings);
+      const userId = getCurrentUserId();
+      await AppSettingsService.updateAppSettings(userId, state.appSettings!.id, settings);
       console.log('✅ App settings updated successfully');
     } catch (error) {
       console.error('❌ Failed to update app settings:', error);
@@ -1241,8 +1368,9 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    */
   initializeAppSettings: async () => {
     try {
+      const userId = getCurrentUserId();
       const defaultSettings: Omit<AppSettings, 'id'> = {
-        userId: TEST_USER_ID,
+        userId: userId,
         theme: 'system'
       };
 
@@ -1254,10 +1382,11 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
     } catch (error) {
       console.error('❌ Failed to initialize app settings:', error);
       // Set default settings locally if Firebase fails
+      const userId = getCurrentUserId();
       set({
         appSettings: {
           id: 'local-settings',
-          userId: TEST_USER_ID,
+          userId: userId,
           theme: 'system'
         }
       });
@@ -1286,13 +1415,15 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
       // If template has no valid distributions left, delete it
       if (Object.keys(cleanedDistributions).length === 0) {
         console.log(`🗑️ Deleting orphaned template: ${template.name}`);
-        await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, template.id);
+        const userId = getCurrentUserId();
+        await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
         cleanedCount++;
       }
       // If template changed, update it
       else if (JSON.stringify(cleanedDistributions) !== JSON.stringify(originalDistributions)) {
         console.log(`🔧 Updating template ${template.name} - removed orphaned envelope references`);
-        await DistributionTemplateService.updateDistributionTemplate(TEST_USER_ID, template.id, {
+        const userId = getCurrentUserId();
+        await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
           distributions: cleanedDistributions
         });
         cleanedCount++;
@@ -1318,7 +1449,8 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         delete updatedDistributions[oldEnvelopeId];
 
         console.log(`📝 Updating template: ${template.name}`);
-        await DistributionTemplateService.updateDistributionTemplate(TEST_USER_ID, template.id, {
+        const userId = getCurrentUserId();
+        await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
           distributions: updatedDistributions
         });
         updatedCount++;
@@ -1344,11 +1476,13 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         // If no distributions left, delete the template
         if (Object.keys(updatedDistributions).length === 0) {
           console.log(`🗑️ Deleting template ${template.name} - no envelopes left`);
-          await DistributionTemplateService.deleteDistributionTemplate(TEST_USER_ID, template.id);
+          const userId = getCurrentUserId();
+          await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
           deletedCount++;
         } else {
           console.log(`📝 Removing envelope from template: ${template.name}`);
-          await DistributionTemplateService.updateDistributionTemplate(TEST_USER_ID, template.id, {
+          const userId = getCurrentUserId();
+          await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
             distributions: updatedDistributions
           });
           updatedCount++;
@@ -1422,10 +1556,22 @@ const convertFirebaseTemplate = (firebaseTemplate: any): DistributionTemplate =>
 
 // Setup real-time Firebase subscriptions for cross-tab/device sync
 const setupRealtimeSubscriptions = () => {
+  // Prevent duplicate subscriptions
+  if ((window as any).__firebaseUnsubscribers) {
+    console.log('⚠️ Real-time subscriptions already active, skipping setup');
+    return;
+  }
+
   console.log('🔄 Setting up real-time Firebase subscriptions...');
 
+  const userId = getCurrentUserId();
+  if (!userId) {
+    console.log('⚠️ No authenticated user found, skipping real-time subscriptions');
+    return;
+  }
+
   // Subscribe to envelopes
-  const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(TEST_USER_ID, (firebaseEnvelopes) => {
+  const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(userId, (firebaseEnvelopes) => {
     const currentState = useEnvelopeStore.getState();
     // Only sync if we're online and don't have pending local changes
     if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
@@ -1436,7 +1582,7 @@ const setupRealtimeSubscriptions = () => {
   });
 
   // Subscribe to transactions
-  const unsubscribeTransactions = TransactionService.subscribeToTransactions(TEST_USER_ID, (firebaseTransactions) => {
+  const unsubscribeTransactions = TransactionService.subscribeToTransactions(userId, (firebaseTransactions) => {
     const currentState = useEnvelopeStore.getState();
     // Only sync if we're online and don't have pending local changes
     if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
@@ -1447,7 +1593,7 @@ const setupRealtimeSubscriptions = () => {
   });
 
   // Subscribe to distribution templates
-  const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(TEST_USER_ID, (firebaseTemplates) => {
+  const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(userId, (firebaseTemplates) => {
     const currentState = useEnvelopeStore.getState();
     // Only sync if we're online and don't have pending local changes
     if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
@@ -1458,7 +1604,7 @@ const setupRealtimeSubscriptions = () => {
   });
 
   // Subscribe to app settings
-  const unsubscribeSettings = AppSettingsService.subscribeToAppSettings(TEST_USER_ID, (firebaseSettings) => {
+  const unsubscribeSettings = AppSettingsService.subscribeToAppSettings(userId, (firebaseSettings) => {
     const currentState = useEnvelopeStore.getState();
     // Only sync if we're online and don't have pending local changes
     if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
@@ -1480,9 +1626,6 @@ const setupRealtimeSubscriptions = () => {
 
 // Setup online/offline detection and real-time sync after store creation
 if (typeof window !== 'undefined') {
-  // Set up real-time subscriptions first
-  setupRealtimeSubscriptions();
-
   // Listen to browser online/offline events
   window.addEventListener('online', async () => {
     // When coming back online, check connectivity
@@ -1503,4 +1646,36 @@ if (typeof window !== 'undefined') {
   setTimeout(() => {
     useEnvelopeStore.getState().updateOnlineStatus();
   }, 1000); // Delay initial check to avoid immediate noise
+
+  // Check if user is already authenticated on app load
+  const initialAuthState = useAuthStore.getState();
+  if (initialAuthState.isAuthenticated && initialAuthState.currentUser) {
+    console.log('✅ User already authenticated on app load, setting up real-time subscriptions');
+    setupRealtimeSubscriptions();
+  }
+
+  // Listen for authentication changes
+  useAuthStore.subscribe((state) => {
+    if (state.isAuthenticated && state.currentUser) {
+      // User has logged in, set up real-time subscriptions
+      console.log('✅ User authenticated, setting up real-time subscriptions');
+      setupRealtimeSubscriptions();
+    } else if (!state.isAuthenticated && !state.isLoading) {
+      // User has logged out, clear their data and unsubscribe
+      console.log('👋 User logged out, clearing data and unsubscribing');
+      
+      // Clean up Firebase subscriptions
+      if ((window as any).__firebaseUnsubscribers) {
+        const unsubscribers = (window as any).__firebaseUnsubscribers;
+        if (unsubscribers.envelopes) unsubscribers.envelopes();
+        if (unsubscribers.transactions) unsubscribers.transactions();
+        if (unsubscribers.templates) unsubscribers.templates();
+        if (unsubscribers.settings) unsubscribers.settings();
+        delete (window as any).__firebaseUnsubscribers;
+        console.log('🧹 Cleaned up Firebase subscriptions');
+      }
+      
+      clearUserData();
+    }
+  });
 }
