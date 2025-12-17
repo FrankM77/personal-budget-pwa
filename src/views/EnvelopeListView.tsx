@@ -63,7 +63,7 @@ export const EnvelopeListView: React.FC = () => {
               ) : (
                 <div className="flex items-center gap-1 text-green-500">
                   <Wifi size={16} />
-                  <span className="text-sm font-medium">Synced</span>
+                  <span className="text-sm font-medium">Online</span>
                 </div>
               )
             ) : (

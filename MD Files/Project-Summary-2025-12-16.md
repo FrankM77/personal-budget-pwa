@@ -117,6 +117,7 @@
 - **UserMenu Component**: Created a new `UserMenu` component in the main navigation header displaying current user avatar, name, and providing quick access to settings and logout functionality.
 - **Settings View Cleanup**: Removed the Account section from Settings view since user account management is now handled by the UserMenu component, streamlining the settings interface.
 - **Icon Loading Fix**: Fixed login page icon loading issue by using `import.meta.env.BASE_URL` for proper path resolution in production builds.
+- **Status Message Clarity**: Changed "Synced" status to "Online" for clearer indication of connectivity state.
 
 ### Connectivity Detection Enhancements (2025-12-16)
 
