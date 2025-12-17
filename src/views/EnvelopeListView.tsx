@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Settings, List as ListIcon, GitBranch, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { PlusCircle, List as ListIcon, GitBranch, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { DistributeFundsModal } from '../components/modals/DistributeFundsModal';
+import { UserMenu } from '../components/ui/UserMenu';
 import { useNavigate } from 'react-router-dom';
 
 export const EnvelopeListView: React.FC = () => {
@@ -76,13 +77,15 @@ export const EnvelopeListView: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 text-blue-500">
-            <button onClick={() => navigate('/transactions')}>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/transactions')}
+              className="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              title="Transaction History"
+            >
               <ListIcon size={22} />
             </button>
-            <button onClick={() => navigate('/settings')}>
-              <Settings size={22} />
-            </button>
+            <UserMenu />
           </div>
         </div>
 

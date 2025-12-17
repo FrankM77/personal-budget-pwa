@@ -167,7 +167,7 @@ export const SettingsView: React.FC = () => {
     reader.onload = async (e) => {
       try {
         const parsed = JSON.parse(e.target?.result as string);
-        const result = importData(parsed);
+        const result = await importData(parsed);
 
         if (!result.success) {
           showStatus('error', result.message);
@@ -217,6 +217,7 @@ export const SettingsView: React.FC = () => {
       setIsCleaningTemplates(false);
     }
   };
+
 
   const handleReset = async () => {
     if (
