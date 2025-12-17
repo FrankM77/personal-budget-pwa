@@ -6,6 +6,10 @@ import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
 import { useAuthStore } from './authStore';
+import { createEnvelopeSlice } from './envelopeStoreEnvelopes';
+import { createTemplateSlice } from './envelopeStoreTemplates';
+import { createSettingsSlice } from './envelopeStoreSettings';
+
 import type { DistributionTemplate, AppSettings, Transaction, Envelope } from '../models/types';
 
 // Fallback data loading when Firebase is unavailable
@@ -63,8 +67,8 @@ interface EnvelopeStore {
   syncData: () => Promise<void>;
   updateOnlineStatus: () => Promise<void>;
   markOnlineFromFirebaseSuccess: () => void;
-  getEnvelopeBalance: (envelopeId: string) => Decimal;
   handleUserLogout: () => void;
+  getEnvelopeBalance: (envelopeId: string) => Decimal;
 
   // Template cleanup utilities
   cleanupOrphanedTemplates: () => Promise<void>;
@@ -218,10 +222,10 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   appSettings: null,
   isLoading: false,
   error: null,
-    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-    pendingSync: false,
-    resetPending: false,
-    testingConnectivity: false,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  pendingSync: false,
+  resetPending: false,
+  testingConnectivity: false,
 
   /**
    * SYNC: Pulls all data from Firestore (Like Pull-to-Refresh)
@@ -295,7 +299,7 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
         }
       }
 
-        // Merge with existing data to preserve locally created items that might not be in Firebase yet
+      // Merge with existing data to preserve locally created items that might not be in Firebase yet
       set((state) => {
         // Convert Firebase Timestamps to strings for store compatibility
         const convertTimestamps = (transactions: any[]): Transaction[] => {
@@ -496,168 +500,12 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    * ACTION: Create Envelope (Offline-First)
    * Updates local state immediately, syncs with Firebase when possible
    */
-  createEnvelope: async (newEnv) => {
-    // For initial deposits, use transaction system instead of initialBalance field
-    // This ensures all money movements are properly tracked as transactions
-    const hasInitialDeposit = newEnv.currentBalance && newEnv.currentBalance > 0;
-    const envelopeData = hasInitialDeposit
-      ? { ...newEnv, currentBalance: 0, orderIndex: newEnv.orderIndex ?? 0 } // Set currentBalance to 0, use transactions for balance
-      : { ...newEnv, orderIndex: newEnv.orderIndex ?? 0 };
-
-    // Generate temporary ID for immediate UI update
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const envelopeWithId = { ...envelopeData, id: tempId };
-
-    // Update local state immediately for responsive UI
-    set((state) => ({
-      envelopes: [...state.envelopes, envelopeWithId],
-      isLoading: true
-    }));
-
-    // ALWAYS create the initial deposit transaction locally first (for immediate UI feedback)
-    if (hasInitialDeposit) {
-      console.log(`💰 Creating initial deposit transaction locally first: ${envelopeWithId.name} (tempId: ${tempId})`);
-      try {
-        await get().addTransaction({
-          description: 'Initial Deposit',
-          amount: newEnv.currentBalance!,
-          envelopeId: tempId, // Use temp ID initially
-          date: new Date().toISOString(),
-          type: 'Income',
-          reconciled: false
-        });
-        console.log(`✅ Initial deposit transaction created locally`);
-
-        // Test balance calculation immediately
-        const testBalance = get().getEnvelopeBalance(tempId);
-        console.log(`💵 Test balance for temp envelope ${tempId}: $${testBalance.toNumber()}`);
-
-      } catch (error) {
-        console.error(`❌ Failed to create initial deposit transaction locally:`, error);
-      }
-    }
-
-    // Now try to sync with Firebase
-    try {
-      console.log("📡 Attempting Firebase envelope creation...");
-      const userId = getCurrentUserId();
-      const envelopeForService: Envelope & { userId: string } = {
-        ...envelopeData,
-        id: '', // Temporary ID, will be replaced by Firebase
-        userId: userId
-      };
-      const savedEnv: Envelope = await EnvelopeService.createEnvelope(envelopeForService);
-      console.log("✅ Firebase envelope creation successful:", savedEnv);
-
-      // Replace temp envelope with real one from Firebase
-      // Convert Firebase envelope to store format
-      const storeEnvelope: Envelope = {
-        id: savedEnv.id,
-        name: savedEnv.name,
-        currentBalance: savedEnv.currentBalance,
-        lastUpdated: savedEnv.lastUpdated,
-        isActive: savedEnv.isActive ?? true,
-        orderIndex: savedEnv.orderIndex ?? 0,
-        userId: savedEnv.userId
-      };
-
-      set((state) => ({
-        envelopes: state.envelopes.map(env =>
-          env.id === tempId ? storeEnvelope : env
-        ),
-        isLoading: false,
-        pendingSync: false
-      }));
-
-      // Update any transactions that reference the temp envelope ID and sync them
-      if (hasInitialDeposit) {
-        console.log(`🔄 Updating transactions from temp envelope ID ${tempId} to real ID ${savedEnv.id}`);
-        console.log(`📊 Transactions before update:`, get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
-
-        // Update envelopeId for transactions
-        set((state) => ({
-          transactions: state.transactions.map((tx: Transaction) =>
-            tx.envelopeId === tempId ? { ...tx, envelopeId: savedEnv.id } : tx
-          )
-        }));
-
-        console.log(`📊 Transactions after envelopeId update:`, get().transactions.map((tx: Transaction) => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
-
-        // Now sync any transactions that were waiting for this envelope
-        const transactionsToSync = get().transactions.filter(tx =>
-          tx.envelopeId === savedEnv.id && tx.id && tx.id.startsWith('temp-')
-        );
-
-        console.log(`📡 Found ${transactionsToSync.length} transactions to sync for envelope ${savedEnv.id}:`, transactionsToSync.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId })));
-
-        for (const tx of transactionsToSync) {
-          try {
-            console.log(`📤 Syncing transaction:`, tx);
-            const transactionForService = {
-              ...tx,
-              amount: tx.amount.toString(), // Convert to string for Firebase
-              type: tx.type.toLowerCase() as 'income' | 'expense' | 'transfer', // Convert to lowercase for Firebase
-              date: Timestamp.fromDate(new Date(tx.date))
-            };
-            const savedTx = await TransactionService.addTransaction(transactionForService as any);
-
-            console.log(`✅ Transaction synced:`, savedTx);
-
-            // Replace temp transaction with real one
-            const convertedTx = {
-              ...savedTx,
-              amount: typeof savedTx.amount === 'string' ? parseFloat(savedTx.amount) : savedTx.amount,
-              type: savedTx.type === 'income' ? 'Income' : savedTx.type === 'expense' ? 'Expense' : savedTx.type === 'transfer' ? 'Transfer' : savedTx.type,
-              date: savedTx.date && typeof savedTx.date === 'object' && savedTx.date.toDate ?
-                savedTx.date.toDate().toISOString() : savedTx.date
-            };
-
-            console.log(`🔄 Replacing temp transaction ${tx.id} with Firebase transaction ${savedTx.id}`);
-            set((state) => ({
-              transactions: state.transactions.map(t =>
-                t.id === tx.id ? (convertedTx as Transaction) : t
-              )
-            }));
-
-          } catch (syncError) {
-            console.error(`❌ Failed to sync transaction ${tx.id}:`, syncError);
-          }
-        }
-
-        console.log(`📊 Final transactions after sync:`, get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
-        set({ pendingSync: false });
-        console.log(`✅ All transactions synced for envelope ${savedEnv.id}`);
-      }
-
-    } catch (err: any) {
-      console.error("Create Envelope Failed:", err);
-      console.log("Error details:", {
-        code: err?.code,
-        message: err?.message,
-        name: err?.name,
-        isNetworkError: isNetworkError(err)
-      });
-
-      // For offline/network errors, keep the local envelope and mark for later sync
-      if (isNetworkError(err)) {
-        console.log(`🔄 Treating as offline scenario - keeping temp envelope and transactions`);
-        set({
-          isLoading: false,
-          pendingSync: true,
-          error: null
-        });
-      } else {
-        // For real errors, remove the local envelope
-        console.log(`❌ Real error - removing temp envelope`);
-        set((state) => ({
-          envelopes: state.envelopes.filter(env => env.id !== tempId),
-          transactions: state.transactions.filter(tx => tx.envelopeId !== tempId),
-          error: err.message,
-          isLoading: false
-        }));
-      }
-    }
-  },
+  createEnvelope: createEnvelopeSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).createEnvelope,
 
   /**
    * SYNC: Manual sync for when coming back online
@@ -719,128 +567,42 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   /**
    * ACTION: Add money to envelope (Income) - Offline-First
    */
-  addToEnvelope: async (envelopeId: string, amount: number, note: string, date?: Date | string) => {
-    const transactionDate = date
-      ? typeof date === 'string' ? date : date.toISOString()
-      : new Date().toISOString();
-
-    await get().addTransaction({
-      description: note,
-      amount: amount,
-      envelopeId,
-      date: transactionDate,
-      type: 'Income',
-      reconciled: false
-    });
-  },
+  addToEnvelope: createEnvelopeSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).addToEnvelope,
 
   /**
    * ACTION: Spend money from envelope (Expense) - Offline-First
    */
-  spendFromEnvelope: async (envelopeId: string, amount: number, note: string, date?: Date | string) => {
-    const transactionDate = date
-      ? typeof date === 'string' ? date : date.toISOString()
-      : new Date().toISOString();
-
-    await get().addTransaction({
-      description: note,
-      amount: amount,
-      envelopeId,
-      date: transactionDate,
-      type: 'Expense',
-      reconciled: false
-    });
-  },
+  spendFromEnvelope: createEnvelopeSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).spendFromEnvelope,
 
   /**
    * ACTION: Transfer funds between envelopes - Offline-First
    */
-  transferFunds: async (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => {
-    console.log(`Transferring ${amount} from ${fromEnvelopeId} to ${toEnvelopeId} with note: ${note}`);
-    const transactionDate = date
-      ? typeof date === 'string' ? date : date.toISOString()
-      : new Date().toISOString();
-
-    const transferId = `transfer-${Date.now()}-${Math.random()}`;
-
-    // Create expense transaction from source envelope
-    await get().addTransaction({
-      description: `Transfer to ${get().envelopes.find(e => e.id === toEnvelopeId)?.name || 'envelope'}`,
-      amount: amount,
-      envelopeId: fromEnvelopeId,
-      date: transactionDate,
-      type: 'Expense',
-      transferId,
-      reconciled: false
-    });
-
-    // Create income transaction to destination envelope
-    await get().addTransaction({
-      description: `Transfer from ${get().envelopes.find(e => e.id === fromEnvelopeId)?.name || 'envelope'}`,
-      amount: amount,
-      envelopeId: toEnvelopeId,
-      date: transactionDate,
-      type: 'Income',
-      transferId,
-      reconciled: false
-    });
-  },
+  transferFunds: createEnvelopeSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).transferFunds,
 
   /**
    * ACTION: Delete envelope - Offline-First (Cascade Delete)
    */
-  deleteEnvelope: async (envelopeId: string) => {
-    // Find transactions to delete
-    const transactionsToDelete = get().transactions.filter(tx => tx.envelopeId === envelopeId);
-
-    // Update local state immediately (cascade delete)
-    set((state) => ({
-      envelopes: state.envelopes.filter(env => env.id !== envelopeId),
-      transactions: state.transactions.filter(tx => tx.envelopeId !== envelopeId),
-      isLoading: true
-    }));
-
-    try {
-      // Delete envelope from Firebase
-      const userId = getCurrentUserId();
-      await EnvelopeService.deleteEnvelope(userId, envelopeId);
-
-      // Cascade delete: Delete all associated transactions from Firebase
-      for (const transaction of transactionsToDelete) {
-        if (transaction.id && !transaction.id.startsWith('temp-')) {
-          await TransactionService.deleteTransaction(userId, transaction.id);
-        }
-      }
-
-      // Clean up templates that reference the deleted envelope
-      await get().removeEnvelopeFromTemplates(envelopeId);
-
-      set({ isLoading: false });
-    } catch (err: any) {
-      console.error("Delete Envelope Failed:", err);
-      if (isNetworkError(err)) {
-        // Offline: Keep the local deletion, mark for later sync
-        set({
-          isLoading: false,
-          pendingSync: true,
-          error: null
-        });
-      } else {
-        // Real error: Restore the envelope and transactions locally
-        const restoredEnvelope = get().envelopes.find(env => env.id === envelopeId);
-        if (restoredEnvelope) {
-          set((state) => ({
-            envelopes: [...state.envelopes, restoredEnvelope],
-            transactions: [...state.transactions, ...transactionsToDelete],
-            error: err.message,
-            isLoading: false
-          }));
-        } else {
-          set({ error: err.message, isLoading: false });
-        }
-      }
-    }
-  },
+  deleteEnvelope: createEnvelopeSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).deleteEnvelope,
 
   /**
    * ACTION: Delete transaction - Offline-First
@@ -1293,271 +1055,63 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
   /**
    * ACTION: Save distribution template
    */
-  saveTemplate: async (name: string, distributions: Record<string, number>, note: string) => {
-    console.log('📝 saveTemplate called with:', { name, distributions, note });
-    try {
-      const userId = getCurrentUserId();
-      const templateData: DistributionTemplate = {
-        id: `temp-${Date.now()}`, // Temporary ID, will be replaced by Firebase
-        userId: userId,
-        name,
-        note,
-        lastUsed: new Date().toISOString(),
-        distributions
-      };
-
-      console.log('🔄 Attempting Firebase template save...');
-      console.log('📶 Current online status:', navigator.onLine);
-
-      // Try Firebase save first with timeout for offline detection
-      try {
-        const firebasePromise = DistributionTemplateService.createDistributionTemplate(templateData);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 5000)
-        );
-        const savedTemplate = await Promise.race([firebasePromise, timeoutPromise]) as DistributionTemplate;
-        console.log('✅ Firebase template save succeeded (online mode):', savedTemplate);
-
-        set((state) => {
-          const newTemplates = [...state.distributionTemplates, savedTemplate];
-          console.log('🔄 Updating store - old templates:', state.distributionTemplates.length, 'new templates:', newTemplates.length);
-          return {
-            distributionTemplates: newTemplates
-          };
-        });
-
-        console.log('✅ Template saved to Firebase:', savedTemplate);
-        console.log('📊 Store now has templates:', get().distributionTemplates.length);
-      } catch (firebaseError: any) {
-        console.log('🔥 Firebase template save failed or timed out:', firebaseError.message);
-        throw firebaseError; // Re-throw to trigger local fallback
-      }
-    } catch (error) {
-      console.error('❌ Failed to save template to Firebase, saving locally:', error);
-      console.log('🔍 Error details:', {
-        name: (error as any)?.name || 'Unknown',
-        message: (error as any)?.message || 'Unknown',
-        code: (error as any)?.code || 'Unknown',
-        isNetworkError: isNetworkError(error)
-      });
-
-      // Fallback: save locally if Firebase fails
-      const userId = getCurrentUserId();
-      const localTemplate: DistributionTemplate = {
-        id: `local-${Date.now()}`,
-        userId,
-        name,
-        note,
-        lastUsed: new Date().toISOString(),
-        distributions
-      };
-
-      console.log('💾 Saving template locally (offline):', localTemplate);
-
-      set((state) => ({
-        distributionTemplates: [...state.distributionTemplates, localTemplate],
-        pendingSync: true // Mark for later sync
-      }));
-
-      console.log('✅ Template saved locally as fallback:', localTemplate);
-      console.log('📊 Store now has templates:', get().distributionTemplates.length);
-    }
-  },
+  saveTemplate: createTemplateSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).saveTemplate,
 
   /**
    * ACTION: Delete distribution template
    */
-  deleteTemplate: async (templateId: string) => {
-    try {
-      const userId = getCurrentUserId();
-      await DistributionTemplateService.deleteDistributionTemplate(userId, templateId);
-
-      set((state) => ({
-        distributionTemplates: state.distributionTemplates.filter(t => t.id !== templateId)
-      }));
-
-      console.log('✅ Template deleted from Firebase:', templateId);
-    } catch (error) {
-      console.error('❌ Failed to delete template from Firebase:', error);
-      throw error;
-    }
-  },
+  deleteTemplate: createTemplateSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).deleteTemplate,
 
   /**
    * ACTION: Update app settings
    */
-  updateAppSettings: async (settings: Partial<AppSettings>) => {
-    const state = get();
-
-    if (!state.appSettings) {
-      // If no settings exist, create them first
-      try {
-        await state.initializeAppSettings();
-        // Now that settings exist, update them with the new values
-        const newState = get();
-        if (newState.appSettings) {
-        // Merge the new settings with the initialized defaults
-        const updatedSettings = { ...newState.appSettings, ...settings };
-        set({ appSettings: updatedSettings });
-        const userId = getCurrentUserId();
-        await AppSettingsService.updateAppSettings(userId, newState.appSettings.id, settings);
-          console.log('✅ App settings updated successfully');
-        }
-      } catch (error) {
-        console.error('❌ Failed to initialize/update settings:', error);
-      }
-      return;
-    }
-
-    try {
-      set((state) => ({
-        appSettings: { ...state.appSettings!, ...settings }
-      }));
-
-      const userId = getCurrentUserId();
-      await AppSettingsService.updateAppSettings(userId, state.appSettings!.id, settings);
-      console.log('✅ App settings updated successfully');
-    } catch (error) {
-      console.error('❌ Failed to update app settings:', error);
-      // Revert on failure
-      set((state) => ({
-        appSettings: state.appSettings // Keep original
-      }));
-      throw error;
-    }
-  },
+  updateAppSettings: createSettingsSlice({
+    set,
+    get,
+    getCurrentUserId,
+  }).updateAppSettings,
 
   /**
    * ACTION: Initialize app settings for new user
    */
-  initializeAppSettings: async () => {
-    try {
-      const userId = getCurrentUserId();
-      const defaultSettings: Omit<AppSettings, 'id'> = {
-        userId: userId,
-        theme: 'system'
-      };
+  initializeAppSettings: createSettingsSlice({
+    set,
+    get,
+    getCurrentUserId,
+  }).initializeAppSettings,
 
-      const createdSettings = await AppSettingsService.createAppSettings(defaultSettings);
-
-      set({ appSettings: createdSettings });
-
-      console.log('✅ App settings initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize app settings:', error);
-      // Set default settings locally if Firebase fails
-      const userId = getCurrentUserId();
-      set({
-        appSettings: {
-          id: 'local-settings',
-          userId: userId,
-          theme: 'system'
-        }
-      });
-    }
-  },
 
   // Template cleanup utilities
-  cleanupOrphanedTemplates: async () => {
-    console.log('🧹 Cleaning up orphaned templates...');
-    const templates = get().distributionTemplates;
-    const envelopes = get().envelopes;
-    const envelopeIds = new Set(envelopes.map(env => env.id));
+  cleanupOrphanedTemplates: createTemplateSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).cleanupOrphanedTemplates,
 
-    let cleanedCount = 0;
-    for (const template of templates) {
-      const originalDistributions = { ...template.distributions };
-      const cleanedDistributions: Record<string, number> = {};
+  updateTemplateEnvelopeReferences: createTemplateSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).updateTemplateEnvelopeReferences,
 
-      // Keep only distributions for existing envelopes
-      for (const [envId, amount] of Object.entries(template.distributions)) {
-        if (envelopeIds.has(envId)) {
-          cleanedDistributions[envId] = amount;
-        }
-      }
-
-      // If template has no valid distributions left, delete it
-      if (Object.keys(cleanedDistributions).length === 0) {
-        console.log(`🗑️ Deleting orphaned template: ${template.name}`);
-        const userId = getCurrentUserId();
-        await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
-        cleanedCount++;
-      }
-      // If template changed, update it
-      else if (JSON.stringify(cleanedDistributions) !== JSON.stringify(originalDistributions)) {
-        console.log(`🔧 Updating template ${template.name} - removed orphaned envelope references`);
-        const userId = getCurrentUserId();
-        await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
-          distributions: cleanedDistributions
-        });
-        cleanedCount++;
-      }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`✅ Cleaned up ${cleanedCount} templates`);
-    } else {
-      console.log('✅ No orphaned templates found');
-    }
-  },
-
-  updateTemplateEnvelopeReferences: async (oldEnvelopeId: string, newEnvelopeId: string) => {
-    console.log(`🔄 Updating template references: ${oldEnvelopeId} → ${newEnvelopeId}`);
-    const templates = get().distributionTemplates;
-    let updatedCount = 0;
-
-    for (const template of templates) {
-      if (template.distributions[oldEnvelopeId] !== undefined) {
-        const updatedDistributions = { ...template.distributions };
-        updatedDistributions[newEnvelopeId] = updatedDistributions[oldEnvelopeId];
-        delete updatedDistributions[oldEnvelopeId];
-
-        console.log(`📝 Updating template: ${template.name}`);
-        const userId = getCurrentUserId();
-        await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
-          distributions: updatedDistributions
-        });
-        updatedCount++;
-      }
-    }
-
-    if (updatedCount > 0) {
-      console.log(`✅ Updated ${updatedCount} templates with new envelope reference`);
-    }
-  },
-
-  removeEnvelopeFromTemplates: async (envelopeId: string) => {
-    console.log(`🗑️ Removing envelope ${envelopeId} from all templates`);
-    const templates = get().distributionTemplates;
-    let updatedCount = 0;
-    let deletedCount = 0;
-
-    for (const template of templates) {
-      if (template.distributions[envelopeId] !== undefined) {
-        const updatedDistributions = { ...template.distributions };
-        delete updatedDistributions[envelopeId];
-
-        // If no distributions left, delete the template
-        if (Object.keys(updatedDistributions).length === 0) {
-          console.log(`🗑️ Deleting template ${template.name} - no envelopes left`);
-          const userId = getCurrentUserId();
-          await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
-          deletedCount++;
-        } else {
-          console.log(`📝 Removing envelope from template: ${template.name}`);
-          const userId = getCurrentUserId();
-          await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
-            distributions: updatedDistributions
-          });
-          updatedCount++;
-        }
-      }
-    }
-
-    if (updatedCount > 0 || deletedCount > 0) {
-      console.log(`✅ Updated ${updatedCount} templates, deleted ${deletedCount} empty templates`);
-    }
-  },
+  removeEnvelopeFromTemplates: createTemplateSlice({
+    set,
+    get,
+    getCurrentUserId,
+    isNetworkError,
+  }).removeEnvelopeFromTemplates,
 
   /**
    * COMPUTED: Calculate envelope balance (purely transaction-based)

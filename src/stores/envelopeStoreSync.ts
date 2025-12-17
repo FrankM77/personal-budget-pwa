@@ -11,9 +11,6 @@ export type SyncSliceParams = {
   getCurrentUserId: () => string;
   isNetworkError: (error: any) => boolean;
   loadFallbackData: () => Promise<any>;
-  convertFirebaseTransaction: (firebaseTx: any) => Transaction;
-  convertFirebaseEnvelope: (firebaseEnv: any) => Envelope;
-  convertFirebaseTemplate: (firebaseTemplate: any) => DistributionTemplate;
   checkOnlineStatus: () => Promise<boolean>;
   clearUserData: () => void;
 };
@@ -24,9 +21,6 @@ export const createSyncSlice = ({
   getCurrentUserId,
   isNetworkError,
   loadFallbackData,
-  convertFirebaseTransaction,
-  convertFirebaseEnvelope,
-  convertFirebaseTemplate,
   checkOnlineStatus,
   clearUserData,
 }: SyncSliceParams) => {
