@@ -2,9 +2,9 @@ export type TransactionType = 'Income' | 'Expense' | 'Transfer';
 
 export interface User {
   id: string;
-  username: string;
+  username: string; // Will be email for Firebase users
   displayName: string;
-  passwordHash: string; // Simple hash for demo purposes
+  email?: string;
 }
 
 export interface Transaction {

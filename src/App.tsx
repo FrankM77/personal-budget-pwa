@@ -16,7 +16,7 @@ function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
   const { appSettings } = useEnvelopeStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitialized, initializeAuth } = useAuthStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
@@ -25,6 +25,12 @@ function App() {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Initialize Firebase Auth
+  useEffect(() => {
+    const unsubscribe = initializeAuth();
+    return unsubscribe;
+  }, [initializeAuth]);
 
   // Theme effect: toggle html.dark based on app settings theme preference
   useEffect(() => {
@@ -53,7 +59,7 @@ function App() {
   }, [appSettings]);
 
   // Splash Screen View
-  if (showingLaunchScreen) {
+  if (showingLaunchScreen || !isInitialized) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-blue-600 text-white dark:bg-black">
         <div className="text-3xl font-bold animate-pulse">

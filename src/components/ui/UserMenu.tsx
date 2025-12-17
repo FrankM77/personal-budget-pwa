@@ -46,8 +46,8 @@ export const UserMenu = () => {
     return null;
   }
 
-  const userInitial = currentUser.displayName?.charAt(0)?.toUpperCase() || 
-                      currentUser.username?.charAt(0)?.toUpperCase() || 
+  const userInitial = currentUser.displayName?.charAt(0)?.toUpperCase() ||
+                      currentUser.email?.charAt(0)?.toUpperCase() ||
                       'U';
 
   return (
@@ -61,7 +61,7 @@ export const UserMenu = () => {
           {userInitial}
         </div>
         <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {currentUser.displayName || currentUser.username}
+          {currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
         </span>
         <ChevronDown 
           size={16} 
@@ -80,10 +80,10 @@ export const UserMenu = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                  {currentUser.displayName || currentUser.username}
+                  {currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">
-                  {currentUser.username}
+                  {currentUser.email}
                 </p>
               </div>
             </div>
