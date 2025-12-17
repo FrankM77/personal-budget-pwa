@@ -1,5 +1,12 @@
 export type TransactionType = 'Income' | 'Expense' | 'Transfer';
 
+export interface User {
+  id: string;
+  username: string;
+  displayName: string;
+  passwordHash: string; // Simple hash for demo purposes
+}
+
 export interface Transaction {
   id: string;
   date: string; // ISO String (e.g., "2024-01-01T12:00:00Z")

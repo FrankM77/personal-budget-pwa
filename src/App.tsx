@@ -7,19 +7,22 @@ import { SettingsView } from './views/SettingsView';
 import { AddEnvelopeView } from './views/AddEnvelopeView';
 import { AddTransactionView } from './views/AddTransactionView';
 import { TransactionHistoryView } from './views/TransactionHistoryView';
+import { LoginView } from './views/LoginView';
 import { Toast } from './components/ui/Toast';
 import { useEnvelopeStore } from './stores/envelopeStore';
+import { useAuthStore } from './stores/authStore';
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
   const { appSettings } = useEnvelopeStore();
+  const { isAuthenticated } = useAuthStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowingLaunchScreen(false);
-    }, 2000); 
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -58,6 +61,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Login View - Show when not authenticated
+  if (!isAuthenticated) {
+    return <LoginView />;
   }
 
   // Main App View
