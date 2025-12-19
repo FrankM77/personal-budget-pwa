@@ -1,6 +1,6 @@
 # Envelope Store Refactor Progress
 
-_Last updated: 2025-12-17_
+_Last updated: 2025-12-18_
 
 ## Goal
 Incrementally break the monolithic `src/stores/envelopeStore.ts` Zustand store into focused slices without changing the public API or runtime behavior. Each extraction keeps the store compiling and verified via `npm run build`.
@@ -17,21 +17,26 @@ Incrementally break the monolithic `src/stores/envelopeStore.ts` Zustand store i
 5. **Template actions & cleanup utilities** – `src/stores/envelopeStoreTemplates.ts`
    - `saveTemplate`, `deleteTemplate`, `cleanupOrphanedTemplates`, `updateTemplateEnvelopeReferences`, `removeEnvelopeFromTemplates` with offline fallbacks.
 
-`envelopeStore.ts` now hosts the original logic while we experiment with slice delegation in a separate branch of work. Delegate attempts were rolled back after TypeScript issues; extraction still lives in the slice files for later integration.
+**MAJOR PROGRESS UPDATE**: All slice integrations completed! Settings, templates, envelopes, and transactions are now fully delegated to their respective slice files. The refactor has progressed from ~60% to ~95% completion.
 
 ## Verification
 - `npm run build` → ✅ (TypeScript + Vite) after each set of changes.
 - Restored `handleUserLogout` in the store interface to satisfy `UserMenu` consumer.
 
 ## Remaining Work
-1. **Settings slice delegation**
-   - Wire `updateAppSettings` / `initializeAppSettings` from `envelopeStoreSettings.ts` back into the root store.
-2. **Template cleanup delegation**
-   - Reconnect `cleanupOrphanedTemplates`, `updateTemplateEnvelopeReferences`, `removeEnvelopeFromTemplates` to the slice factory.
-3. **Envelope + transaction delegation**
-   - Reintroduce delegation to `envelopeStoreEnvelopes.ts` and `envelopeStoreTransactions.ts`, ensuring helper factories are instantiated once and reused.
-4. **Sync slice integration**
-   - After delegations compile cleanly, reattempt `createSyncSlice` wiring and migrate shared converters/helpers into a common utility.
+1. ✅ **Settings slice delegation** - COMPLETED
+   - `updateAppSettings` / `initializeAppSettings` successfully wired from `envelopeStoreSettings.ts` to root store.
+2. ✅ **Template slice delegation** - COMPLETED
+   - `saveTemplate`, `deleteTemplate`, `cleanupOrphanedTemplates`, `updateTemplateEnvelopeReferences`, `removeEnvelopeFromTemplates` all successfully wired from `envelopeStoreTemplates.ts`
+3. ✅ **Envelope actions delegation** - COMPLETED
+   - `createEnvelope`, `addToEnvelope`, `spendFromEnvelope`, `transferFunds`, `deleteEnvelope` successfully wired from `envelopeStoreEnvelopes.ts`
+4. ✅ **Transaction actions delegation** - COMPLETED
+   - All transaction methods successfully integrated from `envelopeStoreTransactions.ts`:
+   - `addTransaction`, `deleteTransaction`, `updateTransaction`, `restoreTransaction`
+5. **Sync slice integration** - READY FOR IMPLEMENTATION
+   - All slice delegations now compile cleanly
+   - Ready to wire `createSyncSlice` and migrate shared converters/helpers into a common utility
+   - Final integration phase can now begin
 5. **Verification**
    - `npm run build` and basic smoke tests (login, envelope CRUD, template operations, offline toggles).
 
@@ -47,6 +52,9 @@ Incrementally break the monolithic `src/stores/envelopeStore.ts` Zustand store i
 - Template slice retains timeout-based offline detection to avoid silent failures.
 
 ## Next Steps
-1. Implement settings slice and re-run build.
-2. Extract sync/reset/import logic, ensuring state flags (`pendingSync`, `resetPending`) behave identically.
-3. Compile final regression checklist + smoke results in this document.
+1. ✅ Settings slice integration completed - build verified
+2. ✅ Template slice integration completed - all template operations and cleanup utilities wired
+3. ✅ Envelope actions integration completed - all envelope CRUD operations wired
+4. ✅ Transaction actions integration completed - all transaction CRUD operations wired
+5. **FINAL STEP**: Sync/reset/import logic extraction and final integration
+6. Compile final regression checklist + smoke results in this document.

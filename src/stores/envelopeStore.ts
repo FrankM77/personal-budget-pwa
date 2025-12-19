@@ -9,6 +9,7 @@ import { useAuthStore } from './authStore';
 import { createEnvelopeSlice } from './envelopeStoreEnvelopes';
 import { createTemplateSlice } from './envelopeStoreTemplates';
 import { createSettingsSlice } from './envelopeStoreSettings';
+import { createTransactionSlice } from './envelopeStoreTransactions';
 
 import type { DistributionTemplate, AppSettings, Transaction, Envelope } from '../models/types';
 
@@ -427,73 +428,13 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    * Updates local state immediately, syncs with Firebase when possible
    */
   addTransaction: async (newTx) => {
-    // Generate temporary ID for immediate UI update
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const userId = getCurrentUserId();
-    const transactionWithId = {
-      ...newTx,
-      id: tempId,
-      userId: userId
-    };
-
-    // Update local state immediately for responsive UI
-    set((state) => ({
-      transactions: [...state.transactions, transactionWithId],
-      isLoading: true
-    }));
-
-    // Only try to sync if the envelopeId is not a temp ID
-    // (Transactions created with temp envelopeIds will sync after envelope syncs)
-    if (!newTx.envelopeId.startsWith('temp-')) {
-      try {
-        // Try to sync with Firebase (works offline thanks to persistence)
-        const transactionForService = {
-          ...transactionWithId,
-          amount: transactionWithId.amount.toString(), // Convert to string for Firebase
-          type: transactionWithId.type.toLowerCase() as 'income' | 'expense' | 'transfer', // Convert to lowercase for Firebase
-          date: Timestamp.fromDate(new Date(transactionWithId.date))
-        };
-        const savedTx = await TransactionService.addTransaction(transactionForService as any);
-
-        // Replace temp transaction with real one from Firebase
-        console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
-
-        // Convert Timestamp back to string for store compatibility
-        const convertedTx = convertFirebaseTransaction(savedTx);
-
-        set((state) => ({
-          transactions: state.transactions.map(tx =>
-            tx.id === tempId ? (convertedTx as Transaction) : tx
-          ),
-          isLoading: false,
-          pendingSync: false
-        }));
-      } catch (err: any) {
-        console.error("Add Transaction Failed:", err);
-        if (isNetworkError(err)) {
-          // Offline: Keep the temp transaction, mark for later sync
-          set({
-            isLoading: false,
-            pendingSync: true,
-            error: null // Don't show error for offline scenarios
-          });
-        } else {
-          // Real error: Remove temp transaction
-          set((state) => ({
-            transactions: state.transactions.filter(tx => tx.id !== tempId),
-            error: err.message,
-            isLoading: false
-          }));
-        }
-      }
-    } else {
-      // Transaction has temp envelopeId, don't try to sync yet
-      console.log(`⏳ Skipping Firebase sync for transaction with temp envelopeId: ${newTx.envelopeId}`);
-      set({
-        isLoading: false,
-        pendingSync: true // Mark for later sync when envelope gets real ID
-      });
-    }
+    const slice = createTransactionSlice({
+      set,
+      get,
+      getCurrentUserId,
+      isNetworkError,
+    });
+    return slice.addTransaction(newTx);
   },
 
   /**
@@ -608,140 +549,39 @@ export const useEnvelopeStore = create<EnvelopeStore>((set, get) => ({
    * ACTION: Delete transaction - Offline-First
    */
   deleteTransaction: async (transactionId: string) => {
-    // Find the transaction to delete
-    const transactionToDelete = get().transactions.find(tx => tx.id === transactionId);
-    if (!transactionToDelete) return;
-
-    // Store references for potential rollback
-    const allTransactionsToDelete = [transactionId];
-
-    // For transfers, also delete the paired transaction
-    if (transactionToDelete.transferId) {
-      const pairedTransaction = get().transactions.find(tx =>
-        tx.transferId === transactionToDelete.transferId && tx.id !== transactionId
-      );
-      if (pairedTransaction && pairedTransaction.id) {
-        allTransactionsToDelete.push(pairedTransaction.id);
-      }
-    }
-
-    // Update local state immediately
-    set((state) => ({
-      transactions: state.transactions.filter(tx => tx.id && !allTransactionsToDelete.includes(tx.id)),
-      isLoading: true
-    }));
-
-    try {
-      // Delete from Firebase (skip temp IDs that haven't been synced yet)
-      const userId = getCurrentUserId();
-      const firebaseIdsToDelete = allTransactionsToDelete.filter(txId => !txId.startsWith('temp-'));
-
-      for (const txId of firebaseIdsToDelete) {
-        console.log(`🔄 About to delete transaction ID: ${txId}`);
-        await TransactionService.deleteTransaction(userId, txId);
-        console.log(`✅ Deleted transaction ID: ${txId}`);
-      }
-
-      console.log(`✅ All transaction deletions completed`);
-      set({ isLoading: false });
-    } catch (err: any) {
-      console.error("Delete Transaction Failed:", err);
-      if (isNetworkError(err)) {
-        // Offline: Keep the local deletion, mark for later sync
-        set({
-          isLoading: false,
-          pendingSync: true,
-          error: null
-        });
-      } else {
-        // Real error: Restore the transactions locally
-        const restoredTransactions = allTransactionsToDelete.map(txId => {
-          // Find the original transaction (this is a simplified approach)
-          return get().transactions.find(tx => tx.id === txId) || transactionToDelete;
-        }).filter(Boolean);
-
-        set((state) => ({
-          transactions: [...state.transactions, ...restoredTransactions],
-          error: err.message,
-          isLoading: false
-        }));
-      }
-    }
+    const slice = createTransactionSlice({
+      set,
+      get,
+      getCurrentUserId,
+      isNetworkError,
+    });
+    return slice.deleteTransaction(transactionId);
   },
 
   /**
    * ACTION: Update transaction - Offline-First
    */
   updateTransaction: async (updatedTx: Transaction) => {
-    console.log('🔄 updateTransaction called:', updatedTx);
-
-    // Update local state immediately
-    set((state) => ({
-      transactions: state.transactions.map(tx =>
-        tx.id === updatedTx.id ? updatedTx : tx
-      ),
-      isLoading: true
-    }));
-
-    try {
-      // Try Firebase update first with timeout for offline detection
-      const userId = getCurrentUserId();
-      const firebasePromise = TransactionService.updateTransaction(userId, updatedTx.id!, {
-        description: updatedTx.description,
-        amount: updatedTx.amount.toString(),
-        envelopeId: updatedTx.envelopeId,
-        date: Timestamp.fromDate(new Date(updatedTx.date)),
-        type: updatedTx.type.toLowerCase() as any
-      });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 5000)
-      );
-
-      await Promise.race([firebasePromise, timeoutPromise]);
-      console.log('✅ Transaction updated in Firebase');
-
-      set({ isLoading: false });
-    } catch (err: any) {
-      console.error("Update Transaction Failed:", err);
-      console.log('🔍 Error details:', {
-        name: (err as any)?.name || 'Unknown',
-        message: (err as any)?.message || 'Unknown',
-        code: (err as any)?.code || 'Unknown',
-        isNetworkError: isNetworkError(err)
-      });
-
-      // For offline/network errors, keep the local changes and mark for later sync
-      if (isNetworkError(err)) {
-        console.log(`🔄 Treating as offline scenario - keeping local transaction update`);
-        set({
-          isLoading: false,
-          pendingSync: true,
-          error: null
-        });
-      } else {
-        set({ error: err.message, isLoading: false });
-      }
-    }
+    const slice = createTransactionSlice({
+      set,
+      get,
+      getCurrentUserId,
+      isNetworkError,
+    });
+    return slice.updateTransaction(updatedTx);
   },
 
   /**
    * ACTION: Restore transaction - Offline-First
    */
   restoreTransaction: async (transaction: Transaction) => {
-    // Update local state immediately
-    set((state) => ({
-      transactions: [...state.transactions, transaction],
-      isLoading: true
-    }));
-
-    try {
-      // Note: Firebase restore would require additional service methods
-      // For now, we keep it local-only
-      set({ isLoading: false });
-    } catch (err: any) {
-      console.error("Restore Transaction Failed:", err);
-      set({ error: err.message, isLoading: false });
-    }
+    const slice = createTransactionSlice({
+      set,
+      get,
+      getCurrentUserId,
+      isNetworkError,
+    });
+    return slice.restoreTransaction(transaction);
   },
 
   /**
