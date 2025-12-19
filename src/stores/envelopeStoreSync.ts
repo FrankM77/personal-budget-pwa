@@ -245,6 +245,22 @@ export const createSyncSlice = ({
       const userId = getCurrentUserId();
       console.log(`📥 Importing data for user: ${userId}`);
 
+      // Clear Firebase data first (like resetData does)
+      console.log('🗑️ Clearing existing Firebase data before import...');
+      await performFirebaseReset();
+
+      // Clear local state first
+      set({
+        envelopes: [],
+        transactions: [],
+        distributionTemplates: [],
+        appSettings: null,
+        error: null,
+        pendingSync: true,
+        isLoading: true,
+      });
+      console.log('✅ Local state cleared before import');
+
       const newEnvelopes = data.envelopes.map((env: any) => ({
         id: env.id || `imported-${Date.now()}-${Math.random()}`,
         name: env.name,
@@ -336,7 +352,7 @@ export const createSyncSlice = ({
         }
 
         console.log('✅ All imported data synced to Firebase');
-        set({ pendingSync: false });
+        set({ pendingSync: false, isLoading: false });
       } catch (syncError) {
         console.error('❌ Error syncing to Firebase:', syncError);
         set({ pendingSync: true });
