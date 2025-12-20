@@ -14,24 +14,19 @@ export const LoginView = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearError(); // Clear any previous errors before attempting authentication
     if (email.trim() && password.trim()) {
       if (isRegistering) {
         if (!displayName.trim()) {
           return; // Display name is required for registration
         }
         await register(email.trim(), password, displayName.trim());
+        // App will automatically show EmailVerificationView after successful registration
       } else {
         await login(email.trim(), password);
       }
     }
   };
-
-  // Clear error when inputs change
-  useEffect(() => {
-    if (loginError) {
-      clearError();
-    }
-  }, [email, password, loginError, clearError]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,6 +253,13 @@ export const LoginView = () => {
               {loginError && (
                 <div className="text-red-600 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
                   {loginError}
+                  {loginError.includes('verify your email') && (
+                    <div className="mt-3">
+                      <p className="text-sm text-blue-600 dark:text-blue-400">
+                        Please check your email and click the verification link to continue.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

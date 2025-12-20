@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase';
 import type { User } from '../models/types';
@@ -14,6 +14,7 @@ interface AuthState {
   isInitializing?: boolean; // For internal use during initialization
   lastAuthTime: number | null; // Track last successful auth time for offline grace period
   offlineGracePeriod: number; // Grace period in milliseconds (7 days)
+  lastVerificationEmailSent: number | null; // Track last verification email sent time for rate limiting
 }
 
 interface AuthActions {
@@ -21,6 +22,9 @@ interface AuthActions {
   register: (email: string, password: string, displayName: string) => Promise<boolean>;
   logout: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<boolean>;
+  sendEmailVerification: () => Promise<boolean>;
+  resendEmailVerification: () => Promise<boolean>;
+  deleteAccount: (password: string) => Promise<boolean>;
   clearError: () => void;
   initializeAuth: () => () => void; // Returns cleanup function
 }
@@ -46,6 +50,7 @@ export const useAuthStore = create<AuthStore>()(
       isInitializing: true,
       lastAuthTime: null, // Track last successful auth time
       offlineGracePeriod: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      lastVerificationEmailSent: null, // Track last verification email sent time
 
       login: async (email: string, password: string): Promise<boolean> => {
         set({ isLoading: true, loginError: null });
@@ -53,6 +58,21 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
           const firebaseUser = userCredential.user;
+
+          // Check if email is verified
+          if (!firebaseUser.emailVerified) {
+            // Sign out the user since they can't access the app without verification
+            await firebaseSignOut(auth);
+            set({
+              currentUser: null,
+              isAuthenticated: false,
+              isLoading: false,
+              loginError: 'Please verify your email address before signing in. Check your email for a verification link.'
+            });
+            console.log(`❌ Login blocked: ${firebaseUser.email} not verified`);
+            return false;
+          }
+
           const user = firebaseUserToUser(firebaseUser);
 
           set({
@@ -66,24 +86,45 @@ export const useAuthStore = create<AuthStore>()(
           return true;
         } catch (error: any) {
           console.error('Login error:', error);
+          console.error('Error code:', error.code);
+          console.error('Error message:', error.message);
+
           let errorMessage = 'Login failed. Please try again.';
 
-          switch (error.code) {
-            case 'auth/invalid-email':
-              errorMessage = 'Invalid email address.';
-              break;
-            case 'auth/user-disabled':
-              errorMessage = 'This account has been disabled.';
-              break;
-            case 'auth/user-not-found':
-              errorMessage = 'No account found with this email.';
-              break;
-            case 'auth/wrong-password':
-              errorMessage = 'Incorrect password.';
-              break;
-            case 'auth/too-many-requests':
-              errorMessage = 'Too many failed attempts. Please try again later.';
-              break;
+          // Handle Firebase Auth errors
+          if (error.code) {
+            switch (error.code) {
+              case 'auth/invalid-email':
+                errorMessage = 'Invalid email address.';
+                break;
+              case 'auth/user-disabled':
+                errorMessage = 'This account has been disabled.';
+                break;
+              case 'auth/user-not-found':
+                errorMessage = 'No account found with this email.';
+                break;
+              case 'auth/wrong-password':
+                errorMessage = 'Incorrect password.';
+                break;
+              case 'auth/too-many-requests':
+                errorMessage = 'Too many failed attempts. Please try again later.';
+                break;
+              case 'auth/network-request-failed':
+                errorMessage = 'Network error. Please check your connection and try again.';
+                break;
+              case 'auth/invalid-credential':
+                errorMessage = 'Invalid email or password.';
+                break;
+              default:
+                // For debugging - show the actual error code
+                console.warn(`Unhandled Firebase error code: ${error.code}`);
+                errorMessage = 'Authentication failed. Please try again.';
+                break;
+            }
+          } else {
+            // Handle non-Firebase errors
+            console.warn('Non-Firebase error in login:', error);
+            errorMessage = 'An unexpected error occurred. Please try again.';
           }
 
           set({
@@ -106,16 +147,19 @@ export const useAuthStore = create<AuthStore>()(
           // Set display name
           await updateProfile(firebaseUser, { displayName });
 
+          // Send verification email
+          await sendEmailVerification(firebaseUser);
+
           const user = firebaseUserToUser(firebaseUser);
 
           set({
             currentUser: user,
-            isAuthenticated: true,
+            isAuthenticated: false, // Don't authenticate until email is verified
             isLoading: false,
             loginError: null,
-            lastAuthTime: Date.now() // Record successful auth time
+            lastVerificationEmailSent: Date.now() // Record verification email sent time
           });
-          console.log(`✅ User registered and logged in: ${user.email}`);
+          console.log(`✅ User registered: ${user.email}, verification email sent`);
           return true;
         } catch (error: any) {
           console.error('Registration error:', error);
@@ -183,9 +227,122 @@ export const useAuthStore = create<AuthStore>()(
               break;
           }
 
-          set({ 
-            isLoading: false, 
-            loginError: errorMessage 
+          set({
+            isLoading: false,
+            loginError: errorMessage
+          });
+          return false;
+        }
+      },
+
+      sendEmailVerification: async (): Promise<boolean> => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          set({ loginError: 'No user is currently signed in.' });
+          return false;
+        }
+
+        set({ isLoading: true, loginError: null });
+
+        try {
+          await sendEmailVerification(currentUser);
+          set({
+            isLoading: false,
+            lastVerificationEmailSent: Date.now()
+          });
+          console.log(`✅ Verification email sent to: ${currentUser.email}`);
+          return true;
+        } catch (error: any) {
+          console.error('Email verification error:', error);
+          let errorMessage = 'Failed to send verification email. Please try again.';
+
+          switch (error.code) {
+            case 'auth/too-many-requests':
+              errorMessage = 'Too many verification emails sent. Please wait before trying again.';
+              break;
+          }
+
+          set({
+            isLoading: false,
+            loginError: errorMessage
+          });
+          return false;
+        }
+      },
+
+      resendEmailVerification: async (): Promise<boolean> => {
+        const state = useAuthStore.getState();
+
+        // Rate limiting: prevent sending more than once per minute
+        if (state.lastVerificationEmailSent) {
+          const timeSinceLastEmail = Date.now() - state.lastVerificationEmailSent;
+          const rateLimitMs = 60 * 1000; // 60 seconds
+
+          if (timeSinceLastEmail < rateLimitMs) {
+            const remainingSeconds = Math.ceil((rateLimitMs - timeSinceLastEmail) / 1000);
+            set({
+              loginError: `Please wait ${remainingSeconds} seconds before requesting another verification email.`
+            });
+            return false;
+          }
+        }
+
+        return state.sendEmailVerification();
+      },
+
+      deleteAccount: async (password: string): Promise<boolean> => {
+        const currentUser = auth.currentUser;
+        if (!currentUser || !currentUser.email) {
+          set({ loginError: 'No user is currently signed in.' });
+          return false;
+        }
+
+        set({ isLoading: true, loginError: null });
+
+        try {
+          // Re-authenticate user (required for account deletion)
+          const credential = EmailAuthProvider.credential(currentUser.email, password);
+          await reauthenticateWithCredential(currentUser, credential);
+
+          // Delete all user data from Firebase first
+          // Note: This will be handled by the envelopeStore.resetData() call in the UI layer
+
+          // Delete the Firebase user account
+          await deleteUser(currentUser);
+
+          // Clear local state and sign out
+          set({
+            currentUser: null,
+            isAuthenticated: false,
+            isLoading: false,
+            loginError: null,
+            lastAuthTime: null
+          });
+
+          console.log(`✅ Account permanently deleted: ${currentUser.email}`);
+          return true;
+        } catch (error: any) {
+          console.error('Account deletion error:', error);
+          let errorMessage = 'Failed to delete account. Please try again.';
+
+          switch (error.code) {
+            case 'auth/requires-recent-login':
+              errorMessage = 'For security, please log out and log back in before deleting your account.';
+              break;
+            case 'auth/wrong-password':
+              errorMessage = 'Incorrect password. Please enter your current password.';
+              break;
+            case 'auth/too-many-requests':
+              errorMessage = 'Too many deletion attempts. Please wait before trying again.';
+              break;
+            case 'auth/network-request-failed':
+              errorMessage = 'Network error. Please check your connection and try again.';
+              break;
+          }
+
+          set({
+            isLoading: false,
+            loginError: errorMessage
           });
           return false;
         }
@@ -204,7 +361,7 @@ export const useAuthStore = create<AuthStore>()(
         const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
           const now = Date.now();
           const currentState = useAuthStore.getState(); // Use getState() instead of get()
-          
+
           const user = firebaseUser ? firebaseUserToUser(firebaseUser) : null;
 
           // Check if we're within the offline grace period
@@ -217,10 +374,12 @@ export const useAuthStore = create<AuthStore>()(
           const shouldGrantOfflineAccess = isOffline && currentState.isAuthenticated &&
             isWithinGracePeriod && !user; // No current Firebase user but we have persisted state
 
+          // Only grant access if user is verified (unless offline grace period applies)
+          const isVerified = firebaseUser ? firebaseUser.emailVerified : true; // Assume verified for offline grace period
 
-          // Effective authentication state
-          const effectiveAuthenticated = !!user || !!shouldGrantOfflineAccess;
-          const effectiveUser = user || (shouldGrantOfflineAccess ? currentState.currentUser : null);
+          // Effective authentication state - user must be verified to be authenticated
+          const effectiveAuthenticated = (firebaseUser && isVerified) || !!shouldGrantOfflineAccess;
+          const effectiveUser = firebaseUser ? user : (shouldGrantOfflineAccess ? currentState.currentUser : null);
 
           set({
             currentUser: effectiveUser,
@@ -228,12 +387,12 @@ export const useAuthStore = create<AuthStore>()(
             isInitialized: true,
             isLoading: false,
             loginError: null,
-            lastAuthTime: user ? now : currentState.lastAuthTime // Update only on successful Firebase auth
+            lastAuthTime: (firebaseUser && isVerified) ? now : currentState.lastAuthTime // Update only on successful verified auth
           });
 
           if (effectiveUser) {
             console.log(`🔄 Auth state: User is signed in (${effectiveUser.email})`,
-              shouldGrantOfflineAccess ? '(offline grace period)' : '');
+              shouldGrantOfflineAccess ? '(offline grace period)' : isVerified ? '(verified)' : '(unverified)');
           } else {
             console.log('🔄 Auth state: User is signed out');
           }
@@ -249,7 +408,8 @@ export const useAuthStore = create<AuthStore>()(
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser, // Also persist user data for offline access
         lastAuthTime: state.lastAuthTime, // Persist auth timestamp for grace period
-        offlineGracePeriod: state.offlineGracePeriod // Persist grace period setting
+        offlineGracePeriod: state.offlineGracePeriod, // Persist grace period setting
+        lastVerificationEmailSent: state.lastVerificationEmailSent // Persist verification email timestamp
       })
     }
   )

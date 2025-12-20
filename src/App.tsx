@@ -8,6 +8,7 @@ import { AddEnvelopeView } from './views/AddEnvelopeView';
 import { AddTransactionView } from './views/AddTransactionView';
 import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { LoginView } from './views/LoginView';
+import { EmailVerificationView } from './views/EmailVerificationView';
 import { Toast } from './components/ui/Toast';
 import { useEnvelopeStore } from './stores/envelopeStore';
 import { useAuthStore } from './stores/authStore';
@@ -16,7 +17,7 @@ function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
   const { appSettings } = useEnvelopeStore();
-  const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod } = useAuthStore();
+  const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
@@ -70,7 +71,11 @@ function App() {
   }
 
   // Login View - Show when not authenticated
+  // Show verification screen if user is registered but not verified
   if (!isAuthenticated) {
+    if (currentUser) {
+      return <EmailVerificationView />;
+    }
     return <LoginView />;
   }
 
@@ -114,6 +119,7 @@ function App() {
           <Route path="/transactions" element={<TransactionHistoryView />} />
 
           <Route path="/settings" element={<SettingsView />} />
+          <Route path="/verify-email" element={<EmailVerificationView />} />
         </Routes>
       </HashRouter>
 

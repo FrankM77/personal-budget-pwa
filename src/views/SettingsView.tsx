@@ -1,17 +1,22 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, RefreshCw, Loader } from 'lucide-react';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, RefreshCw, Loader, X, AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
+import { useAuthStore } from '../stores/authStore';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings, cleanupOrphanedTemplates } = useEnvelopeStore();
+  const { currentUser, deleteAccount } = useAuthStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
   });
   const [isCleaningTemplates, setIsCleaningTemplates] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 
@@ -236,6 +241,35 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) {
+      showStatus('error', 'Please enter your password to confirm account deletion.');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    try {
+      // First, reset all data
+      await resetData();
+
+      // Then delete the account
+      const success = await deleteAccount(deletePassword);
+      if (success) {
+        showStatus('success', 'Your account has been permanently deleted.');
+        // Navigate to login - this will happen automatically due to auth state change
+      } else {
+        showStatus('error', 'Failed to delete account. Please try again.');
+      }
+    } catch (error) {
+      console.error('Account deletion failed:', error);
+      showStatus('error', 'Failed to delete account. Please try again.');
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteDialog(false);
+      setDeletePassword('');
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
@@ -432,7 +466,7 @@ export const SettingsView: React.FC = () => {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm">
             <button
               onClick={handleReset}
-              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
+              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group border-b border-gray-100 dark:border-zinc-800"
             >
               <div className="flex items-center gap-3">
                 <Trash2 className="text-red-500 group-hover:text-red-600" size={20} />
@@ -440,9 +474,20 @@ export const SettingsView: React.FC = () => {
               </div>
               <ChevronRight className="text-gray-400" size={18} />
             </button>
+            <button
+              onClick={() => setShowDeleteDialog(true)}
+              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="text-red-600 group-hover:text-red-700" size={20} />
+                <span className="text-red-600 group-hover:text-red-700 font-medium">Delete Account</span>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
           </div>
-          <div className="px-1 pt-2 text-xs text-gray-500 dark:text-zinc-500">
-            This clears every envelope, transaction, and template. Use with caution.
+          <div className="px-1 pt-2 text-xs text-gray-500 dark:text-zinc-500 space-y-1">
+            <div>This clears every envelope, transaction, and template. Use with caution.</div>
+            <div>Deleting your account permanently removes all data and cannot be undone.</div>
           </div>
         </section>
 
@@ -450,6 +495,80 @@ export const SettingsView: React.FC = () => {
           House Budget PWA • App Version 2.0.1
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Account</h3>
+              </div>
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-2">
+                  This action cannot be undone
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  Deleting your account will permanently remove all your data including envelopes, transactions, templates, and settings. This action is irreversible.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Account Email: <span className="font-semibold">{currentUser?.email}</span>
+                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter your password"
+                  disabled={isDeletingAccount}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isDeletingAccount}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount || !deletePassword.trim()}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-md transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isDeletingAccount ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Account'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
