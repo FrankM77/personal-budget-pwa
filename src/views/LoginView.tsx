@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, UserPlus, Mail, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { PasswordStrengthIndicator } from '../components/ui/PasswordStrengthIndicator';
+import { PasswordRequirementsChecklist } from '../components/ui/PasswordRequirementsChecklist';
+import { usePasswordValidation } from '../utils/passwordValidation';
 
 export const LoginView = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +15,9 @@ export const LoginView = () => {
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const { login, register, sendPasswordReset, isLoading, loginError, clearError } = useAuthStore();
 
+  // Password validation for registration
+  const passwordValidation = usePasswordValidation(password);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError(); // Clear any previous errors before attempting authentication
@@ -19,6 +25,10 @@ export const LoginView = () => {
       if (isRegistering) {
         if (!displayName.trim()) {
           return; // Display name is required for registration
+        }
+        // Check password strength before attempting registration
+        if (!passwordValidation.isValid) {
+          return; // Password validation will prevent submission
         }
         await register(email.trim(), password, displayName.trim());
         // App will automatically show EmailVerificationView after successful registration
@@ -229,7 +239,11 @@ export const LoginView = () => {
                     type={isPasswordVisible ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${
+                      isRegistering && password && !passwordValidation.isValid
+                        ? 'border-red-500 dark:border-red-500'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
                     placeholder="Enter your password"
                     required
                     disabled={isLoading}
@@ -248,6 +262,20 @@ export const LoginView = () => {
                     )}
                   </button>
                 </div>
+
+                {/* Password Strength Indicator - only show during registration */}
+                {isRegistering && password && (
+                  <div className="mt-2">
+                    <PasswordStrengthIndicator password={password} />
+                  </div>
+                )}
+
+                {/* Password Requirements Checklist - only show during registration */}
+                {isRegistering && password && (
+                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                    <PasswordRequirementsChecklist password={password} />
+                  </div>
+                )}
               </div>
 
               {loginError && (
@@ -269,7 +297,8 @@ export const LoginView = () => {
                   isLoading ||
                   !email.trim() ||
                   !password.trim() ||
-                  (isRegistering && !displayName.trim())
+                  (isRegistering && !displayName.trim()) ||
+                  (isRegistering && !passwordValidation.isValid)
                 }
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed"
               >
