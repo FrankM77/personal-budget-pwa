@@ -10,6 +10,7 @@ import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { LoginView } from './views/LoginView';
 import { EmailVerificationView } from './views/EmailVerificationView';
 import { Toast } from './components/ui/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useEnvelopeStore } from './stores/envelopeStore';
 import { useAuthStore } from './stores/authStore';
 
@@ -74,9 +75,17 @@ function App() {
   // Show verification screen if user is registered but not verified
   if (!isAuthenticated) {
     if (currentUser) {
-      return <EmailVerificationView />;
+      return (
+        <ErrorBoundary>
+          <EmailVerificationView />
+        </ErrorBoundary>
+      );
     }
-    return <LoginView />;
+    return (
+      <ErrorBoundary>
+        <LoginView />
+      </ErrorBoundary>
+    );
   }
 
   // Check if using offline grace period
@@ -86,7 +95,7 @@ function App() {
 
   // Main App View
   return (
-    <>
+    <ErrorBoundary>
       {/* Offline Grace Period Banner */}
       {isUsingGracePeriod && (
         <div className="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-200 p-4">
@@ -109,23 +118,68 @@ function App() {
 
       <HashRouter>
         <Routes>
-          <Route path="/" element={<EnvelopeListView />} />
-
-          {/* 2. ADD THIS ROUTE */}
-          <Route path="/envelope/:id" element={<EnvelopeDetail />} />
-          <Route path="/add-envelope" element={<AddEnvelopeView />} />
-          <Route path="/add-transaction" element={<AddTransactionView />} />
-          {/* Inside your App.tsx Router configuration */}
-          <Route path="/transactions" element={<TransactionHistoryView />} />
-
-          <Route path="/settings" element={<SettingsView />} />
-          <Route path="/verify-email" element={<EmailVerificationView />} />
+          <Route 
+            path="/" 
+            element={
+              <ErrorBoundary>
+                <EnvelopeListView />
+              </ErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/envelope/:id" 
+            element={
+              <ErrorBoundary>
+                <EnvelopeDetail />
+              </ErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/add-envelope" 
+            element={
+              <ErrorBoundary>
+                <AddEnvelopeView />
+              </ErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/add-transaction" 
+            element={
+              <ErrorBoundary>
+                <AddTransactionView />
+              </ErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/transactions" 
+            element={
+              <ErrorBoundary>
+                <TransactionHistoryView />
+              </ErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ErrorBoundary>
+                <SettingsView />
+              </ErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/verify-email" 
+            element={
+              <ErrorBoundary>
+                <EmailVerificationView />
+              </ErrorBoundary>
+            } 
+          />
         </Routes>
       </HashRouter>
 
       {/* Global Toast Notifications */}
       <Toast />
-    </>
+    </ErrorBoundary>
   );
 }
 
