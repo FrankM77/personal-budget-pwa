@@ -3,14 +3,14 @@
   "private": true,
   "version": "1.1.0",
   "type": "module",
-  "homepage": "https://FrankM77.github.io/house-budget-pwa",
+  "homepage": "https://FrankM77.github.io/personal-budget-pwa",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist -r https://github.com/FrankM77/personal-budget-pwa.git"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",

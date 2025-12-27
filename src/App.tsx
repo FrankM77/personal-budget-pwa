@@ -65,7 +65,7 @@ function App() {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-blue-600 text-white dark:bg-black">
         <div className="text-3xl font-bold animate-pulse">
-          House Budget
+          Personal Budget
         </div>
       </div>
     );

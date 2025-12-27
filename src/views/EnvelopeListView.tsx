@@ -101,7 +101,7 @@ export const EnvelopeListView: React.FC = () => {
         </div>
 
         <div className="mt-4">
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">House Expenses</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Personal Budget</h1>
         </div>
       </header>
 

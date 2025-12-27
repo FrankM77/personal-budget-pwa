@@ -65,15 +65,15 @@ export const LoginView = () => {
             <div className="flex items-center gap-3">
               <img
                 src={`${import.meta.env.BASE_URL}icon-192.png`}
-                alt="House Budget Logo"
+                alt="Personal Budget Logo"
                 className="w-10 h-10"
               />
               <h1 className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-                House Budget
+                Personal Budget
               </h1>
             </div>
             <p className="text-gray-600 dark:text-gray-400">
-              Simple envelope budgeting for your household
+              Simple envelope budgeting for personal finance
             </p>
           </div>
         </div>
