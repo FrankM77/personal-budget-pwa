@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { PlusCircle, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { PlusCircle, RefreshCw, Edit, Trash2 } from 'lucide-react';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { MonthSelector } from '../components/ui/MonthSelector';
 import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
+import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import { mockMonthlyBudgetData, mockEnvelopeNames } from '../utils/demoData';
+import type { IncomeSource } from '../models/types';
 
 export const MonthlyBudgetDemoView: React.FC = () => {
   const {
@@ -12,38 +14,229 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     incomeSources,
     envelopeAllocations,
     isLoading,
-    setCurrentMonth,
-    fetchMonthlyData,
     calculateAvailableToBudget,
-    copyFromPreviousMonth,
-    loadDemoData,
+    deleteIncomeSource,
   } = useMonthlyBudgetStore();
 
+  // Override setCurrentMonth for demo to handle demo month specially
+  const handleMonthChange = (month: string) => {
+    // Set month directly
+    useMonthlyBudgetStore.setState({ currentMonth: month });
+
+    // Handle demo month vs other months
+    if (month === mockMonthlyBudgetData.currentMonth) {
+      // Load demo data for January 2025
+      useMonthlyBudgetStore.setState({
+        incomeSources: mockMonthlyBudgetData.incomeSources,
+        envelopeAllocations: mockMonthlyBudgetData.envelopeAllocations,
+        isLoading: false
+      });
+    } else {
+      // Clear data for other months (no demo data available)
+      useMonthlyBudgetStore.setState({
+        incomeSources: [],
+        envelopeAllocations: [],
+        isLoading: false
+      });
+    }
+  };
+
+  // Demo-specific copy month functionality
+  const handleCopyMonth = () => {
+    // For demo: copy January 2025 data to current month
+    if (currentMonth !== mockMonthlyBudgetData.currentMonth) {
+      useMonthlyBudgetStore.setState({
+        incomeSources: mockMonthlyBudgetData.incomeSources.map(source => ({
+          ...source,
+          month: currentMonth, // Update month reference
+          id: `${source.id}-${currentMonth}`, // Make ID unique for this month
+        })),
+        envelopeAllocations: mockMonthlyBudgetData.envelopeAllocations.map(allocation => ({
+          ...allocation,
+          month: currentMonth, // Update month reference
+          id: `${allocation.id}-${currentMonth}`, // Make ID unique for this month
+        })),
+        isLoading: false
+      });
+    }
+  };
+
   const [demoLoaded, setDemoLoaded] = useState(false);
+  const [incomeModalVisible, setIncomeModalVisible] = useState(false);
+  const [incomeModalMode, setIncomeModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
+  const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Modal handlers
+  const handleAddIncome = () => {
+    setIncomeModalMode('add');
+    setSelectedIncomeSource(null);
+    setIncomeModalVisible(true);
+  };
+
+  const handleEditIncome = (incomeSource: IncomeSource) => {
+    // Cancel any pending edit operations
+    if (pendingEditTimeout.current) {
+      clearTimeout(pendingEditTimeout.current);
+      pendingEditTimeout.current = null;
+    }
+    
+    // Don't open edit if we're in a delete flow
+    if (isDeleting) {
+      return;
+    }
+    
+    setIncomeModalMode('edit');
+    setSelectedIncomeSource(incomeSource);
+    setIncomeModalVisible(true);
+  };
+
+  const handleDeleteIncome = async (incomeSource: IncomeSource) => {
+    // Cancel any pending edit operations
+    if (pendingEditTimeout.current) {
+      clearTimeout(pendingEditTimeout.current);
+      pendingEditTimeout.current = null;
+    }
+    
+    // Set deleting flag immediately to prevent edit modal
+    setIsDeleting(true);
+    
+    const confirmed = window.confirm(`Delete "${incomeSource.name}"? This will affect your available budget.`);
+    
+    if (confirmed) {
+      try {
+        await deleteIncomeSource(incomeSource.id);
+      } catch (error) {
+        console.error('Error deleting income source:', error);
+      }
+    }
+    
+    // Reset after a delay to prevent edit modal from opening
+    // This prevents the tap event from opening edit modal after delete action
+    setTimeout(() => {
+      setIsDeleting(false);
+    }, 500);
+  };
+
+  const handleCloseModal = () => {
+    setIncomeModalVisible(false);
+    setSelectedIncomeSource(null);
+  };
+
+  // Swipe gesture handling for mobile
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const minSwipeDistance = 50; // Minimum distance for swipe
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = (itemId: string, source: IncomeSource) => {
+    // Don't open edit if we're in a delete flow
+    if (isDeleting) {
+      return;
+    }
+
+    // Cancel any pending edit operations
+    if (pendingEditTimeout.current) {
+      clearTimeout(pendingEditTimeout.current);
+      pendingEditTimeout.current = null;
+    }
+
+    if (!touchStart || !touchEnd) {
+      // No movement - treat as tap, open edit
+      pendingEditTimeout.current = setTimeout(() => {
+        if (!isDeleting && swipedItemId !== itemId) {
+          handleEditIncome(source);
+        }
+        pendingEditTimeout.current = null;
+      }, 50);
+      return;
+    }
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+
+    if (isLeftSwipe) {
+      // Swipe left reveals delete action
+      setSwipedItemId(itemId);
+    } else {
+      // Swipe right or minimal movement - treat as tap
+      if (Math.abs(distance) < 10) {
+        // Very small movement, treat as tap
+        pendingEditTimeout.current = setTimeout(() => {
+          if (!isDeleting && swipedItemId !== itemId) {
+            handleEditIncome(source);
+          }
+          pendingEditTimeout.current = null;
+        }, 50);
+      }
+      setSwipedItemId(null);
+    }
+  };
+
+  const handleItemTap = (source: IncomeSource) => {
+    // Prevent edit modal if we just handled a delete action
+    if (isDeleting) {
+      return;
+    }
+    
+    // Cancel any pending edit operations
+    if (pendingEditTimeout.current) {
+      clearTimeout(pendingEditTimeout.current);
+      pendingEditTimeout.current = null;
+    }
+    
+    // On mobile: if swipe actions are open, close them
+    // On desktop: no-op (hover handles it)
+    if (swipedItemId === source.id) {
+      setSwipedItemId(null);
+      return;
+    }
+    
+    // On mobile: tap to edit (only if not swiped and not deleting)
+    // This will be handled by onTouchEnd for mobile, so this is mainly for desktop fallback
+  };
 
   // Load mock data for demo on mount
   useEffect(() => {
     const initializeDemo = () => {
       if (!demoLoaded) {
-        // Set current month to match demo data
-        setCurrentMonth(mockMonthlyBudgetData.currentMonth);
-
-        // Load demo data into store
-        loadDemoData(mockMonthlyBudgetData.incomeSources, mockMonthlyBudgetData.envelopeAllocations);
+        // Set current month directly (bypass fetchMonthlyData)
+        useMonthlyBudgetStore.setState({
+          currentMonth: mockMonthlyBudgetData.currentMonth,
+          incomeSources: mockMonthlyBudgetData.incomeSources,
+          envelopeAllocations: mockMonthlyBudgetData.envelopeAllocations,
+          isLoading: false
+        });
 
         setDemoLoaded(true);
       }
     };
 
     initializeDemo();
-  }, [demoLoaded, setCurrentMonth, loadDemoData]);
+  }, [demoLoaded]);
 
-  // Load data on mount and when month changes
+  // Demo works with mock data only - no Firebase calls needed
+  // The demo showcases UI components without backend dependencies
+
+  // Cleanup pending timeouts on unmount
   useEffect(() => {
-    if (demoLoaded) {
-      fetchMonthlyData();
-    }
-  }, [currentMonth, fetchMonthlyData, demoLoaded]);
+    return () => {
+      if (pendingEditTimeout.current) {
+        clearTimeout(pendingEditTimeout.current);
+      }
+    };
+  }, []);
 
   const availableToBudget = calculateAvailableToBudget();
   const totalIncome = incomeSources.reduce((sum, source) => sum + source.amount, 0);
@@ -72,9 +265,9 @@ export const MonthlyBudgetDemoView: React.FC = () => {
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
             <button
-              onClick={copyFromPreviousMonth}
+              onClick={handleCopyMonth}
               className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors text-sm font-medium"
-              disabled={isLoading}
+              disabled={isLoading || currentMonth === mockMonthlyBudgetData.currentMonth}
             >
               Copy Month
             </button>
@@ -96,7 +289,7 @@ export const MonthlyBudgetDemoView: React.FC = () => {
         {/* Month Selector */}
         <MonthSelector
           currentMonth={currentMonth}
-          onMonthChange={setCurrentMonth}
+          onMonthChange={handleMonthChange}
         />
 
         {/* Available to Budget - Main Focus */}
@@ -113,7 +306,10 @@ export const MonthlyBudgetDemoView: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Income Sources
             </h2>
-            <button className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
+            <button
+              onClick={handleAddIncome}
+              className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors"
+            >
               <PlusCircle size={20} />
             </button>
           </div>
@@ -129,19 +325,72 @@ export const MonthlyBudgetDemoView: React.FC = () => {
               {incomeSources.map((source) => (
                 <div
                   key={source.id}
-                  className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl"
+                  className="relative flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl group overflow-hidden cursor-pointer md:cursor-default"
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={() => onTouchEnd(source.id, source)}
+                  onClick={() => handleItemTap(source)}
                 >
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-gray-900 dark:text-white">
                       {source.name}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-zinc-400 capitalize">
-                      {source.frequency}
+                    <p className="text-sm text-gray-600 dark:text-zinc-400">
+                      Monthly income
                     </p>
                   </div>
-                  <p className="font-semibold text-green-600 dark:text-emerald-400">
-                    ${source.amount.toFixed(2)}
-                  </p>
+                  <div className="flex items-center justify-end gap-2">
+                    <p className="font-semibold text-green-600 dark:text-emerald-400">
+                      ${source.amount.toFixed(2)}
+                    </p>
+                    {/* Desktop: Show on hover */}
+                    <div className="hidden md:flex opacity-0 md:group-hover:opacity-100 transition-opacity gap-1 ml-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditIncome(source);
+                        }}
+                        className="p-1 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Edit income source"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleDeleteIncome(source);
+                        }}
+                        className="p-1 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="Delete income source"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile: Swipe to reveal delete action */}
+                  {swipedItemId === source.id && (
+                    <div className="absolute right-0 top-0 h-full flex items-center bg-red-500 rounded-r-xl px-4 md:hidden">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          // Cancel any pending edit operations
+                          if (pendingEditTimeout.current) {
+                            clearTimeout(pendingEditTimeout.current);
+                            pendingEditTimeout.current = null;
+                          }
+                          setSwipedItemId(null);
+                          handleDeleteIncome(source);
+                        }}
+                        className="p-2 text-white hover:bg-red-600 rounded transition-colors"
+                        title="Delete income source"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -210,6 +459,14 @@ export const MonthlyBudgetDemoView: React.FC = () => {
       >
         <PlusCircle size={28} />
       </button>
+
+      {/* Income Source Modal */}
+      <IncomeSourceModal
+        isVisible={incomeModalVisible}
+        onClose={handleCloseModal}
+        mode={incomeModalMode}
+        initialIncomeSource={selectedIncomeSource}
+      />
     </div>
   );
 };

@@ -128,8 +128,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             await get().createIncomeSource({
               name: updates.name,
               amount: updates.amount,
-              frequency: updates.frequency || 'monthly',
-              category: updates.category,
+              frequency: 'monthly', // Always default to monthly for simplicity
             });
           }
         } catch (error) {

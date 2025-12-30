@@ -63,7 +63,7 @@ export interface IncomeSource {
   month: string; // Format: "2025-01"
   name: string;
   amount: number;
-  frequency: 'monthly' | 'weekly' | 'biweekly';
+  frequency?: 'monthly' | 'weekly' | 'biweekly'; // Optional, defaults to monthly
   category?: string;
   createdAt: string;
   updatedAt: string;

@@ -112,8 +112,8 @@ export class MonthlyBudgetService {
         month: source.month,
         name: source.name,
         amount: source.amount.toString(),
-        frequency: source.frequency,
-        category: source.category,
+        frequency: source.frequency || 'monthly',
+        ...(source.category && { category: source.category }),
         createdAt: now,
         updatedAt: now,
       };
@@ -122,6 +122,7 @@ export class MonthlyBudgetService {
 
       return {
         ...source,
+        frequency: source.frequency || 'monthly',
         id: docRef.id,
         createdAt: now.toDate().toISOString(),
         updatedAt: now.toDate().toISOString(),
