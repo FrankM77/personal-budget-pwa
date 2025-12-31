@@ -23,6 +23,7 @@ interface MonthlyBudgetStore {
   createIncomeSource: (source: Omit<IncomeSource, 'id' | 'userId' | 'month' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateIncomeSource: (id: string, updates: Partial<IncomeSource>) => Promise<void>;
   deleteIncomeSource: (id: string) => Promise<void>;
+  restoreIncomeSource: (source: IncomeSource) => Promise<void>;
   createEnvelopeAllocation: (allocation: Omit<EnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateEnvelopeAllocation: (id: string, updates: Partial<EnvelopeAllocation>) => Promise<void>;
   deleteEnvelopeAllocation: (id: string) => Promise<void>;
@@ -149,6 +150,21 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           await get().refreshAvailableToBudget();
         } catch (error) {
           console.error('Error deleting income source:', error);
+          throw error;
+        }
+      },
+
+      restoreIncomeSource: async (source: IncomeSource) => {
+        try {
+          // Simply add back to state
+          set(state => ({
+            incomeSources: [...state.incomeSources, source],
+          }));
+
+          // Recalculate available to budget
+          await get().refreshAvailableToBudget();
+        } catch (error) {
+          console.error('Error restoring income source:', error);
           throw error;
         }
       },

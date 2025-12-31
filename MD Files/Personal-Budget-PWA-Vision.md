@@ -16,7 +16,7 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Simplified Entry**: Just name and monthly amount (removed complexity)
 - **Unified Income Pool**: All income sources combine into total "Available to Budget"
 - **Full CRUD Operations**: Add, edit, and delete income sources with real-time updates
-- **Mobile-Optimized**: Tap to edit, swipe to delete for intuitive mobile experience
+- **Mobile-Optimized**: Tap to edit, swipe to delete (optimistic with Undo)
 - **Desktop-Optimized**: Hover to reveal actions for clean desktop interface
 - **Real-Time Calculation**: Available to Budget updates instantly when income changes
 
@@ -67,7 +67,8 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Full CRUD Operations**: Create, Read, Update, Delete with Firebase persistence
 - **Mobile-Optimized Interactions**:
   - Tap income source → Opens edit modal
-  - Swipe left → Reveals delete button with confirmation
+  - Swipe left → Triggers instant optimistic deletion
+  - Undo Support → Toast notification allows immediate recovery
   - Proper event handling to prevent modal conflicts
 - **Desktop-Optimized Interactions**:
   - Hover over income source → Edit/Delete buttons appear
@@ -165,6 +166,14 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 
 ## Current Status: Phase 2 - Income Management Complete ✅
 
+## Live Demo
+
+Scan this QR code to access the live demo on your mobile device:
+
+![QR Code](https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://FrankM77.github.io/personal-budget-pwa/)
+
+Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.github.io/personal-budget-pwa/)
+
 ### ✅ **Phase 1 Achievements (COMPLETED)**
 - **Demo Page**: `/monthly-budget-demo` showcases all Phase 1 components
   - **Offline Demo Mode**: Works completely offline with mock data (no Firebase dependency)
@@ -181,7 +190,8 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Full CRUD Operations**: Create, Read, Update, Delete with Firebase persistence
 - **Mobile-First Interactions**:
   - **Tap to Edit**: Tap any income source to open edit modal
-  - **Swipe to Delete**: Swipe left to reveal delete button with confirmation
+  - **Swipe to Delete**: Smooth, iOS-style swipe with instant optimistic deletion
+  - **Undo Capability**: Delete actions can be instantly reversed via toast notification
 - **Desktop Interactions**: Hover to reveal edit/delete buttons
 - **Real-Time Updates**: Available to Budget recalculates instantly on any income change
 - **Form Validation**: Required fields, positive amounts, error handling
@@ -201,4 +211,4 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 
 ---
 *Document created: December 27, 2025*  
-*Last updated: December 30, 2025*
+*Last updated: December 31, 2025*

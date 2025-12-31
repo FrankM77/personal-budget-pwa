@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 
 interface SwipeableRowProps {
   children: React.ReactNode;
-  onDelete: () => void;
+  onDelete: () => void | boolean | Promise<void | boolean>;
   threshold?: number; // Drag distance to trigger delete (e.g., -100)
 }
 
@@ -36,7 +36,16 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
     // Trigger if dragged past threshold OR flicked fast to the left
     if (offset < threshold || (offset < -50 && velocity < -500)) {
       // Don't animate here - let AnimatePresence handle the exit animation
-      onDelete();
+      const result = onDelete();
+      
+      // If the deletion is cancelled (returns false), snap back
+      if (result === false) {
+        controls.start({ x: 0 });
+      } else if (result instanceof Promise) {
+        result.then((res) => {
+          if (res === false) controls.start({ x: 0 });
+        });
+      }
     } else {
       // "Rubber band" snap back to origin
       controls.start({ x: 0 });

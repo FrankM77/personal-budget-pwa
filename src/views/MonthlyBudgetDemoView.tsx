@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { PlusCircle, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useToastStore } from '../stores/toastStore';
 import { MonthSelector } from '../components/ui/MonthSelector';
 import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
+import { SwipeableRow } from '../components/ui/SwipeableRow';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import { mockMonthlyBudgetData, mockEnvelopeNames } from '../utils/demoData';
 import type { IncomeSource } from '../models/types';
@@ -16,7 +19,9 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     isLoading,
     calculateAvailableToBudget,
     deleteIncomeSource,
+    restoreIncomeSource,
   } = useMonthlyBudgetStore();
+  const { showToast } = useToastStore();
 
   // Override setCurrentMonth for demo to handle demo month specially
   const handleMonthChange = (month: string) => {
@@ -65,7 +70,6 @@ export const MonthlyBudgetDemoView: React.FC = () => {
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
   const [incomeModalMode, setIncomeModalMode] = useState<'add' | 'edit'>('add');
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
-  const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -103,21 +107,32 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     // Set deleting flag immediately to prevent edit modal
     setIsDeleting(true);
     
-    const confirmed = window.confirm(`Delete "${incomeSource.name}"? This will affect your available budget.`);
-    
-    if (confirmed) {
-      try {
-        await deleteIncomeSource(incomeSource.id);
-      } catch (error) {
-        console.error('Error deleting income source:', error);
-      }
+    try {
+      // Capture a copy for undo
+      const sourceCopy = { ...incomeSource };
+      
+      // Delete immediately (optimistic UI)
+      await deleteIncomeSource(incomeSource.id);
+      
+      // Show toast with undo option
+      showToast(
+        `Deleted "${incomeSource.name}"`,
+        'neutral',
+        () => restoreIncomeSource(sourceCopy)
+      );
+      
+      // Reset after a delay to prevent edit modal from opening
+      setTimeout(() => {
+        setIsDeleting(false);
+      }, 500);
+      return true;
+    } catch (error) {
+      console.error('Error deleting income source:', error);
+      setTimeout(() => {
+        setIsDeleting(false);
+      }, 500);
+      return false;
     }
-    
-    // Reset after a delay to prevent edit modal from opening
-    // This prevents the tap event from opening edit modal after delete action
-    setTimeout(() => {
-      setIsDeleting(false);
-    }, 500);
   };
 
   const handleCloseModal = () => {
@@ -125,87 +140,6 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     setSelectedIncomeSource(null);
   };
 
-  // Swipe gesture handling for mobile
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  const minSwipeDistance = 50; // Minimum distance for swipe
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = (itemId: string, source: IncomeSource) => {
-    // Don't open edit if we're in a delete flow
-    if (isDeleting) {
-      return;
-    }
-
-    // Cancel any pending edit operations
-    if (pendingEditTimeout.current) {
-      clearTimeout(pendingEditTimeout.current);
-      pendingEditTimeout.current = null;
-    }
-
-    if (!touchStart || !touchEnd) {
-      // No movement - treat as tap, open edit
-      pendingEditTimeout.current = setTimeout(() => {
-        if (!isDeleting && swipedItemId !== itemId) {
-          handleEditIncome(source);
-        }
-        pendingEditTimeout.current = null;
-      }, 50);
-      return;
-    }
-
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-
-    if (isLeftSwipe) {
-      // Swipe left reveals delete action
-      setSwipedItemId(itemId);
-    } else {
-      // Swipe right or minimal movement - treat as tap
-      if (Math.abs(distance) < 10) {
-        // Very small movement, treat as tap
-        pendingEditTimeout.current = setTimeout(() => {
-          if (!isDeleting && swipedItemId !== itemId) {
-            handleEditIncome(source);
-          }
-          pendingEditTimeout.current = null;
-        }, 50);
-      }
-      setSwipedItemId(null);
-    }
-  };
-
-  const handleItemTap = (source: IncomeSource) => {
-    // Prevent edit modal if we just handled a delete action
-    if (isDeleting) {
-      return;
-    }
-    
-    // Cancel any pending edit operations
-    if (pendingEditTimeout.current) {
-      clearTimeout(pendingEditTimeout.current);
-      pendingEditTimeout.current = null;
-    }
-    
-    // On mobile: if swipe actions are open, close them
-    // On desktop: no-op (hover handles it)
-    if (swipedItemId === source.id) {
-      setSwipedItemId(null);
-      return;
-    }
-    
-    // On mobile: tap to edit (only if not swiped and not deleting)
-    // This will be handled by onTouchEnd for mobile, so this is mainly for desktop fallback
-  };
 
   // Load mock data for demo on mount
   useEffect(() => {
@@ -322,77 +256,39 @@ export const MonthlyBudgetDemoView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {incomeSources.map((source) => (
-                <div
-                  key={source.id}
-                  className="relative flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl group overflow-hidden cursor-pointer md:cursor-default"
-                  onTouchStart={onTouchStart}
-                  onTouchMove={onTouchMove}
-                  onTouchEnd={() => onTouchEnd(source.id, source)}
-                  onClick={() => handleItemTap(source)}
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {source.name}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-zinc-400">
-                      Monthly income
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-end gap-2">
-                    <p className="font-semibold text-green-600 dark:text-emerald-400">
-                      ${source.amount.toFixed(2)}
-                    </p>
-                    {/* Desktop: Show on hover */}
-                    <div className="hidden md:flex opacity-0 md:group-hover:opacity-100 transition-opacity gap-1 ml-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditIncome(source);
-                        }}
-                        className="p-1 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="Edit income source"
+              <AnimatePresence initial={false} mode="popLayout">
+                {incomeSources.map((source) => (
+                  <motion.div
+                    key={source.id}
+                    layout
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
+                      <div
+                        className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer"
+                        onClick={() => handleEditIncome(source)}
                       >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          handleDeleteIncome(source);
-                        }}
-                        className="p-1 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                        title="Delete income source"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Mobile: Swipe to reveal delete action */}
-                  {swipedItemId === source.id && (
-                    <div className="absolute right-0 top-0 h-full flex items-center bg-red-500 rounded-r-xl px-4 md:hidden">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          // Cancel any pending edit operations
-                          if (pendingEditTimeout.current) {
-                            clearTimeout(pendingEditTimeout.current);
-                            pendingEditTimeout.current = null;
-                          }
-                          setSwipedItemId(null);
-                          handleDeleteIncome(source);
-                        }}
-                        className="p-2 text-white hover:bg-red-600 rounded transition-colors"
-                        title="Delete income source"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {source.name}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-zinc-400">
+                            Monthly income
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <p className="font-semibold text-green-600 dark:text-emerald-400">
+                            ${source.amount.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </SwipeableRow>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </section>
