@@ -27,6 +27,7 @@ interface MonthlyBudgetStore {
   createEnvelopeAllocation: (allocation: Omit<EnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateEnvelopeAllocation: (id: string, updates: Partial<EnvelopeAllocation>) => Promise<void>;
   deleteEnvelopeAllocation: (id: string) => Promise<void>;
+  setEnvelopeAllocation: (envelopeId: string, budgetedAmount: number) => Promise<void>;
   copyFromPreviousMonth: () => Promise<void>;
   calculateAvailableToBudget: () => number;
   refreshAvailableToBudget: () => Promise<void>;
@@ -221,6 +222,31 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           await get().refreshAvailableToBudget();
         } catch (error) {
           console.error('Error deleting envelope allocation:', error);
+          throw error;
+        }
+      },
+
+      setEnvelopeAllocation: async (envelopeId: string, budgetedAmount: number) => {
+        try {
+          // Check if allocation already exists for this envelope
+          const existingAllocation = get().envelopeAllocations.find(
+            alloc => alloc.envelopeId === envelopeId
+          );
+
+          if (existingAllocation) {
+            // Update existing allocation
+            await get().updateEnvelopeAllocation(existingAllocation.id!, {
+              budgetedAmount,
+            });
+          } else {
+            // Create new allocation
+            await get().createEnvelopeAllocation({
+              envelopeId,
+              budgetedAmount,
+            });
+          }
+        } catch (error) {
+          console.error('Error setting envelope allocation:', error);
           throw error;
         }
       },

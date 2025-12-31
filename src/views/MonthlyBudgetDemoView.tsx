@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { PlusCircle, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { useToastStore } from '../stores/toastStore';
@@ -8,6 +8,7 @@ import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
+import { DemoEnvelopeModal } from '../components/demo/EnvelopeModal';
 import { mockMonthlyBudgetData, mockEnvelopeNames } from '../utils/demoData';
 import type { IncomeSource } from '../models/types';
 
@@ -71,6 +72,8 @@ export const MonthlyBudgetDemoView: React.FC = () => {
   const [incomeModalMode, setIncomeModalMode] = useState<'add' | 'edit'>('add');
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
+  const [customEnvelopeNames, setCustomEnvelopeNames] = useState<Record<string, string>>({});
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal handlers
@@ -78,6 +81,17 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     setIncomeModalMode('add');
     setSelectedIncomeSource(null);
     setIncomeModalVisible(true);
+  };
+
+  const handleAddEnvelope = () => {
+    setShowEnvelopeModal(true);
+  };
+
+  const handleEnvelopeCreated = (envelopeId: string, envelopeName: string) => {
+    setCustomEnvelopeNames(prev => ({
+      ...prev,
+      [envelopeId]: envelopeName
+    }));
   };
 
   const handleEditIncome = (incomeSource: IncomeSource) => {
@@ -176,9 +190,19 @@ export const MonthlyBudgetDemoView: React.FC = () => {
   const totalIncome = incomeSources.reduce((sum, source) => sum + source.amount, 0);
   const totalAllocated = envelopeAllocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0);
 
-  // Get envelope name from mock data
+  // Get envelope name from mock data or custom names
   const getEnvelopeName = (envelopeId: string) => {
-    return mockEnvelopeNames[envelopeId] || `Envelope ${envelopeId}`;
+    // First check custom envelope names
+    if (customEnvelopeNames[envelopeId]) {
+      return customEnvelopeNames[envelopeId];
+    }
+    // Then check mock envelope names
+    if (mockEnvelopeNames[envelopeId]) {
+      return mockEnvelopeNames[envelopeId];
+    }
+    // Finally, generate a name from the envelope ID
+    const nameParts = envelopeId.replace('env-', '').split('-');
+    return nameParts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || envelopeId;
   };
 
   return (
@@ -299,7 +323,10 @@ export const MonthlyBudgetDemoView: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Envelope Allocations
             </h2>
-            <button className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
+            <button 
+              onClick={handleAddEnvelope}
+              className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors"
+            >
               <PlusCircle size={20} />
             </button>
           </div>
@@ -362,6 +389,13 @@ export const MonthlyBudgetDemoView: React.FC = () => {
         onClose={handleCloseModal}
         mode={incomeModalMode}
         initialIncomeSource={selectedIncomeSource}
+      />
+
+      {/* Envelope Modal */}
+      <DemoEnvelopeModal
+        isOpen={showEnvelopeModal}
+        onClose={() => setShowEnvelopeModal(false)}
+        onEnvelopeCreated={handleEnvelopeCreated}
       />
     </div>
   );

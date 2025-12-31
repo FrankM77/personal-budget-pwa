@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, List as ListIcon, GitBranch, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
-import { DistributeFundsModal } from '../components/modals/DistributeFundsModal';
 import { UserMenu } from '../components/ui/UserMenu';
 import { useNavigate } from 'react-router-dom';
 
 export const EnvelopeListView: React.FC = () => {
   const { envelopes, transactions, fetchData, isOnline, pendingSync, syncData, isLoading, getEnvelopeBalance, testingConnectivity } = useEnvelopeStore();
-  const [isDistributeOpen, setIsDistributeOpen] = useState(false);
   const navigate = useNavigate();
 
   // Load data from Firebase on mount (only if no data exists)
@@ -113,7 +111,7 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
       <div className="p-4 max-w-md mx-auto space-y-6">
-        {/* Section 1: Total Balance & Distribute Button */}
+        {/* Section 1: Total Balance */}
         <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800 space-y-4">
           <div className="flex justify-between items-center">
             <span className="text-gray-600 dark:text-zinc-400 font-medium">Total Balance</span>
@@ -127,14 +125,6 @@ export const EnvelopeListView: React.FC = () => {
               {totalBalance < 0 ? '-' : ''}${Math.abs(totalBalance).toFixed(2)}
             </span>
           </div>
-
-          <button
-            onClick={() => setIsDistributeOpen(true)}
-            className="w-full flex items-center justify-center gap-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 py-3 rounded-xl font-semibold active:bg-blue-100 dark:active:bg-blue-900/60 transition-colors"
-          >
-            <GitBranch size={20} className="rotate-90" />
-            Distribute Funds
-          </button>
         </section>
 
         {/* Section 2: Envelope List */}
@@ -201,12 +191,6 @@ export const EnvelopeListView: React.FC = () => {
       >
         <PlusCircle size={28} />
       </button>
-
-      {/* Modals */}
-      <DistributeFundsModal
-        isOpen={isDistributeOpen}
-        onClose={() => setIsDistributeOpen(false)}
-      />
     </div>
   );
 };
