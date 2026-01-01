@@ -8,9 +8,10 @@ import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
+import EnvelopeAllocationModal from '../components/modals/EnvelopeAllocationModal';
 import { DemoEnvelopeModal } from '../components/demo/EnvelopeModal';
 import { mockMonthlyBudgetData, mockEnvelopeNames } from '../utils/demoData';
-import type { IncomeSource } from '../models/types';
+import type { IncomeSource, EnvelopeAllocation } from '../models/types';
 
 export const MonthlyBudgetDemoView: React.FC = () => {
   const {
@@ -21,6 +22,7 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     calculateAvailableToBudget,
     deleteIncomeSource,
     restoreIncomeSource,
+    deleteEnvelopeAllocation,
   } = useMonthlyBudgetStore();
   const { showToast } = useToastStore();
 
@@ -71,6 +73,8 @@ export const MonthlyBudgetDemoView: React.FC = () => {
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
   const [incomeModalMode, setIncomeModalMode] = useState<'add' | 'edit'>('add');
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
+  const [envelopeAllocationModalVisible, setEnvelopeAllocationModalVisible] = useState(false);
+  const [selectedEnvelopeAllocation, setSelectedEnvelopeAllocation] = useState<EnvelopeAllocation | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
   const [customEnvelopeNames, setCustomEnvelopeNames] = useState<Record<string, string>>({});
@@ -152,6 +156,62 @@ export const MonthlyBudgetDemoView: React.FC = () => {
   const handleCloseModal = () => {
     setIncomeModalVisible(false);
     setSelectedIncomeSource(null);
+  };
+
+  const handleCloseEnvelopeAllocationModal = () => {
+    setEnvelopeAllocationModalVisible(false);
+    setSelectedEnvelopeAllocation(null);
+  };
+
+  const handleEnvelopeNameUpdate = (envelopeId: string, newName: string) => {
+    setCustomEnvelopeNames(prev => ({
+      ...prev,
+      [envelopeId]: newName
+    }));
+  };
+
+  const handleDeleteEnvelopeAllocation = async (allocationId: string) => {
+    try {
+      // Find the allocation for the toast message
+      const allocation = envelopeAllocations.find(a => a.id === allocationId);
+      if (!allocation) return false;
+
+      // Delete immediately (optimistic UI)
+      await deleteEnvelopeAllocation(allocationId);
+
+      // Show toast with undo option
+      showToast(
+        `Deleted "${getEnvelopeName(allocation.envelopeId)}" allocation`,
+        'neutral',
+        () => {
+          // For demo, we'll need to restore it manually since the store doesn't have a restore method
+          // In a real app, this would restore from a backup
+          console.log('Would restore allocation:', allocation);
+          showToast('Restore not implemented in demo', 'neutral');
+        }
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting envelope allocation:', error);
+      return false;
+    }
+  };
+
+  const handleEditEnvelopeAllocation = (allocation: EnvelopeAllocation) => {
+    // Cancel any pending edit operations
+    if (pendingEditTimeout.current) {
+      clearTimeout(pendingEditTimeout.current);
+      pendingEditTimeout.current = null;
+    }
+
+    // Don't open edit if we're in a delete flow
+    if (isDeleting) {
+      return;
+    }
+
+    setEnvelopeAllocationModalVisible(true);
+    setSelectedEnvelopeAllocation(allocation);
   };
 
 
@@ -339,24 +399,39 @@ export const MonthlyBudgetDemoView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {envelopeAllocations.map((allocation) => (
-                <div
-                  key={allocation.id}
-                  className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl"
-                >
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {getEnvelopeName(allocation.envelopeId)}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-zinc-400">
-                      Budgeted this month
-                    </p>
-                  </div>
-                  <p className="font-semibold text-blue-600 dark:text-blue-400">
-                    ${allocation.budgetedAmount.toFixed(2)}
-                  </p>
-                </div>
-              ))}
+              <AnimatePresence initial={false} mode="popLayout">
+                {envelopeAllocations.map((allocation) => (
+                  <motion.div
+                    key={allocation.id}
+                    layout
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <SwipeableRow onDelete={() => handleDeleteEnvelopeAllocation(allocation.id)}>
+                      <div
+                        className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer"
+                        onClick={() => handleEditEnvelopeAllocation(allocation)}
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {getEnvelopeName(allocation.envelopeId)}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-zinc-400">
+                            Budgeted this month
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <p className="font-semibold text-blue-600 dark:text-blue-400">
+                            ${allocation.budgetedAmount.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </SwipeableRow>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </section>
@@ -370,6 +445,7 @@ export const MonthlyBudgetDemoView: React.FC = () => {
             <li>• Use month selector to navigate between months</li>
             <li>• "Copy Month" copies data from previous month</li>
             <li>• Available to Budget shows your zero-based progress</li>
+            <li>• Swipe income/envelope items to delete, tap to edit amounts</li>
             <li>• Goal: Get Available to Budget to $0.00</li>
           </ul>
         </section>
@@ -396,6 +472,15 @@ export const MonthlyBudgetDemoView: React.FC = () => {
         isOpen={showEnvelopeModal}
         onClose={() => setShowEnvelopeModal(false)}
         onEnvelopeCreated={handleEnvelopeCreated}
+      />
+
+      {/* Envelope Allocation Modal */}
+      <EnvelopeAllocationModal
+        isVisible={envelopeAllocationModalVisible}
+        onClose={handleCloseEnvelopeAllocationModal}
+        initialAllocation={selectedEnvelopeAllocation}
+        getEnvelopeName={getEnvelopeName}
+        onEnvelopeNameUpdate={handleEnvelopeNameUpdate}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { PlusCircle, List as ListIcon, GitBranch, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { UserMenu } from '../components/ui/UserMenu';
