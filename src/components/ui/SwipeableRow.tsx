@@ -68,7 +68,7 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         animate={controls}
-        className="relative bg-white dark:bg-zinc-900 z-10 rounded-xl"
+        className={`relative bg-white dark:bg-zinc-900 rounded-xl ${isDragging ? 'z-20' : 'z-10'}`}
         // Critical: "pan-y" allows vertical scrolling while touching this element
         style={{
           touchAction: "pan-y",

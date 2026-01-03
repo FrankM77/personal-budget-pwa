@@ -1,4 +1,5 @@
-import { collection, doc, getDoc, setDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, deleteDoc, query, where, getDocs, onSnapshot, Timestamp } from 'firebase/firestore';
+import type { Unsubscribe } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
   FirestoreMonthlyBudget,
@@ -233,6 +234,91 @@ export class MonthlyBudgetService {
     }
   }
 
+  // Delete methods
+  async deleteIncomeSource(sourceId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'incomeSources', sourceId);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error('Error deleting income source:', error);
+      throw error;
+    }
+  }
+
+  async updateIncomeSource(sourceId: string, updates: Partial<Omit<FirestoreIncomeSource, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
+    try {
+      const docRef = doc(db, 'incomeSources', sourceId);
+      const updateData = {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      };
+      await setDoc(docRef, updateData, { merge: true });
+    } catch (error) {
+      console.error('Error updating income source:', error);
+      throw error;
+    }
+  }
+
+  async deleteEnvelopeAllocation(allocationId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'envelopeAllocations', allocationId);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error('Error deleting envelope allocation:', error);
+      throw error;
+    }
+  }
+
+  async updateEnvelopeAllocation(allocationId: string, updates: Partial<Omit<FirestoreEnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
+    try {
+      const docRef = doc(db, 'envelopeAllocations', allocationId);
+      const updateData = {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      };
+      await setDoc(docRef, updateData, { merge: true });
+    } catch (error) {
+      console.error('Error updating envelope allocation:', error);
+      throw error;
+    }
+  }
+
+  // Clear all data for a month
+  async clearMonthData(userId: string, month: string): Promise<void> {
+    try {
+      // Get all data for this month
+      const [incomeSources, allocations] = await Promise.all([
+        this.getIncomeSources(userId, month),
+        this.getEnvelopeAllocations(userId, month)
+      ]);
+
+      // Delete all income sources
+      const incomeDeletePromises = incomeSources.map(source =>
+        this.deleteIncomeSource(source.id)
+      );
+
+      // Delete all envelope allocations
+      const allocationDeletePromises = allocations.map(allocation =>
+        this.deleteEnvelopeAllocation(allocation.id)
+      );
+
+      // Execute all deletions
+      await Promise.all([...incomeDeletePromises, ...allocationDeletePromises]);
+
+      // Update or reset the monthly budget
+      await this.createOrUpdateMonthlyBudget({
+        userId,
+        month,
+        totalIncome: 0,
+        availableToBudget: 0,
+      });
+
+    } catch (error) {
+      console.error('Error clearing month data:', error);
+      throw error;
+    }
+  }
+
   // Calculate available to budget for a month
   async calculateAvailableToBudget(userId: string, month: string): Promise<number> {
     try {
@@ -247,5 +333,48 @@ export class MonthlyBudgetService {
       console.error('Error calculating available to budget:', error);
       throw error;
     }
+  }
+
+  // Real-time subscription methods
+  subscribeToMonthlyBudget(userId: string, month: string, callback: (budget: any | null) => void): Unsubscribe {
+    const docRef = doc(db, 'monthlyBudgets', `${userId}_${month}`);
+    return onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as any;
+        callback(data);
+      } else {
+        callback(null);
+      }
+    });
+  }
+
+  subscribeToIncomeSources(userId: string, month: string, callback: (sources: any[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, 'incomeSources'),
+      where('userId', '==', userId),
+      where('month', '==', month)
+    );
+    return onSnapshot(q, (querySnapshot) => {
+      const sources = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(sources);
+    });
+  }
+
+  subscribeToEnvelopeAllocations(userId: string, month: string, callback: (allocations: any[]) => void): Unsubscribe {
+    const q = query(
+      collection(db, 'envelopeAllocations'),
+      where('userId', '==', userId),
+      where('month', '==', month)
+    );
+    return onSnapshot(q, (querySnapshot) => {
+      const allocations = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(allocations);
+    });
   }
 }

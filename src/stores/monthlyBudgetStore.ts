@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import { MonthlyBudgetService } from '../services/MonthlyBudgetService';
 import { useAuthStore } from './authStore';
+import { setupMonthlyBudgetStoreRealtime } from './monthlyBudgetStoreRealtime';
 import type { MonthlyBudget, IncomeSource, EnvelopeAllocation } from '../models/types';
 
 interface MonthlyBudgetStore {
@@ -17,21 +20,34 @@ interface MonthlyBudgetStore {
   isLoading: boolean;
   error: string | null;
 
+  // Network and sync states
+  isOnline: boolean;
+  pendingSync: boolean;
+  resetPending: boolean;
+  testingConnectivity: boolean;
+
   // Actions
   setCurrentMonth: (month: string) => void;
   fetchMonthlyData: () => Promise<void>;
   createIncomeSource: (source: Omit<IncomeSource, 'id' | 'userId' | 'month' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateIncomeSource: (id: string, updates: Partial<IncomeSource>) => Promise<void>;
   deleteIncomeSource: (id: string) => Promise<void>;
-  restoreIncomeSource: (source: IncomeSource) => Promise<void>;
+  restoreIncomeSource: (source: IncomeSource, originalIndex?: number) => Promise<void>;
   createEnvelopeAllocation: (allocation: Omit<EnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateEnvelopeAllocation: (id: string, updates: Partial<EnvelopeAllocation>) => Promise<void>;
   deleteEnvelopeAllocation: (id: string) => Promise<void>;
+  restoreEnvelopeAllocation: (allocation: EnvelopeAllocation, originalIndex?: number) => Promise<void>;
   setEnvelopeAllocation: (envelopeId: string, budgetedAmount: number) => Promise<void>;
   copyFromPreviousMonth: () => Promise<void>;
   calculateAvailableToBudget: () => number;
   refreshAvailableToBudget: () => Promise<void>;
   loadDemoData: (incomeSources: IncomeSource[], envelopeAllocations: EnvelopeAllocation[]) => void;
+  clearMonthData: () => Promise<void>;
+
+  // Network and sync actions
+  updateOnlineStatus: () => Promise<void>;
+  syncData: () => Promise<void>;
+  handleUserLogout: () => void;
 }
 
 // Helper function to get current month in YYYY-MM format
@@ -47,6 +63,9 @@ const getUserId = (): string => {
   return user.id;
 };
 
+// Export getCurrentUserId for use in realtime setup
+export const getCurrentUserId = getUserId;
+
 export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
   persist(
     (set, get) => ({
@@ -57,6 +76,10 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
       envelopeAllocations: [],
       isLoading: false,
       error: null,
+      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+      pendingSync: false,
+      resetPending: false,
+      testingConnectivity: false,
 
       // Set current month and fetch data
       setCurrentMonth: (month: string) => {
@@ -103,15 +126,14 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const currentMonth = get().currentMonth;
 
           const service = MonthlyBudgetService.getInstance();
-          const newSource = await service.createIncomeSource({
+          await service.createIncomeSource({
             ...sourceData,
             userId,
             month: currentMonth,
           });
 
-          set(state => ({
-            incomeSources: [...state.incomeSources, newSource],
-          }));
+          // Let the real-time listener update the state instead of doing optimistic updates
+          // This prevents race conditions and duplicate items
 
           // Recalculate available to budget
           await get().refreshAvailableToBudget();
@@ -123,16 +145,27 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
       updateIncomeSource: async (id: string, updates: Partial<IncomeSource>) => {
         try {
-          // For now, we'll delete and recreate (Firestore doesn't support direct updates easily)
-          // In a production app, you'd want proper update methods
-          await get().deleteIncomeSource(id);
-          if (updates.name !== undefined && updates.amount !== undefined) {
-            await get().createIncomeSource({
-              name: updates.name,
-              amount: updates.amount,
-              frequency: 'monthly', // Always default to monthly for simplicity
-            });
-          }
+          // Build update object with only defined values
+          const updateData: any = {
+            updatedAt: Timestamp.now(),
+          };
+
+          if (updates.name !== undefined) updateData.name = updates.name;
+          if (updates.amount !== undefined) updateData.amount = updates.amount.toString();
+          if (updates.frequency !== undefined) updateData.frequency = updates.frequency;
+          if (updates.category !== undefined) updateData.category = updates.category;
+
+          const docRef = doc(db, 'incomeSources', id);
+          await updateDoc(docRef, updateData);
+
+          // Force a refresh of the income sources to ensure UI updates
+          // This will trigger the real-time sync immediately
+          const service = MonthlyBudgetService.getInstance();
+          const userId = getUserId();
+          const currentMonth = get().currentMonth;
+          const refreshedSources = await service.getIncomeSources(userId, currentMonth);
+
+          set({ incomeSources: refreshedSources });
         } catch (error) {
           console.error('Error updating income source:', error);
           throw error;
@@ -155,12 +188,20 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         }
       },
 
-      restoreIncomeSource: async (source: IncomeSource) => {
+      restoreIncomeSource: async (source: IncomeSource, originalIndex?: number) => {
         try {
-          // Simply add back to state
-          set(state => ({
-            incomeSources: [...state.incomeSources, source],
-          }));
+          set(state => {
+            const sources = [...state.incomeSources];
+            // If we have an original index, insert at that position, otherwise append
+            if (originalIndex !== undefined && originalIndex >= 0 && originalIndex <= sources.length) {
+              sources.splice(originalIndex, 0, source);
+            } else {
+              sources.push(source);
+            }
+            return {
+              incomeSources: sources,
+            };
+          });
 
           // Recalculate available to budget
           await get().refreshAvailableToBudget();
@@ -177,15 +218,14 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const currentMonth = get().currentMonth;
 
           const service = MonthlyBudgetService.getInstance();
-          const newAllocation = await service.createEnvelopeAllocation({
+          await service.createEnvelopeAllocation({
             ...allocationData,
             userId,
             month: currentMonth,
           });
 
-          set(state => ({
-            envelopeAllocations: [...state.envelopeAllocations, newAllocation],
-          }));
+          // Let the real-time listener update the state instead of doing optimistic updates
+          // This prevents race conditions and duplicate items
 
           // Recalculate available to budget
           await get().refreshAvailableToBudget();
@@ -197,14 +237,11 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
       updateEnvelopeAllocation: async (id: string, updates: Partial<EnvelopeAllocation>) => {
         try {
-          // Similar to income sources, delete and recreate for simplicity
-          await get().deleteEnvelopeAllocation(id);
-          if (updates.envelopeId !== undefined && updates.budgetedAmount !== undefined) {
-            await get().createEnvelopeAllocation({
-              envelopeId: updates.envelopeId,
-              budgetedAmount: updates.budgetedAmount,
-            });
-          }
+          const service = MonthlyBudgetService.getInstance();
+          await service.updateEnvelopeAllocation(id, {
+            envelopeId: updates.envelopeId,
+            budgetedAmount: updates.budgetedAmount?.toString(),
+          });
         } catch (error) {
           console.error('Error updating envelope allocation:', error);
           throw error;
@@ -222,6 +259,29 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           await get().refreshAvailableToBudget();
         } catch (error) {
           console.error('Error deleting envelope allocation:', error);
+          throw error;
+        }
+      },
+
+      restoreEnvelopeAllocation: async (allocation: EnvelopeAllocation, originalIndex?: number) => {
+        try {
+          set(state => {
+            const allocations = [...state.envelopeAllocations];
+            // If we have an original index, insert at that position, otherwise append
+            if (originalIndex !== undefined && originalIndex >= 0 && originalIndex <= allocations.length) {
+              allocations.splice(originalIndex, 0, allocation);
+            } else {
+              allocations.push(allocation);
+            }
+            return {
+              envelopeAllocations: allocations,
+            };
+          });
+
+          // Recalculate available to budget
+          await get().refreshAvailableToBudget();
+        } catch (error) {
+          console.error('Error restoring envelope allocation:', error);
           throw error;
         }
       },
@@ -329,6 +389,56 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           isLoading: false,
         });
       },
+
+      clearMonthData: async () => {
+        try {
+          const userId = getUserId();
+          const currentMonth = get().currentMonth;
+
+          const service = MonthlyBudgetService.getInstance();
+
+          // Clear all data for this month in Firebase
+          await service.clearMonthData(userId, currentMonth);
+
+          // Update local state
+          set({
+            incomeSources: [],
+            envelopeAllocations: [],
+          });
+
+          // Recalculate available to budget (should be 0 now)
+          await get().refreshAvailableToBudget();
+
+        } catch (error) {
+          console.error('Error clearing month data:', error);
+          throw error;
+        }
+      },
+
+      // Network and sync actions (delegated to realtime setup)
+      updateOnlineStatus: async () => {
+        // This will be overridden by the realtime setup
+        console.log('Monthly budget updateOnlineStatus called');
+      },
+
+      syncData: async () => {
+        // This will be overridden by the realtime setup
+        console.log('Monthly budget syncData called');
+      },
+
+      handleUserLogout: () => {
+        // Clear user data on logout
+        set({
+          monthlyBudget: null,
+          incomeSources: [],
+          envelopeAllocations: [],
+          isLoading: false,
+          error: null,
+          pendingSync: false,
+          resetPending: false,
+          testingConnectivity: false,
+        });
+      },
     }),
     {
       name: 'monthly-budget-store',
@@ -338,3 +448,10 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
     }
   )
 );
+
+// Setup real-time Firebase subscriptions and online/offline detection
+setupMonthlyBudgetStoreRealtime({
+  useMonthlyBudgetStore,
+  useAuthStore,
+  getCurrentUserId,
+});

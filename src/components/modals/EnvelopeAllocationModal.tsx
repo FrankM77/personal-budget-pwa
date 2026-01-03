@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
+import { useToastStore } from '../../stores/toastStore';
 import type { EnvelopeAllocation } from '../../models/types';
 
 interface EnvelopeAllocationModalProps {
@@ -20,6 +21,9 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const { setEnvelopeAllocation } = useMonthlyBudgetStore();
+  const { showToast } = useToastStore();
 
   // Reset or populate form when opening
   useEffect(() => {
@@ -33,6 +37,14 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
         setName('');
         setAmount('');
       }
+
+      // Auto-focus the amount input after the form is populated
+      setTimeout(() => {
+        if (amountInputRef.current) {
+          amountInputRef.current.focus();
+          amountInputRef.current.select();
+        }
+      }, 100);
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
@@ -54,19 +66,18 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
           onEnvelopeNameUpdate?.(initialAllocation.envelopeId, name.trim());
         }
 
-        // Update the allocation amount
+        // Update the allocation amount using the proper store method
         const newAmount = parseFloat(amount);
-        const updatedAllocations = useMonthlyBudgetStore.getState().envelopeAllocations.map(a =>
-          a.id === initialAllocation.id
-            ? { ...a, budgetedAmount: newAmount }
-            : a
-        );
-        useMonthlyBudgetStore.setState({ envelopeAllocations: updatedAllocations });
+        await setEnvelopeAllocation(initialAllocation.envelopeId, newAmount);
+
+        // Show success message
+        showToast(`Budget updated to $${newAmount.toFixed(2)}`, 'success');
       }
 
       onClose();
     } catch (error) {
       console.error('Error saving envelope allocation:', error);
+      showToast('Failed to save budget amount', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -75,12 +86,12 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-zinc-800">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Edit Envelope Allocation
+            Set Budget Amount
           </h2>
           <button
             onClick={onClose}
@@ -117,6 +128,7 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
                 $
               </span>
               <input
+                ref={amountInputRef}
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -125,6 +137,7 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
                 min="0"
                 className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-zinc-800 dark:text-white"
                 required
+                autoComplete="off"
               />
             </div>
           </div>

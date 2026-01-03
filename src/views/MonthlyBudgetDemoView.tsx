@@ -23,6 +23,7 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     deleteIncomeSource,
     restoreIncomeSource,
     deleteEnvelopeAllocation,
+    restoreEnvelopeAllocation,
   } = useMonthlyBudgetStore();
   const { showToast } = useToastStore();
 
@@ -121,24 +122,27 @@ export const MonthlyBudgetDemoView: React.FC = () => {
       clearTimeout(pendingEditTimeout.current);
       pendingEditTimeout.current = null;
     }
-    
+
     // Set deleting flag immediately to prevent edit modal
     setIsDeleting(true);
-    
+
     try {
+      // Find the original index for proper restoration
+      const sourceIndex = incomeSources.findIndex(s => s.id === incomeSource.id);
+
       // Capture a copy for undo
       const sourceCopy = { ...incomeSource };
-      
+
       // Delete immediately (optimistic UI)
       await deleteIncomeSource(incomeSource.id);
-      
+
       // Show toast with undo option
       showToast(
         `Deleted "${incomeSource.name}"`,
         'neutral',
-        () => restoreIncomeSource(sourceCopy)
+        () => restoreIncomeSource(sourceCopy, sourceIndex)
       );
-      
+
       // Reset after a delay to prevent edit modal from opening
       setTimeout(() => {
         setIsDeleting(false);
@@ -172,9 +176,13 @@ export const MonthlyBudgetDemoView: React.FC = () => {
 
   const handleDeleteEnvelopeAllocation = async (allocationId: string) => {
     try {
-      // Find the allocation for the toast message
-      const allocation = envelopeAllocations.find(a => a.id === allocationId);
+      // Find the allocation for the toast message and get its original index
+      const allocationIndex = envelopeAllocations.findIndex(a => a.id === allocationId);
+      const allocation = envelopeAllocations[allocationIndex];
       if (!allocation) return false;
+
+      // Capture a copy for undo
+      const allocationCopy = { ...allocation };
 
       // Delete immediately (optimistic UI)
       await deleteEnvelopeAllocation(allocationId);
@@ -184,10 +192,8 @@ export const MonthlyBudgetDemoView: React.FC = () => {
         `Deleted "${getEnvelopeName(allocation.envelopeId)}" allocation`,
         'neutral',
         () => {
-          // For demo, we'll need to restore it manually since the store doesn't have a restore method
-          // In a real app, this would restore from a backup
-          console.log('Would restore allocation:', allocation);
-          showToast('Restore not implemented in demo', 'neutral');
+          // Restore the allocation at its original position
+          restoreEnvelopeAllocation(allocationCopy, allocationIndex);
         }
       );
 
@@ -268,7 +274,7 @@ export const MonthlyBudgetDemoView: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Header with Sync Status */}
-      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 z-10">
+      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 z-30">
         <div className="flex justify-between items-center">
           {/* Demo Status */}
           <div className="flex items-center gap-2">

@@ -28,10 +28,10 @@ export const useToastStore = create<ToastStore>((set, get) => ({
       undoAction,
     });
 
-    // Auto-hide after 4 seconds
+    // Auto-hide after 6 seconds (longer for undo operations)
     setTimeout(() => {
       get().hideToast();
-    }, 4000);
+    }, 6000);
   },
 
   hideToast: () => {

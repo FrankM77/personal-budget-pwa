@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
+import { useToastStore } from '../../stores/toastStore';
 import type { IncomeSource } from '../../models/types';
 
 interface IncomeSourceModalProps {
@@ -16,6 +17,7 @@ const IncomeSourceModal: React.FC<IncomeSourceModalProps> = ({
   initialIncomeSource
 }) => {
   const { createIncomeSource, updateIncomeSource } = useMonthlyBudgetStore();
+  const { showToast } = useToastStore();
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -42,7 +44,8 @@ const IncomeSourceModal: React.FC<IncomeSourceModalProps> = ({
     e.preventDefault();
 
     if (!name.trim() || !amount || parseFloat(amount) <= 0) {
-      return; // Basic validation
+      showToast('Please fill in all required fields with valid values', 'error');
+      return;
     }
 
     setIsSubmitting(true);
@@ -53,17 +56,23 @@ const IncomeSourceModal: React.FC<IncomeSourceModalProps> = ({
           name: name.trim(),
           amount: parseFloat(amount),
         });
-      } else if (mode === 'edit' && initialIncomeSource) {
+        showToast(`Added "${name.trim()}" as income source`, 'success');
+      } else if (mode === 'edit') {
+        if (!initialIncomeSource) {
+          showToast('Error: No income source to edit', 'error');
+          return;
+        }
         await updateIncomeSource(initialIncomeSource.id, {
           name: name.trim(),
           amount: parseFloat(amount),
         });
+        showToast(`Updated "${name.trim()}" income source`, 'success');
       }
 
       onClose();
     } catch (error) {
       console.error('Error saving income source:', error);
-      // Error handling could be added here
+      showToast('Failed to save income source. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
