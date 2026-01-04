@@ -116,7 +116,7 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     setIncomeModalVisible(true);
   };
 
-  const handleDeleteIncome = async (incomeSource: IncomeSource) => {
+  const handleDeleteIncome = (incomeSource: IncomeSource) => {
     // Cancel any pending edit operations
     if (pendingEditTimeout.current) {
       clearTimeout(pendingEditTimeout.current);
@@ -126,35 +126,26 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     // Set deleting flag immediately to prevent edit modal
     setIsDeleting(true);
 
-    try {
-      // Find the original index for proper restoration
-      const sourceIndex = incomeSources.findIndex(s => s.id === incomeSource.id);
+    // Find the original index for proper restoration
+    const sourceIndex = incomeSources.findIndex(s => s.id === incomeSource.id);
+    const sourceCopy = { ...incomeSource };
 
-      // Capture a copy for undo
-      const sourceCopy = { ...incomeSource };
+    // Fire-and-forget the delete operation
+    deleteIncomeSource(incomeSource.id).catch((error) => {
+      console.error("Firebase delete failed:", error);
+    });
 
-      // Delete immediately (optimistic UI)
-      await deleteIncomeSource(incomeSource.id);
+    // Show toast with undo option
+    showToast(
+      `Deleted "${incomeSource.name}"`,
+      'neutral',
+      () => restoreIncomeSource(sourceCopy, sourceIndex)
+    );
 
-      // Show toast with undo option
-      showToast(
-        `Deleted "${incomeSource.name}"`,
-        'neutral',
-        () => restoreIncomeSource(sourceCopy, sourceIndex)
-      );
-
-      // Reset after a delay to prevent edit modal from opening
-      setTimeout(() => {
-        setIsDeleting(false);
-      }, 500);
-      return true;
-    } catch (error) {
-      console.error('Error deleting income source:', error);
-      setTimeout(() => {
-        setIsDeleting(false);
-      }, 500);
-      return false;
-    }
+    // Reset after a delay to prevent edit modal from opening
+    setTimeout(() => {
+      setIsDeleting(false);
+    }, 500);
   };
 
   const handleCloseModal = () => {
@@ -174,34 +165,29 @@ export const MonthlyBudgetDemoView: React.FC = () => {
     }));
   };
 
-  const handleDeleteEnvelopeAllocation = async (allocationId: string) => {
-    try {
-      // Find the allocation for the toast message and get its original index
-      const allocationIndex = envelopeAllocations.findIndex(a => a.id === allocationId);
-      const allocation = envelopeAllocations[allocationIndex];
-      if (!allocation) return false;
+  const handleDeleteEnvelopeAllocation = (allocationId: string) => {
+    // Find the allocation for the toast message and get its original index
+    const allocationIndex = envelopeAllocations.findIndex(a => a.id === allocationId);
+    const allocation = envelopeAllocations[allocationIndex];
+    if (!allocation) return;
 
-      // Capture a copy for undo
-      const allocationCopy = { ...allocation };
+    // Capture a copy for undo
+    const allocationCopy = { ...allocation };
 
-      // Delete immediately (optimistic UI)
-      await deleteEnvelopeAllocation(allocationId);
+    // Fire-and-forget the delete operation
+    deleteEnvelopeAllocation(allocationId).catch((error) => {
+      console.error("Firebase delete failed:", error);
+    });
 
-      // Show toast with undo option
-      showToast(
-        `Deleted "${getEnvelopeName(allocation.envelopeId)}" allocation`,
-        'neutral',
-        () => {
-          // Restore the allocation at its original position
-          restoreEnvelopeAllocation(allocationCopy, allocationIndex);
-        }
-      );
-
-      return true;
-    } catch (error) {
-      console.error('Error deleting envelope allocation:', error);
-      return false;
-    }
+    // Show toast with undo option
+    showToast(
+      `Deleted "${getEnvelopeName(allocation.envelopeId)}" allocation`,
+      'neutral',
+      () => {
+        // Restore the allocation at its original position
+        restoreEnvelopeAllocation(allocationCopy, allocationIndex);
+      }
+    );
   };
 
   const handleEditEnvelopeAllocation = (allocation: EnvelopeAllocation) => {

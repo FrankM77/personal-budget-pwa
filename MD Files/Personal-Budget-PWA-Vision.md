@@ -243,4 +243,42 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 
 ---
 *Document created: December 27, 2025*
-*Last updated: January 1, 2026*
+*Last updated: January 4, 2026*
+
+## Recent Bug Fixes & Improvements (2026-01-04)
+
+### 🐛 **Critical Bug Fixes**
+- **Income Source Duplication**: Fixed issue where deleted income sources reappeared after page refresh
+  - Root cause: `deleteIncomeSource` only removed from local state, not Firebase
+  - Solution: Added proper Firebase deletion with optimistic UI updates
+  - Result: Deleted items now stay deleted across page refreshes
+
+- **Offline Swipe-to-Delete**: Fixed stuck red swipe state when offline
+  - Root cause: Delete operations awaited Firebase calls, causing UI to hang
+  - Solution: Made delete handlers fire-and-forget Firebase calls
+  - Result: Immediate UI feedback both online and offline
+
+- **Budget Amount Editing**: Fixed "failed to update budget" error
+  - Root cause: `updateEnvelopeAllocation` passed undefined `envelopeId` to Firebase
+  - Solution: Only pass defined fields to Firebase updates
+  - Result: Budget amounts now edit successfully
+
+- **Duplicate Allocation Transactions**: Fixed inflated allocated budget amounts
+  - Root cause: `syncBudgetAllocationTransaction` created new transactions instead of updating existing ones
+  - Solution: Delete all existing allocation transactions first, then create one new one
+  - Result: Accurate budget calculations with no duplicate transactions
+
+### 🚀 **Performance Improvements**
+- **Immediate UI Updates**: Added manual state refreshes after create/update operations
+- **Optimistic Updates**: All CRUD operations now provide instant UI feedback
+- **Offline Resilience**: Enhanced offline behavior with proper Firebase queuing
+
+### 📱 **Enhanced User Experience**
+- **Inline Budget Editing**: Direct budget amount editing without modals
+- **Consistent Behavior**: Online/offline operations now behave identically
+- **Error Handling**: Better error messages and recovery options
+
+### 🔧 **Technical Improvements**
+- **State Management**: Fixed race conditions in real-time listeners
+- **Firebase Integration**: Proper error handling and offline queuing
+- **Transaction Sync**: Clean allocation transaction management
