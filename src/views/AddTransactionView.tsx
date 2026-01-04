@@ -156,9 +156,9 @@ export const AddTransactionView: React.FC = () => {
               onChange={(e) => setSelectedEnvelopeId(e.target.value)}
               className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
             >
-              <option value="">Select an envelope</option>
+              <option value="" className="bg-white dark:bg-zinc-900">Select an envelope</option>
               {sortedEnvelopes.map((env) => (
-                <option key={env.id} value={env.id}>
+                <option key={env.id} value={env.id} className="bg-white dark:bg-zinc-900">
                   {env.name} (${getEnvelopeBalance(env.id!).toNumber().toFixed(2)})
                 </option>
               ))}
