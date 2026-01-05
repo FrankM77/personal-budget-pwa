@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { PlusCircle, List as ListIcon, GitBranch, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { PlusCircle, List as ListIcon, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
@@ -316,14 +316,7 @@ export const EnvelopeListView: React.FC = () => {
             >
               <ListIcon size={22} />
             </button>
-            <button
-              onClick={() => navigate('/monthly-budget-demo')}
-              className="text-purple-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-              title="Monthly Budget Demo"
-            >
-              <GitBranch size={22} />
-            </button>
-            <button
+                        <button
               onClick={handleStartFresh}
               className="text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
               title="Start Fresh - Clear current month budget"

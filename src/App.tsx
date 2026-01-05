@@ -9,7 +9,6 @@ import { AddTransactionView } from './views/AddTransactionView';
 import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { LoginView } from './views/LoginView';
 import { EmailVerificationView } from './views/EmailVerificationView';
-import { MonthlyBudgetDemoView } from './views/MonthlyBudgetDemoView';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -167,14 +166,6 @@ function App() {
             element={
               <ErrorBoundary>
                 <EmailVerificationView />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/monthly-budget-demo"
-            element={
-              <ErrorBoundary>
-                <MonthlyBudgetDemoView />
               </ErrorBoundary>
             }
           />
