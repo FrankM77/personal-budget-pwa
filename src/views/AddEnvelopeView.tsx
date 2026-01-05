@@ -93,7 +93,7 @@ export const AddEnvelopeView: React.FC = () => {
                 />
               </div>
               <p className="text-xs text-gray-500 dark:text-zinc-500">
-                This creates an "Initial Deposit" income transaction. You can also add money later via the "Distribute Funds" screen.
+                This creates an "Initial Deposit" income transaction. You can also add money later by editing the envelope budget on the main screen.
               </p>
             </div>
 

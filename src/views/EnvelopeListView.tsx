@@ -7,8 +7,8 @@ import { MonthSelector } from '../components/ui/MonthSelector';
 import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
+import { LoadingScreen } from '../components/ui/LoadingScreen';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
-import EnvelopeAllocationModal from '../components/modals/EnvelopeAllocationModal';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
 import { useToastStore } from '../stores/toastStore';
@@ -17,7 +17,7 @@ import type { IncomeSource } from '../models/types';
 
 export const EnvelopeListView: React.FC = () => {
   // Envelope store (for envelopes and transactions)
-  const { envelopes, transactions, fetchData, isOnline, pendingSync, syncData, isLoading, getEnvelopeBalance, testingConnectivity } = useEnvelopeStore();
+  const { envelopes, fetchData, isOnline, pendingSync, syncData, isLoading, getEnvelopeBalance, testingConnectivity } = useEnvelopeStore();
 
   // Monthly budget store (for zero-based budgeting features)
   const {
@@ -29,7 +29,8 @@ export const EnvelopeListView: React.FC = () => {
     restoreIncomeSource,
     clearMonthData,
     copyFromPreviousMonth,
-    setEnvelopeAllocation
+    setEnvelopeAllocation,
+    fetchMonthlyData
   } = useMonthlyBudgetStore();
 
   const { showToast } = useToastStore();
@@ -44,16 +45,59 @@ export const EnvelopeListView: React.FC = () => {
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Loading state for initial data fetch
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // State for inline budget editing
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load data from Firebase on mount (only if no data exists)
+  // Load data from Firebase on mount
   useEffect(() => {
-    if (envelopes.length === 0) {
-      fetchData();
-    }
+    console.log('🚀 Starting initial data load, isInitialLoading:', isInitialLoading);
+    
+    const loadData = async () => {
+      console.log('⏳ Setting timeout for loading message');
+      // Set timeout message after 8 seconds (improved from 30s)
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ Loading timeout reached, showing timeout message');
+        setShowTimeoutMessage(true);
+      }, 8000);
+
+      try {
+        console.log('📡 Fetching data in parallel...');
+        // Fetch both datasets in parallel for faster loading
+        await Promise.all([
+          fetchData().then(() => console.log('✅ Envelope data fetched')),
+          fetchMonthlyData().then(() => console.log('✅ Monthly budget data fetched'))
+        ]);
+        
+        // Clear timeout and hide loading screen
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+        }
+        console.log('🎉 Data load complete, hiding loading screen');
+        setIsInitialLoading(false);
+        setShowTimeoutMessage(false);
+      } catch (error) {
+        console.error('❌ Error loading initial data:', error);
+        // Still hide loading screen on error so user isn't stuck
+        setIsInitialLoading(false);
+        setShowTimeoutMessage(false);
+      }
+    };
+
+    loadData();
+
+    // Cleanup
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
   }, []); // Empty dependency array - only run once on mount
 
   // Effect to auto-focus the input when editing starts
@@ -168,6 +212,20 @@ export const EnvelopeListView: React.FC = () => {
   };
 
   const availableToBudget = calculateAvailableToBudget();
+
+  // Show loading screen during initial data fetch
+  console.log('🔍 Checking loading screen condition, isInitialLoading:', isInitialLoading);
+  if (isInitialLoading) {
+    console.log('📺 Showing loading screen');
+    return (
+      <LoadingScreen 
+        message={showTimeoutMessage ? "Still loading... This is normal on slow connections" : "Loading your budget..."}
+        showTimeout={showTimeoutMessage}
+      />
+    );
+  }
+
+  console.log('📱 Showing main content');
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">

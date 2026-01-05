@@ -10,6 +10,7 @@ import { TransactionHistoryView } from './views/TransactionHistoryView';
 import { LoginView } from './views/LoginView';
 import { EmailVerificationView } from './views/EmailVerificationView';
 import { MonthlyBudgetDemoView } from './views/MonthlyBudgetDemoView';
+import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useEnvelopeStore } from './stores/envelopeStore';
@@ -61,15 +62,9 @@ function App() {
     return undefined;
   }, [appSettings]);
 
-  // Splash Screen View
+  // Splash Screen View - Show loading screen during initialization
   if (showingLaunchScreen || !isInitialized) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-blue-600 text-white dark:bg-black">
-        <div className="text-3xl font-bold animate-pulse">
-          Personal Budget
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Initializing Personal Budget..." />;
   }
 
   // Login View - Show when not authenticated
