@@ -79,6 +79,29 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
       }
     },
 
+    updateTemplate: async (template: DistributionTemplate) => {
+      try {
+        const userId = getCurrentUserId();
+        await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
+          name: template.name,
+          note: template.note,
+          distributions: template.distributions,
+          lastUsed: template.lastUsed
+        });
+
+        set((state: any) => ({
+          distributionTemplates: state.distributionTemplates.map((t: DistributionTemplate) =>
+            t.id === template.id ? template : t
+          )
+        }));
+
+        console.log('✅ Template updated in Firebase:', template.id);
+      } catch (error) {
+        console.error('❌ Failed to update template in Firebase:', error);
+        throw error;
+      }
+    },
+
     deleteTemplate: async (templateId: string) => {
       try {
         const userId = getCurrentUserId();

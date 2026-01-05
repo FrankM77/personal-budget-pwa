@@ -11,7 +11,8 @@ import {
   } from 'firebase/firestore';
   import { db } from '../firebase'; // Ensure you have your firebase config initialized here
   import type { Transaction } from '../types/schema';
-  
+  import { transactionFromFirestore } from '../mappers/transaction';
+
   // The path to the collection: users/{userId}/transactions
   const getCollectionRef = (userId: string) => 
     collection(db, 'users', userId, 'transactions');
@@ -45,16 +46,16 @@ import {
       console.log(`📊 TransactionService.getAllTransactions: Fetching for user ${userId}`);
       const q = query(getCollectionRef(userId), orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Transaction[];
-      console.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description })));
-      return transactions;
+      const transactions = snapshot.docs.map(doc => {
+        const firebaseTx = { id: doc.id, ...doc.data() } as any;
+        return transactionFromFirestore(firebaseTx);
+      });
+      console.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description, month: t.month })));
+      return transactions as any as Transaction[];
     },
 
     // 3. ADD (Create) - Updated to match store expectation
-    addTransaction: async (transaction: Transaction) => {
+    addTransaction: async (transaction: Transaction): Promise<Transaction> => {
       const { userId, id: tempId, ...transactionData } = transaction;
       if (!userId) {
         throw new Error('User ID is required to create transaction');

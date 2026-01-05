@@ -27,7 +27,7 @@ export const SettingsView: React.FC = () => {
   // Initialize app settings if they don't exist
   useEffect(() => {
     if (!appSettings) {
-      initializeAppSettings().catch(error => {
+      initializeAppSettings().catch((error: unknown) => {
         console.error('Failed to initialize app settings:', error);
       });
     }

@@ -4,8 +4,8 @@ import { ArrowLeft, FolderPlus } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 
 export const AddEnvelopeView: React.FC = () => {
+  const { addEnvelope } = useEnvelopeStore();
   const navigate = useNavigate();
-  const { createEnvelope } = useEnvelopeStore();
 
   const [name, setName] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
@@ -24,13 +24,13 @@ export const AddEnvelopeView: React.FC = () => {
     const maxOrderIndex = envelopes.length > 0 ? Math.max(...envelopes.map(e => e.orderIndex ?? 0)) : -1;
     const nextOrderIndex = maxOrderIndex + 1;
 
-    createEnvelope({
+    addEnvelope({
       name,
       currentBalance: finalBalance,
       lastUpdated: new Date().toISOString(),
       isActive: true,
       orderIndex: nextOrderIndex
-    });
+    } as any);
     navigate('/');
   };
 

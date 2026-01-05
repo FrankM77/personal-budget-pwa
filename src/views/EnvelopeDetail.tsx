@@ -139,10 +139,6 @@ const EnvelopeDetail: React.FC = () => {
                       );
                     })()}
                 </div>
-                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-zinc-400">
-                    <span>Budget</span>
-                    <span>{formatCurrency(currentEnvelope.currentBalance || 0)}</span>
-                </div>
             </section>
 
             {/* --- List Section 2: Action Buttons (Rule #1: Section -> Grouped Div) --- */}

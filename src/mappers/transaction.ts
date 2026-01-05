@@ -15,17 +15,24 @@ const toLowerCaseType = (type: Transaction['type'] | string): FirestoreTransacti
   return 'expense';
 };
 
-export const transactionFromFirestore = (firebaseTx: FirestoreTransaction): Transaction => ({
-  id: firebaseTx.id,
-  date: firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : (firebaseTx.date as unknown as string),
-  amount: typeof firebaseTx.amount === 'string' ? parseFloat(firebaseTx.amount) || 0 : (firebaseTx.amount as unknown as number),
-  description: firebaseTx.description || '',
-  envelopeId: firebaseTx.envelopeId || '',
-  reconciled: firebaseTx.reconciled ?? false,
-  type: toTitleCaseType(firebaseTx.type),
-  transferId: firebaseTx.transferId ?? undefined,
-  userId: firebaseTx.userId,
-});
+export const transactionFromFirestore = (firebaseTx: FirestoreTransaction): Transaction => {
+  const date = firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : (firebaseTx.date as unknown as string);
+  const dateObj = new Date(date);
+  const month = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+  
+  return {
+    id: firebaseTx.id,
+    date,
+    amount: typeof firebaseTx.amount === 'string' ? parseFloat(firebaseTx.amount) || 0 : (firebaseTx.amount as unknown as number),
+    description: firebaseTx.description || '',
+    envelopeId: firebaseTx.envelopeId || '',
+    reconciled: firebaseTx.reconciled ?? false,
+    type: toTitleCaseType(firebaseTx.type),
+    transferId: firebaseTx.transferId ?? undefined,
+    userId: firebaseTx.userId,
+    month,
+  };
+};
 
 export const transactionToFirestore = (
   tx: Transaction,

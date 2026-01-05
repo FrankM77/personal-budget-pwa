@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter, Search, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion'; // <--- NEW IMPORT
+import { AnimatePresence, motion } from 'framer-motion'; 
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useToastStore } from '../stores/toastStore';
-import { SwipeableRow } from '../components/ui/SwipeableRow'; // <--- NEW IMPORT
+import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore'; 
+import { SwipeableRow } from '../components/ui/SwipeableRow'; 
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import TransactionModal from '../components/modals/TransactionModal';
 import type { Transaction } from '../models/types';
@@ -14,6 +15,7 @@ export const TransactionHistoryView: React.FC = () => {
   // Added deleteTransaction to the destructuring
   const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction } = useEnvelopeStore();
   const { showToast } = useToastStore();
+  const { currentMonth } = useMonthlyBudgetStore(); 
   
   // --- 1. Filter State (Matching Swift @State) ---
   const [showFilters, setShowFilters] = useState(false);
@@ -21,7 +23,8 @@ export const TransactionHistoryView: React.FC = () => {
   const [selectedEnvelopeId, setSelectedEnvelopeId] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<'All' | 'Income' | 'Expense'>('All');
   const [showReconciledOnly, setShowReconciledOnly] = useState(false);
-  
+  const [selectedMonth, setSelectedMonth] = useState<string>('all'); 
+  const [showAllTime, setShowAllTime] = useState(false);
   // Default Dates: Start = 1 month ago, End = Today
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -35,8 +38,22 @@ export const TransactionHistoryView: React.FC = () => {
 
   // --- 3. The Filter Logic (Matching Swift Computed Property) ---
   const filteredTransactions = useMemo(() => {
+    console.log('🔍 Filtering transactions:', {
+      totalTransactions: transactions.length,
+      showAllTime,
+      currentMonth,
+      transactionMonths: transactions.map(t => ({ id: t.id, month: t.month, date: t.date }))
+    });
+    
+    // First filter by month if not showing all time
+    let filteredByMonth = transactions;
+    if (!showAllTime) {
+      filteredByMonth = transactions.filter(t => t.month === currentMonth || !t.month);
+      console.log('📅 After month filter:', filteredByMonth.length, 'transactions remain');
+    }
+    
     // Sanitize transactions - ensure dates are valid strings, convert if needed
-    const sanitizedTransactions = transactions.map(t => {
+    const sanitizedTransactions = filteredByMonth.map(t => {
       if (!t) return null;
 
       let dateStr = t.date;
@@ -84,11 +101,28 @@ export const TransactionHistoryView: React.FC = () => {
           return false; // Skip transactions with invalid dates
         }
         const tDate = t.date.split('T')[0];
-        if (tDate < startDate || tDate > endDate) {
-          return false;
+        
+        // Date Range filter is currently disabled because default values (Last 30 Days)
+        // conflict with both "Specific Month" view (hiding past months)
+        // and "All Time" view (hiding older data).
+        // To restore this, we would need 'isDateFilterActive' state.
+        if (false) { 
+          if (tDate < startDate || tDate > endDate) {
+            return false;
+          }
         }
 
-        // 5. Reconciled Filter
+        // 5. Month Filter
+        if (selectedMonth !== 'all') {
+          const month = new Date(tDate).getMonth();
+          if (month !== parseInt(selectedMonth)) return false;
+        } 
+        
+        // Removed the broken 'else if (currentMonth !== 'all')' block. 
+        // 1. currentMonth filtering is already handled in the 'filteredByMonth' pre-filter step.
+        // 2. The logic 'parseInt(currentMonth)' was flawed (parsed Year instead of Month index).
+
+        // 6. Reconciled Filter
         if (showReconciledOnly && !t.reconciled) {
           return false;
         }
@@ -96,7 +130,20 @@ export const TransactionHistoryView: React.FC = () => {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, startDate, endDate, showReconciledOnly]);
+  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, startDate, endDate, showReconciledOnly, showAllTime, currentMonth]);
+
+  console.log('✅ Final filtered transactions:', {
+    count: filteredTransactions.length,
+    transactions: filteredTransactions.map(t => ({
+      id: t.id,
+      description: t.description,
+      amount: t.amount,
+      date: t.date,
+      month: t.month,
+      type: t.type
+    }))
+  });
+  
 
   // Helper for Modal
   const activeEnvelope = editingTransaction 
@@ -134,6 +181,17 @@ export const TransactionHistoryView: React.FC = () => {
           <Filter size={20} className={showFilters ? 'fill-current' : ''} />
         </button>
       </header>
+
+      {/* --- Month Selector and All Time Toggle --- */}
+      <div className="px-4 py-2 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 flex justify-between items-center">
+        <div className="text-sm font-medium text-gray-700 dark:text-zinc-300">Month: {currentMonth}</div>
+        <button 
+          onClick={() => setShowAllTime(!showAllTime)}
+          className={`text-sm px-3 py-1 rounded-md ${showAllTime ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-800 dark:bg-zinc-800 dark:text-zinc-300'}`}
+        >
+          {showAllTime ? 'Current Month Only' : 'All Time'}
+        </button>
+      </div>
 
       {/* --- Collapsible Filter Panel --- */}
       <div 
@@ -194,6 +252,21 @@ export const TransactionHistoryView: React.FC = () => {
             ))}
           </div>
 
+          {/* Month Picker */}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase">Month</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
+            >
+              <option value="all">All Months</option>
+              {Array.from({length: 12}, (_, i) => i).map(month => (
+                <option key={month} value={month}>{new Date(2022, month).toLocaleString('default', { month: 'long' })}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Date Range */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -231,6 +304,21 @@ export const TransactionHistoryView: React.FC = () => {
             >
               <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
                 showReconciledOnly ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
+          {/* Show All Time Toggle */}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Show all time</span>
+            <button
+              onClick={() => setShowAllTime(!showAllTime)}
+              className={`w-11 h-6 rounded-full transition-colors relative ${
+                showAllTime ? 'bg-green-500' : 'bg-gray-300 dark:bg-zinc-700'
+              }`}
+            >
+              <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                showAllTime ? 'translate-x-5' : 'translate-x-0'
               }`} />
             </button>
           </div>

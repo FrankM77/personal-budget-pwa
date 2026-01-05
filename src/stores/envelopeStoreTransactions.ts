@@ -1,6 +1,7 @@
 import { TransactionService } from '../services/TransactionService';
 import type { Transaction } from '../models/types';
 import { transactionFromFirestore, transactionToFirestore, transactionUpdatesToFirestore } from '../mappers/transaction';
+import { useMonthlyBudgetStore } from './monthlyBudgetStore';
 
 type SliceParams = {
   set: (partial: any) => void;
@@ -15,10 +16,22 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
       // Generate temporary ID for immediate UI update
       const tempId = `temp-${Date.now()}-${Math.random()}`;
       const userId = getCurrentUserId();
+      // Extract month from date in YYYY-MM format
+      const date = new Date(newTx.date);
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      console.log('🗓️ Month calculation in addTransaction:', {
+        originalDate: newTx.date,
+        dateObj: date,
+        calculatedMonth: month,
+        currentMonth: useMonthlyBudgetStore.getState().currentMonth
+      });
+      
       const transactionWithId = {
         ...newTx,
         id: tempId,
-        userId: userId
+        userId: userId,
+        month: month
       };
 
       // Update local state immediately for responsive UI

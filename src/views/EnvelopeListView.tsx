@@ -14,14 +14,16 @@ import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
 import { useToastStore } from '../stores/toastStore';
 import { useNavigate } from 'react-router-dom';
 import type { IncomeSource } from '../models/types';
+import { Decimal } from 'decimal.js';
 
 export const EnvelopeListView: React.FC = () => {
   // Envelope store (for envelopes and transactions)
-  const { envelopes, fetchData, isOnline, pendingSync, syncData, isLoading, getEnvelopeBalance, testingConnectivity } = useEnvelopeStore();
+  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity } = useEnvelopeStore();
 
   // Monthly budget store (for zero-based budgeting features)
   const {
     currentMonth,
+    fetchMonthlyData,
     incomeSources,
     envelopeAllocations,
     calculateAvailableToBudget,
@@ -30,7 +32,6 @@ export const EnvelopeListView: React.FC = () => {
     clearMonthData,
     copyFromPreviousMonth,
     setEnvelopeAllocation,
-    fetchMonthlyData
   } = useMonthlyBudgetStore();
 
   const { showToast } = useToastStore();
@@ -54,6 +55,47 @@ export const EnvelopeListView: React.FC = () => {
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Function to get envelope balance for current month (matches store calculation)
+  const getEnvelopeBalance = (envelopeId: string) => {
+    // Calculate transactions for this envelope in the current month using reactive transactions
+    const envelopeTransactions = transactions.filter(t => 
+      t.envelopeId === envelopeId && t.month === currentMonth
+    );
+    
+    // Also check all transactions for this envelope (for debugging)
+    const allEnvelopeTransactions = transactions.filter(t => t.envelopeId === envelopeId);
+    
+    console.log(`💰 Balance calc for envelope ${envelopeId}:`, {
+      currentMonth,
+      totalTransactions: transactions.length,
+      allEnvelopeTransactions: allEnvelopeTransactions.map(t => ({
+        id: t.id,
+        amount: t.amount,
+        type: t.type,
+        month: t.month,
+        date: t.date
+      })),
+      matchingMonthTransactions: envelopeTransactions.map(t => ({
+        id: t.id,
+        amount: t.amount,
+        type: t.type,
+        month: t.month,
+        date: t.date
+      }))
+    });
+    
+    const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+    const incomes = envelopeTransactions.filter(t => t.type === 'Income');
+    const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
+    const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
+    
+    // Balance = Income - Expenses (same as store calculation)
+    const balance = totalIncome.minus(totalSpent);
+    console.log(`💰 Final balance for envelope ${envelopeId}:`, balance.toNumber());
+    
+    return balance;
+  };
 
   // Load data from Firebase on mount
   useEffect(() => {
@@ -379,7 +421,7 @@ export const EnvelopeListView: React.FC = () => {
               {sortedEnvelopes.map((env) => {
                 const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
                 const budgetedAmount = allocation?.budgetedAmount || 0;
-                const remainingBalance = getEnvelopeBalance(env.id!);
+                const remainingBalance = getEnvelopeBalance(env.id);
 
                 return (
                   <div key={env.id} onClick={() => editingEnvelopeId !== env.id && navigate(`/envelope/${env.id}`)} className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform">
@@ -423,6 +465,53 @@ export const EnvelopeListView: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Budget Progress Bar */}
+                    {budgetedAmount > 0 && (
+                      <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          // Calculate actual spending from transactions
+                          const envelopeTransactions = transactions.filter(t => 
+                            t.envelopeId === env.id && t.month === currentMonth
+                          );
+                          const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+                          const incomes = envelopeTransactions.filter(t => t.type === 'Income');
+                          const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                          const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                          
+                          // Show percentage of income that has been spent (can exceed 100% when overspending)
+                          const percentage = Math.max(0, (totalSpent / totalIncome) * 100);
+                          
+                          console.log(`📊 Envelope: ${env.name}`, {
+                            budgetedAmount,
+                            totalIncome,
+                            totalSpent,
+                            remainingBalance: remainingBalance.toNumber(),
+                            percentage
+                          });
+                          return (
+                            <>
+                              <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400 mb-1">
+                                <span>Budget Used</span>
+                                <span>{percentage.toFixed(0)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-300 ease-out ${
+                                    remainingBalance.toNumber() < 0 
+                                      ? 'bg-red-500' 
+                                      : percentage >= 80 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-green-500'
+                                  }`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 );
               })}

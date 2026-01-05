@@ -4,7 +4,7 @@ import { useEnvelopeStore } from '../stores/envelopeStore';
 
 export const AddTransactionView: React.FC = () => {
   const navigate = useNavigate();
-  const { envelopes, getEnvelopeBalance, addToEnvelope, spendFromEnvelope } = useEnvelopeStore();
+  const { envelopes, addTransaction } = useEnvelopeStore();
 
   // Form state
   const [amount, setAmount] = useState('');
@@ -17,21 +17,35 @@ export const AddTransactionView: React.FC = () => {
   const isFormValid = amount && parseFloat(amount) > 0 && selectedEnvelopeId;
 
   // Form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
     const numAmount = parseFloat(amount);
-    const transactionDate = new Date(date);
+    
+    // Properly handle the date to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const transactionDate = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone issues
+    
+    console.log('📅 Selected date:', date);
+    console.log('📅 Parsed date:', transactionDate.toISOString());
 
-    if (transactionType === 'income') {
-      addToEnvelope(selectedEnvelopeId, numAmount, note, transactionDate);
-    } else {
-      spendFromEnvelope(selectedEnvelopeId, numAmount, note, transactionDate);
+    try {
+      await addTransaction({
+        amount: numAmount,
+        description: note,
+        date: transactionDate.toISOString(),
+        envelopeId: selectedEnvelopeId,
+        type: transactionType === 'income' ? 'Income' : 'Expense',
+        reconciled: false
+      });
+
+      // Navigate back to home
+      navigate('/');
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
-
-    // Navigate back to home
-    navigate('/');
   };
 
   // Sort envelopes by orderIndex (creation order) with name as fallback
@@ -159,7 +173,7 @@ export const AddTransactionView: React.FC = () => {
               <option value="" className="bg-white dark:bg-zinc-900">Select an envelope</option>
               {sortedEnvelopes.map((env) => (
                 <option key={env.id} value={env.id} className="bg-white dark:bg-zinc-900">
-                  {env.name} (${getEnvelopeBalance(env.id!).toNumber().toFixed(2)})
+                  {env.name}
                 </option>
               ))}
             </select>

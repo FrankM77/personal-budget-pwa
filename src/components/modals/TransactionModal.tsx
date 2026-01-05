@@ -12,7 +12,7 @@ interface Props {
 }
 
 const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction }) => {
-  const { addToEnvelope, spendFromEnvelope, updateTransaction, deleteTransaction } = useEnvelopeStore();
+  const { addTransaction, updateTransaction, deleteTransaction } = useEnvelopeStore();
   
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -50,28 +50,53 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
   if (!isVisible) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) return;
-
-    if (mode === 'add') {
-      addToEnvelope(currentEnvelope.id!, numAmount, note, new Date(date));
-    } else if (mode === 'spend') {
-      spendFromEnvelope(currentEnvelope.id!, numAmount, note, new Date(date));
-    } else if (mode === 'edit' && initialTransaction) {
-      updateTransaction({
-        ...initialTransaction,
-        amount: numAmount, // Use the parsed number amount
-        description: note,
-        date: new Date(date).toISOString(),
-        // If editing, we might need to re-evaluate type if the user changes logic,
-        // but for now let's keep the original type or derive it.
-        // Simplified: keep original type unless swapping logic is added.
-      });
+    if (isNaN(numAmount) || numAmount <= 0) {
+      console.log('❌ Invalid amount:', amount);
+      return;
     }
-    onClose();
+
+    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: currentEnvelope.id });
+
+    try {
+      if (mode === 'add') {
+        console.log('➕ Adding income transaction');
+        await addTransaction({
+          amount: numAmount,
+          description: note,
+          date: new Date(date).toISOString(),
+          envelopeId: currentEnvelope.id!,
+          type: 'Income',
+          reconciled: false
+        });
+      } else if (mode === 'spend') {
+        console.log('➖ Adding expense transaction');
+        await addTransaction({
+          amount: numAmount,
+          description: note,
+          date: new Date(date).toISOString(),
+          envelopeId: currentEnvelope.id!,
+          type: 'Expense',
+          reconciled: false
+        });
+      } else if (mode === 'edit' && initialTransaction) {
+        console.log('✏️ Updating transaction');
+        await updateTransaction({
+          ...initialTransaction,
+          amount: numAmount,
+          description: note,
+          date: new Date(date).toISOString(),
+        });
+      }
+      console.log('✅ Transaction saved successfully');
+      onClose();
+    } catch (error) {
+      console.error('❌ Error saving transaction:', error);
+      alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
   };
 
   const handleDelete = () => {

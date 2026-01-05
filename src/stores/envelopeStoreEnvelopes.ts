@@ -301,6 +301,33 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
       }
     },
 
+    updateEnvelope: async (envelope: Envelope): Promise<void> => {
+      // Update local state immediately
+      set((state: any) => ({
+        envelopes: state.envelopes.map((env: Envelope) =>
+          env.id === envelope.id ? envelope : env
+        ),
+        isLoading: true
+      }));
+
+      try {
+        const userId = getCurrentUserId();
+        await EnvelopeService.saveEnvelope(userId, envelope);
+        set({ isLoading: false });
+      } catch (err: any) {
+        console.error('Update Envelope Failed:', err);
+        if (isNetworkError(err)) {
+          set({
+            isLoading: false,
+            pendingSync: true,
+            error: null
+          });
+        } else {
+          set({ error: err.message, isLoading: false });
+        }
+      }
+    },
+
     renameEnvelope: async (envelopeId: string, newName: string): Promise<void> => {
       // Update local state immediately
       set((state: any) => ({

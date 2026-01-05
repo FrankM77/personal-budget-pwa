@@ -46,33 +46,30 @@ interface EnvelopeStore {
 
   // Actions
   fetchData: () => Promise<void>;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'userId'>) => Promise<void>;
-  createEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<void>;
-  addToEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
-  spendFromEnvelope: (envelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
-  transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
+  addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<void>;
+  updateEnvelope: (envelope: Envelope) => Promise<void>;
   deleteEnvelope: (envelopeId: string) => Promise<void>;
-  deleteTransaction: (transactionId: string) => Promise<void>;
-  updateTransaction: (updatedTx: Transaction) => Promise<void>;
-  restoreTransaction: (transaction: Transaction) => Promise<void>;
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
-  saveTemplate: (name: string, distributions: Record<string, number>, note: string) => void;
-  deleteTemplate: (templateId: string) => void;
+  transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'userId'>) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
+  deleteTransaction: (transactionId: string) => Promise<void>;
+  restoreTransaction: (transaction: Transaction) => Promise<void>;
+  addDistributionTemplate: (name: string, distributions: Record<string, number>, note: string) => Promise<void>;
+  updateDistributionTemplate: (template: DistributionTemplate) => Promise<void>;
+  deleteDistributionTemplate: (templateId: string) => Promise<void>;
+  removeEnvelopeFromTemplates: (envelopeId: string) => Promise<void>;
+  cleanupOrphanedTemplates: () => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
   initializeAppSettings: () => Promise<void>;
-  importData: (data: any) => Promise<{ success: boolean; message: string }>;
-  resetData: () => Promise<void>;
-  performFirebaseReset: () => Promise<void>;
-  syncData: () => Promise<void>;
-  updateOnlineStatus: () => Promise<void>;
-  markOnlineFromFirebaseSuccess: () => void;
-  handleUserLogout: () => void;
   getEnvelopeBalance: (envelopeId: string) => Decimal;
-
-  // Template cleanup utilities
-  cleanupOrphanedTemplates: () => Promise<void>;
-  updateTemplateEnvelopeReferences: (oldEnvelopeId: string, newEnvelopeId: string) => Promise<void>;
-  removeEnvelopeFromTemplates: (envelopeId: string) => Promise<void>;
+  resetAllData: () => Promise<void>;
+  resetData: () => Promise<void>;
+  importData: (data: any) => Promise<{ success: boolean; message: string }>;
+  testConnectivity: () => Promise<void>;
+  updateOnlineStatus: () => Promise<void>;
+  syncData: () => Promise<void>;
+  handleUserLogout: () => void;
 }
 
 // Get current user ID from auth store
@@ -260,23 +257,22 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
         testingConnectivity: false,
 
         // Delegated Actions from slices
-        addTransaction: transactionSlice.addTransaction,
-        createEnvelope: envelopeSlice.createEnvelope,
-        addToEnvelope: envelopeSlice.addToEnvelope,
-        spendFromEnvelope: envelopeSlice.spendFromEnvelope,
-        transferFunds: envelopeSlice.transferFunds,
+        addEnvelope: envelopeSlice.createEnvelope,
+        updateEnvelope: envelopeSlice.updateEnvelope,
         deleteEnvelope: envelopeSlice.deleteEnvelope,
-        deleteTransaction: transactionSlice.deleteTransaction,
-        updateTransaction: transactionSlice.updateTransaction,
-        restoreTransaction: transactionSlice.restoreTransaction,
         renameEnvelope: envelopeSlice.renameEnvelope,
-        saveTemplate: templateSlice.saveTemplate,
-        deleteTemplate: templateSlice.deleteTemplate,
+        transferFunds: envelopeSlice.transferFunds,
+        addTransaction: transactionSlice.addTransaction,
+        updateTransaction: transactionSlice.updateTransaction,
+        deleteTransaction: transactionSlice.deleteTransaction,
+        restoreTransaction: transactionSlice.restoreTransaction,
+        addDistributionTemplate: templateSlice.saveTemplate,
+        updateDistributionTemplate: templateSlice.updateTemplate,
+        deleteDistributionTemplate: templateSlice.deleteTemplate,
+        removeEnvelopeFromTemplates: templateSlice.removeEnvelopeFromTemplates,
+        cleanupOrphanedTemplates: templateSlice.cleanupOrphanedTemplates,
         updateAppSettings: settingsSlice.updateAppSettings,
         initializeAppSettings: settingsSlice.initializeAppSettings,
-        cleanupOrphanedTemplates: templateSlice.cleanupOrphanedTemplates,
-        updateTemplateEnvelopeReferences: templateSlice.updateTemplateEnvelopeReferences,
-        removeEnvelopeFromTemplates: templateSlice.removeEnvelopeFromTemplates,
         fetchData: syncSlice.fetchData,
         syncData: syncSlice.syncData,
         updateOnlineStatus: syncSlice.updateOnlineStatus,
@@ -306,7 +302,31 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
           const balance = totalIncome.minus(totalSpent);
 
           return balance;
-        }
+        },
+        
+        // New method to get transactions for a specific month
+        getTransactionsForMonth: (month: string) => {
+          const state = get();
+          return state.transactions.filter(t => t.month === month);
+        },
+        resetAllData: async () => {
+          console.log('🔄 Resetting all data');
+          set({
+            envelopes: [],
+            transactions: [],
+            distributionTemplates: [],
+            appSettings: null,
+            isLoading: false,
+            error: null,
+            isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+            pendingSync: false,
+            resetPending: false
+          });
+        },
+        testConnectivity: async () => {
+          console.log('🌐 Testing connectivity');
+          await checkOnlineStatus();
+        },
       };
     },
     {
