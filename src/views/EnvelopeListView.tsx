@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { PlusCircle, List as ListIcon, Wallet, Wifi, WifiOff, RefreshCw, GripVertical } from 'lucide-react';
+import { PlusCircle, List as ListIcon, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
@@ -47,6 +47,58 @@ const EnvelopeListItem = ({
   onDragEnd: () => void
 }) => {
   const controls = useDragControls();
+  const [isDragging, setIsDragging] = useState(false);
+  const longPressTimeout = useRef<number | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPressTimeout = () => {
+    if (longPressTimeout.current !== null) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Only respond to primary mouse button or touch
+    if (e.button !== 0 && e.pointerType !== 'touch') return;
+
+    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+
+    clearLongPressTimeout();
+    longPressTimeout.current = window.setTimeout(() => {
+      // Start drag after a short long-press delay
+      controls.start(e);
+    }, 220);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pointerStartRef.current || longPressTimeout.current === null) return;
+
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    if (Math.hypot(dx, dy) > 8) {
+      // User is scrolling or moving too much before long-press activates
+      clearLongPressTimeout();
+    }
+  };
+
+  const handlePointerUp = () => {
+    clearLongPressTimeout();
+    pointerStartRef.current = null;
+  };
+
+  const handlePointerCancel = () => {
+    clearLongPressTimeout();
+    pointerStartRef.current = null;
+  };
+
+  const handleNavigate = () => {
+    // Prevent navigation if this interaction was a drag
+    if (isDragging) return;
+    if (editingEnvelopeId !== env.id) {
+      navigate(`/envelope/${env.id}`);
+    }
+  };
 
   return (
     <Reorder.Item 
@@ -54,31 +106,43 @@ const EnvelopeListItem = ({
       dragListener={false}
       dragControls={controls}
       dragConstraints={dragConstraints}
-      dragElastic={0.12}
+      dragElastic={0.16}
       dragMomentum={false}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
-      whileDrag={{ scale: 1.01 }}
+      onDragStart={() => {
+        setIsDragging(true);
+        onDragStart();
+      }}
+      onDragEnd={() => {
+        setIsDragging(false);
+        onDragEnd();
+      }}
+      transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.7 }}
+      whileDrag={{ scale: 1.04, zIndex: 20 }}
+      layout
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerMove={handlePointerMove}
+      onPointerCancel={handlePointerCancel}
+      style={{
+        boxShadow: isDragging
+          ? '0 18px 45px rgba(15,23,42,0.35)'
+          : '0 1px 2px rgba(15,23,42,0.08)'
+      }}
       className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
     >
       <div className="flex items-center gap-3 w-full">
-        {/* Drag Handle */}
-        <div 
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-none"
-          onPointerDown={(e) => controls.start(e)}
-        >
-          <GripVertical size={20} />
-        </div>
-
         {/* Content Wrapper */}
         <div 
           className="flex-1"
-          onClick={() => editingEnvelopeId !== env.id && navigate(`/envelope/${env.id}`)}
+          onClick={handleNavigate}
         >
           <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{env.name}</h3>
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4" onClick={(e) => e.stopPropagation()}>
+            <div 
+              className="flex items-center space-x-4" 
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               {editingEnvelopeId === env.id ? (
                 <div className="flex items-center space-x-1">
                   <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
