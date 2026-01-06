@@ -140,7 +140,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
       // Set current month and fetch data
       setCurrentMonth: (month: string) => {
-        set({ currentMonth: month });
+        set({ currentMonth: month, isLoading: true });
         // Trigger data fetch for new month
         get().fetchMonthlyData();
       },
@@ -564,9 +564,9 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
     }),
     {
       name: 'monthly-budget-store',
-      partialize: (state) => ({
-        currentMonth: state.currentMonth,
-      }),
+      version: 1,
+      // We don't persist currentMonth so the app always starts on the actual current month
+      partialize: (_state) => ({}),
     }
   )
 );

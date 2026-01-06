@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { PlusCircle, List as ListIcon, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { PlusCircle, List as ListIcon, Wallet, Wifi, WifiOff, RefreshCw, GripVertical } from 'lucide-react';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { MonthSelector } from '../components/ui/MonthSelector';
@@ -15,6 +15,104 @@ import { useToastStore } from '../stores/toastStore';
 import { useNavigate } from 'react-router-dom';
 import type { IncomeSource } from '../models/types';
 import { Decimal } from 'decimal.js';
+
+// Separate component for list item to allow individual useDragControls hook
+const EnvelopeListItem = ({ 
+  env, 
+  budgetedAmount, 
+  remainingBalance, 
+  editingEnvelopeId, 
+  setEditingEnvelopeId,
+  editingAmount, 
+  setEditingAmount,
+  handleBudgetSave,
+  navigate,
+  inputRef,
+  setIsReordering
+}: {
+  env: any,
+  budgetedAmount: number,
+  remainingBalance: any,
+  editingEnvelopeId: string | null,
+  setEditingEnvelopeId: (id: string | null) => void,
+  editingAmount: string,
+  setEditingAmount: (amount: string) => void,
+  handleBudgetSave: () => void,
+  navigate: (path: string) => void,
+  inputRef: React.RefObject<HTMLInputElement | null>,
+  setIsReordering: (isReordering: boolean) => void
+}) => {
+  const controls = useDragControls();
+
+  return (
+    <Reorder.Item 
+      value={env}
+      dragListener={false}
+      dragControls={controls}
+      onDragStart={() => setIsReordering(true)}
+      onDragEnd={() => setIsReordering(false)}
+      className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
+    >
+      <div className="flex items-center gap-3 w-full">
+        {/* Drag Handle */}
+        <div 
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-none"
+          onPointerDown={(e) => controls.start(e)}
+        >
+          <GripVertical size={20} />
+        </div>
+
+        {/* Content Wrapper */}
+        <div 
+          className="flex-1"
+          onClick={() => editingEnvelopeId !== env.id && navigate(`/envelope/${env.id}`)}
+        >
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{env.name}</h3>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4" onClick={(e) => e.stopPropagation()}>
+              {editingEnvelopeId === env.id ? (
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
+                  <form onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}>
+                    <input
+                      ref={inputRef}
+                      type="number"
+                      value={editingAmount}
+                      onChange={(e) => setEditingAmount(e.target.value)}
+                      onBlur={handleBudgetSave}
+                      className="w-24 px-2 py-1 text-sm border rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white"
+                      step="0.01"
+                      autoFocus
+                    />
+                  </form>
+                </div>
+              ) : (
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingEnvelopeId(env.id);
+                    setEditingAmount(budgetedAmount.toString());
+                  }}
+                  className="flex items-center space-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-2 py-1 rounded transition-colors"
+                >
+                  <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">${budgetedAmount.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="text-right">
+              <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
+              <span className={`font-bold ${remainingBalance.isNegative() ? 'text-red-500' : 'text-green-600 dark:text-emerald-400'}`}>
+                ${remainingBalance.toNumber().toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Reorder.Item>
+  );
+};
 
 export const EnvelopeListView: React.FC = () => {
   // Envelope store (for envelopes and transactions)
@@ -32,6 +130,7 @@ export const EnvelopeListView: React.FC = () => {
     clearMonthData,
     copyFromPreviousMonth,
     setEnvelopeAllocation,
+    isLoading: isBudgetLoading,
   } = useMonthlyBudgetStore();
 
   const { showToast } = useToastStore();
@@ -142,6 +241,14 @@ export const EnvelopeListView: React.FC = () => {
     };
   }, []); // Empty dependency array - only run once on mount
 
+  // Effect to handle Copy Previous Month Prompt visibility
+  useEffect(() => {
+    if (!isBudgetLoading && !isInitialLoading) {
+      const hasNoData = incomeSources.length === 0 && envelopeAllocations.length === 0;
+      setShowCopyPrompt(hasNoData);
+    }
+  }, [isBudgetLoading, isInitialLoading, incomeSources, envelopeAllocations, currentMonth]);
+
   // Effect to auto-focus the input when editing starts
   useEffect(() => {
     if (editingEnvelopeId && inputRef.current) {
@@ -150,15 +257,48 @@ export const EnvelopeListView: React.FC = () => {
     }
   }, [editingEnvelopeId]);
 
+  const [isReordering, setIsReordering] = useState(false);
+  
+  // Handler for reordering completion
+  const handleReorder = (newOrder: typeof envelopes) => {
+    // We don't want to update state immediately to avoid jumping, 
+    // but we need to persist the new order indices
+    console.log('📦 Reordered envelopes:', newOrder.map(e => e.name));
+    
+    // Update order indices for all envelopes
+    newOrder.forEach((env, index) => {
+      if (env.orderIndex !== index) {
+        useEnvelopeStore.getState().updateEnvelope({
+          ...env,
+          orderIndex: index
+        });
+      }
+    });
+  };
+
   // Envelopes should already be sorted by orderIndex from the store/service
-  const sortedEnvelopes = [...envelopes].sort((a, b) => {
-    const aOrder = a.orderIndex ?? 0;
-    const bOrder = b.orderIndex ?? 0;
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
+  // Filter envelopes to only show those that have an allocation for the current month
+  // We use a local state for the reorder list to allow smooth dragging
+  const [localEnvelopes, setLocalEnvelopes] = useState<typeof envelopes>([]);
+
+  useEffect(() => {
+    // Update local envelopes when store changes, BUT ONLY if not currently dragging
+    if (!isReordering) {
+       const filtered = [...envelopes]
+        .filter(env => envelopeAllocations.some(alloc => alloc.envelopeId === env.id))
+        .sort((a, b) => {
+          const aOrder = a.orderIndex ?? 0;
+          const bOrder = b.orderIndex ?? 0;
+          if (aOrder !== bOrder) {
+            return aOrder - bOrder;
+          }
+          return a.name.localeCompare(b.name);
+        });
+       setLocalEnvelopes(filtered);
     }
-    return a.name.localeCompare(b.name);
-  });
+  }, [envelopes, envelopeAllocations, isReordering]);
+
+  const visibleEnvelopes = localEnvelopes;
 
   const totalBalance = envelopes.reduce(
     (sum, env) => sum + getEnvelopeBalance(env.id!).toNumber(),
@@ -332,188 +472,118 @@ export const EnvelopeListView: React.FC = () => {
         </div>
       </header>
 
-      <div className="p-4 max-w-md mx-auto space-y-6">
-        {/* Month Selector */}
-        <MonthSelector
+
+    <div className="p-4 max-w-md mx-auto space-y-6">
+      {/* Month Selector */}
+      <MonthSelector
+        currentMonth={currentMonth}
+        onMonthChange={(newMonth) => {
+          setShowCopyPrompt(false);
+          useMonthlyBudgetStore.getState().setCurrentMonth(newMonth);
+        }}
+      />
+
+      {/* Available to Budget */}
+      <AvailableToBudget
+        amount={availableToBudget}
+        totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
+        totalAllocated={envelopeAllocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
+        isLoading={isLoading}
+      />
+
+      {/* Copy Previous Month Prompt */}
+      {showCopyPrompt && (
+        <CopyPreviousMonthPrompt
           currentMonth={currentMonth}
-          onMonthChange={(newMonth) => {
-            useMonthlyBudgetStore.getState().setCurrentMonth(newMonth);
-            setTimeout(() => {
-              const state = useMonthlyBudgetStore.getState();
-              if (state.currentMonth === newMonth && state.incomeSources.length === 0 && state.envelopeAllocations.length === 0) {
-                setShowCopyPrompt(true);
-              }
-            }, 500);
-          }}
+          onCopy={handleCopyPreviousMonth}
+          onDismiss={() => setShowCopyPrompt(false)}
         />
+      )}
 
-        {/* Available to Budget */}
-        <AvailableToBudget
-          amount={availableToBudget}
-          totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
-          totalAllocated={envelopeAllocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
-          isLoading={isLoading}
-        />
-
-        {/* Copy Previous Month Prompt */}
-        {showCopyPrompt && (
-          <CopyPreviousMonthPrompt
-            currentMonth={currentMonth}
-            onCopy={handleCopyPreviousMonth}
-            onDismiss={() => setShowCopyPrompt(false)}
-          />
-        )}
-
-        {/* Income Sources Section */}
-        <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income Sources</h2>
-            <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
-              <PlusCircle size={20} />
-            </button>
-          </div>
-          {incomeSources.length === 0 ? (
-            <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
-          ) : (
-            <div className="space-y-3">
-              <AnimatePresence initial={false} mode="popLayout">
-                {incomeSources.map((source) => (
-                  <motion.div key={source.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                    <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
-                      <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 dark:text-white">{source.name}</p>
-                          <p className="text-sm text-gray-600 dark:text-zinc-400">Monthly income</p>
-                        </div>
-                        <p className="font-semibold text-green-600 dark:text-emerald-400">${source.amount.toFixed(2)}</p>
+      {/* Income Sources Section */}
+      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income Sources</h2>
+          <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
+            <PlusCircle size={20} />
+          </button>
+        </div>
+        {incomeSources.length === 0 ? (
+          <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
+        ) : (
+          <div className="space-y-3">
+            <AnimatePresence initial={false} mode="popLayout">
+              {incomeSources.map((source) => (
+                <motion.div key={source.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+                  <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
+                    <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white">{source.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-zinc-400">Monthly income</p>
                       </div>
-                    </SwipeableRow>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </section>
-
-        {/* Spending Envelopes Section */}
-        <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Envelopes</h2>
-            <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Envelope">
-              <PlusCircle size={20} />
-            </button>
-          </div>
-          {sortedEnvelopes.length === 0 ? (
-            <div className="text-center py-6">
-              <Wallet className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-zinc-400 text-sm mb-4">No envelopes yet. Create one to get started.</p>
-              <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 font-medium hover:text-blue-700 dark:hover:text-blue-200 transition-colors">Create First Envelope</button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedEnvelopes.map((env) => {
-                const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
-                const budgetedAmount = allocation?.budgetedAmount || 0;
-                const remainingBalance = getEnvelopeBalance(env.id);
-
-                return (
-                  <div key={env.id} onClick={() => editingEnvelopeId !== env.id && navigate(`/envelope/${env.id}`)} className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{env.name}</h3>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-4" onClick={(e) => e.stopPropagation()}>
-                        {editingEnvelopeId === env.id ? (
-                          <div className="flex items-center space-x-1">
-                            <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
-                            <form onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}>
-                              <input
-                                ref={inputRef}
-                                type="number"
-                                value={editingAmount}
-                                onChange={(e) => setEditingAmount(e.target.value)}
-                                onBlur={handleBudgetSave}
-                                onKeyDown={(e) => { if (e.key === 'Escape') setEditingEnvelopeId(null); }}
-                                className="w-24 bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-300 font-semibold text-left rounded-md px-2 py-1 border border-blue-300 dark:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
-                                step="0.01"
-                                placeholder="0.00"
-                              />
-                            </form>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setEditingEnvelopeId(env.id!);
-                              setEditingAmount(budgetedAmount.toFixed(2));
-                            }}
-                            className="flex items-center space-x-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors rounded-md p-1 -m-1"
-                          >
-                            <span className="text-sm">Budgeted:</span>
-                            <span className="font-semibold">${budgetedAmount.toFixed(2)}</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1">Remaining</div>
-                        <div className={`font-semibold ${remainingBalance.toNumber() < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {remainingBalance.toNumber() < 0 ? '-' : ''}${Math.abs(remainingBalance.toNumber()).toFixed(2)}
-                        </div>
-                      </div>
+                      <p className="font-semibold text-green-600 dark:text-emerald-400">${source.amount.toFixed(2)}</p>
                     </div>
-                    
-                    {/* Budget Progress Bar */}
-                    {budgetedAmount > 0 && (
-                      <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-                        {(() => {
-                          // Calculate actual spending from transactions
-                          const envelopeTransactions = transactions.filter(t => 
-                            t.envelopeId === env.id && t.month === currentMonth
-                          );
-                          const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-                          const incomes = envelopeTransactions.filter(t => t.type === 'Income');
-                          const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-                          const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-                          
-                          // Show percentage of income that has been spent (can exceed 100% when overspending)
-                          const percentage = Math.max(0, (totalSpent / totalIncome) * 100);
-                          
-                          console.log(`📊 Envelope: ${env.name}`, {
-                            budgetedAmount,
-                            totalIncome,
-                            totalSpent,
-                            remainingBalance: remainingBalance.toNumber(),
-                            percentage
-                          });
-                          return (
-                            <>
-                              <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400 mb-1">
-                                <span>Budget Used</span>
-                                <span>{percentage.toFixed(0)}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
-                                <div 
-                                  className={`h-full transition-all duration-300 ease-out ${
-                                    remainingBalance.toNumber() < 0 
-                                      ? 'bg-red-500' 
-                                      : percentage >= 80 
-                                        ? 'bg-yellow-500' 
-                                        : 'bg-green-500'
-                                  }`}
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
+                  </SwipeableRow>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </section>
 
-      <button onClick={() => navigate('/add-transaction')} className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform">
+      {/* Spending Envelopes Section */}
+      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Envelopes</h2>
+          <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Envelope">
+            <PlusCircle size={20} />
+          </button>
+        </div>
+        {visibleEnvelopes.length === 0 ? (
+          <div className="text-center py-6">
+            <Wallet className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-zinc-400 text-sm mb-4">
+              {envelopes.length > 0 
+                ? "No envelopes added to this month. Copy from previous month or add new ones."
+                : "No envelopes yet. Create one to get started."}
+            </p>
+            <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 font-medium hover:text-blue-700 dark:hover:text-blue-200 transition-colors">Create First Envelope</button>
+          </div>
+        ) : (
+          <Reorder.Group axis="y" values={localEnvelopes} onReorder={(newOrder) => {
+            setLocalEnvelopes(newOrder);
+            handleReorder(newOrder);
+          }} className="space-y-3">
+            {visibleEnvelopes.map((env) => {
+              const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
+              const budgetedAmount = allocation?.budgetedAmount || 0;
+              const remainingBalance = getEnvelopeBalance(env.id);
+
+              return (
+                <EnvelopeListItem
+                  key={env.id}
+                  env={env}
+                  budgetedAmount={budgetedAmount}
+                  remainingBalance={remainingBalance}
+                  editingEnvelopeId={editingEnvelopeId}
+                  setEditingEnvelopeId={setEditingEnvelopeId}
+                  editingAmount={editingAmount}
+                  setEditingAmount={setEditingAmount}
+                  handleBudgetSave={handleBudgetSave}
+                  navigate={navigate}
+                  inputRef={inputRef}
+                  setIsReordering={setIsReordering}
+                />
+              );
+            })}
+          </Reorder.Group>
+        )}
+      </section>
+
+      <button
+        onClick={() => navigate('/add-transaction')}
+        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform"
+      >
         <PlusCircle size={28} />
       </button>
 
@@ -523,6 +593,7 @@ export const EnvelopeListView: React.FC = () => {
       {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => envelopes.find(e => e.id === envelopeId)?.name || ''} /> */}
 
       <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.length} totalAllocated={envelopeAllocations.reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+    </div>
     </div>
   );
 };
