@@ -48,8 +48,10 @@ const EnvelopeListItem = ({
 }) => {
   const controls = useDragControls();
   const [isDragging, setIsDragging] = useState(false);
+  const [isLongPressActive, setIsLongPressActive] = useState(false);
   const longPressTimeout = useRef<number | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const itemRef = useRef<HTMLLIElement>(null);
 
   const clearLongPressTimeout = () => {
     if (longPressTimeout.current !== null) {
@@ -67,6 +69,7 @@ const EnvelopeListItem = ({
     clearLongPressTimeout();
     longPressTimeout.current = window.setTimeout(() => {
       // Start drag after a short long-press delay
+      setIsLongPressActive(true);
       controls.start(e);
     }, 220);
   };
@@ -84,11 +87,13 @@ const EnvelopeListItem = ({
 
   const handlePointerUp = () => {
     clearLongPressTimeout();
+    setIsLongPressActive(false);
     pointerStartRef.current = null;
   };
 
   const handlePointerCancel = () => {
     clearLongPressTimeout();
+    setIsLongPressActive(false);
     pointerStartRef.current = null;
   };
 
@@ -100,8 +105,27 @@ const EnvelopeListItem = ({
     }
   };
 
+  // Prevent scroll on touch devices when dragging
+  useEffect(() => {
+    const element = itemRef.current;
+    if (!element) return;
+
+    const preventScroll = (e: TouchEvent) => {
+      if (isDragging || isLongPressActive) {
+        e.preventDefault();
+      }
+    };
+
+    element.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      element.removeEventListener('touchmove', preventScroll);
+    };
+  }, [isDragging, isLongPressActive]);
+
   return (
     <Reorder.Item 
+      ref={itemRef}
       value={env}
       dragListener={false}
       dragControls={controls}
@@ -114,6 +138,7 @@ const EnvelopeListItem = ({
       }}
       onDragEnd={() => {
         setIsDragging(false);
+        setIsLongPressActive(false);
         onDragEnd();
       }}
       transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.7 }}
@@ -126,7 +151,8 @@ const EnvelopeListItem = ({
       style={{
         boxShadow: isDragging
           ? '0 18px 45px rgba(15,23,42,0.35)'
-          : '0 1px 2px rgba(15,23,42,0.08)'
+          : '0 1px 2px rgba(15,23,42,0.08)',
+        touchAction: 'none'
       }}
       className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
     >
