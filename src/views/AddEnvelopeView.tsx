@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, FolderPlus } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
+import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 
 export const AddEnvelopeView: React.FC = () => {
   const { addEnvelope } = useEnvelopeStore();
+  const { setEnvelopeAllocation } = useMonthlyBudgetStore();
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
@@ -24,13 +26,20 @@ export const AddEnvelopeView: React.FC = () => {
     const maxOrderIndex = envelopes.length > 0 ? Math.max(...envelopes.map(e => e.orderIndex ?? 0)) : -1;
     const nextOrderIndex = maxOrderIndex + 1;
 
-    addEnvelope({
+    // Create the envelope
+    const newEnvelopeId = await addEnvelope({
       name,
       currentBalance: finalBalance,
       lastUpdated: new Date().toISOString(),
       isActive: true,
       orderIndex: nextOrderIndex
     } as any);
+
+    // Automatically create an allocation for the current month so it appears
+    if (newEnvelopeId) {
+      await setEnvelopeAllocation(newEnvelopeId, 0);
+    }
+    
     navigate('/');
   };
 

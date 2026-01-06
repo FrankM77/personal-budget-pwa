@@ -46,7 +46,7 @@ interface EnvelopeStore {
 
   // Actions
   fetchData: () => Promise<void>;
-  addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<void>;
+  addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
   updateEnvelope: (envelope: Envelope) => Promise<void>;
   deleteEnvelope: (envelopeId: string) => Promise<void>;
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
@@ -257,7 +257,10 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
         testingConnectivity: false,
 
         // Delegated Actions from slices
-        addEnvelope: envelopeSlice.createEnvelope,
+        addEnvelope: async (newEnv: Omit<Envelope, 'id'>): Promise<string> => {
+          const savedEnv = await envelopeSlice.createEnvelope(newEnv);
+          return savedEnv.id;
+        },
         updateEnvelope: envelopeSlice.updateEnvelope,
         deleteEnvelope: envelopeSlice.deleteEnvelope,
         renameEnvelope: envelopeSlice.renameEnvelope,

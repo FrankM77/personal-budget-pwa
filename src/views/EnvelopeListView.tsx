@@ -28,7 +28,9 @@ const EnvelopeListItem = ({
   handleBudgetSave,
   navigate,
   inputRef,
-  setIsReordering
+  dragConstraints,
+  onDragStart,
+  onDragEnd
 }: {
   env: any,
   budgetedAmount: number,
@@ -40,7 +42,9 @@ const EnvelopeListItem = ({
   handleBudgetSave: () => void,
   navigate: (path: string) => void,
   inputRef: React.RefObject<HTMLInputElement | null>,
-  setIsReordering: (isReordering: boolean) => void
+  dragConstraints: React.RefObject<HTMLElement | null>,
+  onDragStart: () => void,
+  onDragEnd: () => void
 }) => {
   const controls = useDragControls();
 
@@ -49,8 +53,13 @@ const EnvelopeListItem = ({
       value={env}
       dragListener={false}
       dragControls={controls}
-      onDragStart={() => setIsReordering(true)}
-      onDragEnd={() => setIsReordering(false)}
+      dragConstraints={dragConstraints}
+      dragElastic={0.12}
+      dragMomentum={false}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
+      whileDrag={{ scale: 1.01 }}
       className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
     >
       <div className="flex items-center gap-3 w-full">
@@ -258,6 +267,7 @@ export const EnvelopeListView: React.FC = () => {
   }, [editingEnvelopeId]);
 
   const [isReordering, setIsReordering] = useState(false);
+  const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
   
   // Handler for reordering completion
   const handleReorder = (newOrder: typeof envelopes) => {
@@ -280,23 +290,37 @@ export const EnvelopeListView: React.FC = () => {
   // Filter envelopes to only show those that have an allocation for the current month
   // We use a local state for the reorder list to allow smooth dragging
   const [localEnvelopes, setLocalEnvelopes] = useState<typeof envelopes>([]);
+  const localOrderRef = useRef<typeof envelopes>([]);
 
   useEffect(() => {
     // Update local envelopes when store changes, BUT ONLY if not currently dragging
     if (!isReordering) {
-       const filtered = [...envelopes]
+      const filtered = [...envelopes]
         .filter(env => envelopeAllocations.some(alloc => alloc.envelopeId === env.id))
         .sort((a, b) => {
           const aOrder = a.orderIndex ?? 0;
           const bOrder = b.orderIndex ?? 0;
-          if (aOrder !== bOrder) {
-            return aOrder - bOrder;
-          }
-          return a.name.localeCompare(b.name);
+          return aOrder - bOrder;
         });
-       setLocalEnvelopes(filtered);
+
+      setLocalEnvelopes(filtered);
+      localOrderRef.current = filtered;
     }
   }, [envelopes, envelopeAllocations, isReordering]);
+
+  const handleReorderUpdate = (newOrder: typeof envelopes) => {
+    setLocalEnvelopes(newOrder);
+    localOrderRef.current = newOrder;
+  };
+
+  const handleDragStart = () => setIsReordering(true);
+
+  const handleDragEnd = () => {
+    setIsReordering(false);
+    if (localOrderRef.current.length) {
+      handleReorder(localOrderRef.current);
+    }
+  };
 
   const visibleEnvelopes = localEnvelopes;
 
@@ -550,10 +574,14 @@ export const EnvelopeListView: React.FC = () => {
             <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 font-medium hover:text-blue-700 dark:hover:text-blue-200 transition-colors">Create First Envelope</button>
           </div>
         ) : (
-          <Reorder.Group axis="y" values={localEnvelopes} onReorder={(newOrder) => {
-            setLocalEnvelopes(newOrder);
-            handleReorder(newOrder);
-          }} className="space-y-3">
+          <div ref={reorderConstraintsRef}>
+            <Reorder.Group 
+              axis="y" 
+              values={localEnvelopes} 
+              onReorder={handleReorderUpdate}
+              className="space-y-3"
+              layoutScroll
+            >
             {visibleEnvelopes.map((env) => {
               const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
               const budgetedAmount = allocation?.budgetedAmount || 0;
@@ -572,11 +600,14 @@ export const EnvelopeListView: React.FC = () => {
                   handleBudgetSave={handleBudgetSave}
                   navigate={navigate}
                   inputRef={inputRef}
-                  setIsReordering={setIsReordering}
+                  dragConstraints={reorderConstraintsRef}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                 />
               );
             })}
           </Reorder.Group>
+          </div>
         )}
       </section>
 

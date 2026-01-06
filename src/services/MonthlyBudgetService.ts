@@ -95,7 +95,7 @@ export class MonthlyBudgetService {
           createdAt: data.createdAt.toDate().toISOString(),
           updatedAt: data.updatedAt.toDate().toISOString(),
         };
-      });
+      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     } catch (error) {
       console.error('Error getting income sources:', error);
       throw error;
@@ -155,7 +155,7 @@ export class MonthlyBudgetService {
           createdAt: data.createdAt.toDate().toISOString(),
           updatedAt: data.updatedAt.toDate().toISOString(),
         };
-      });
+      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     } catch (error) {
       console.error('Error getting envelope allocations:', error);
       throw error;
@@ -358,7 +358,11 @@ export class MonthlyBudgetService {
       const sources = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).sort((a: any, b: any) => {
+        const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
+        const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+        return timeA - timeB;
+      });
       callback(sources);
     });
   }

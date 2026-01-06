@@ -30,7 +30,7 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
   });
 
   return {
-    createEnvelope: async (newEnv: Omit<Envelope, 'id'>): Promise<void> => {
+    createEnvelope: async (newEnv: Omit<Envelope, 'id'>): Promise<Envelope> => {
       // For initial deposits, use transaction system instead of initialBalance field
       // This ensures all money movements are properly tracked as transactions
       const hasInitialDeposit = (newEnv as any).currentBalance && (newEnv as any).currentBalance > 0;
@@ -157,6 +157,9 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           console.log(`✅ All transactions synced for envelope ${savedEnv.id}`);
         }
 
+        // Return the saved envelope so we have the real ID
+        return savedEnv;
+
       } catch (err: any) {
         console.error('Create Envelope Failed:', err);
         console.log('Error details:', {
@@ -174,6 +177,8 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
             pendingSync: true,
             error: null
           });
+          // Return the temp envelope
+          return envelopeWithId;
         } else {
           // For real errors, remove the local envelope
           console.log('❌ Real error - removing temp envelope');
@@ -183,8 +188,11 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
             error: err.message,
             isLoading: false
           }));
+          throw err;
         }
       }
+      // Return the final saved envelope (this line should technically be unreachable due to the return in try block, but satisfies TS)
+      return envelopeWithId;
     },
 
     addToEnvelope: async (envelopeId: string, amount: number, note: string, date?: Date | string): Promise<void> => {
