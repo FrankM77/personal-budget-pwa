@@ -174,10 +174,10 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 ## Implementation Priority
 1. **✅ COMPLETED**: Month management, income tracking, basic allocation (Phase 1)
 2. **✅ COMPLETED**: Full income and envelope allocation management with interactive UI (Phase 2)
-3. **🚧 CURRENT FOCUS**: Split transactions, enhanced analytics (Phase 3)
-4. **Low Priority**: Advanced features, integrations
+3. **🎯 NEXT PRIORITY**: Split transactions (Phase 3) - **WORKING ON THIS NEXT**
+4. **Low Priority**: Enhanced analytics, advanced features, integrations
 
-## Current Status: Phase 2 Complete - Ready for Integration! ✅
+## Current Status: Phase 2 Complete - Moving to Split Transactions! ✅
 
 Phase 2 has been fully implemented with identical UX patterns between income sources and envelope allocations. The demo page now provides a complete monthly budgeting experience with:
 
@@ -231,9 +231,12 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 - **Demo Mode Integration**: All envelope functionality works offline with mock data
 
 ### 🎯 **Next Steps - Phase 3**
-- **Split Transactions**: Allow transactions to be split across multiple envelopes
-- **Enhanced Analytics**: Spending patterns, budget variance analysis
-- **Transaction Management**: Full CRUD operations for individual transactions
+- **🚀 IMMEDIATE FOCUS - Split Transactions**: Allow transactions to be split across multiple envelopes
+  - Split transaction UI creation and editing
+  - Split data management and validation
+  - Split visualization in transaction lists
+- **Enhanced Analytics**: Spending patterns, budget variance analysis (after split transactions)
+- **Transaction Management**: Full CRUD operations for individual transactions (after split transactions)
 
 ### 📱 **Mobile/Desktop UX Patterns Established**
 - **Mobile**: Tap for primary action (edit), swipe for secondary action (delete)
@@ -243,7 +246,7 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 
 ---
 *Document created: December 27, 2025*
-*Last updated: January 4, 2026*
+*Last updated: January 7, 2026*
 
 ## Recent Bug Fixes & Improvements (2026-01-04)
 
