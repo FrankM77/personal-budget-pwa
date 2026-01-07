@@ -57,6 +57,16 @@ const EnvelopeListItem = ({
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const itemRef = useRef<HTMLLIElement>(null);
 
+  // Calculate percentage for both background color and progress bar
+  const envelopeTransactions = transactions.filter(t => 
+    t.envelopeId === env.id && t.month === currentMonth
+  );
+  const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+  const incomes = envelopeTransactions.filter(t => t.type === 'Income');
+  const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const percentage = Math.max(0, (totalSpent / totalIncome) * 100);
+
   const clearLongPressTimeout = () => {
     if (longPressTimeout.current !== null) {
       clearTimeout(longPressTimeout.current);
@@ -158,7 +168,12 @@ const EnvelopeListItem = ({
           : '0 1px 2px rgba(15,23,42,0.08)',
         touchAction: 'none'
       }}
-      className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
+      className={`${remainingBalance.toNumber() < 0 
+          ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800' 
+          : percentage >= 80 
+            ? 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800'
+            : 'bg-gray-50 dark:bg-zinc-800'
+        } p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none`}
     >
       <div className="flex items-center gap-3 w-full">
         {/* Content Wrapper */}
@@ -216,18 +231,6 @@ const EnvelopeListItem = ({
           {budgetedAmount > 0 && (
             <div className="mt-3" onClick={(e) => e.stopPropagation()}>
               {(() => {
-                // Calculate actual spending from transactions
-                const envelopeTransactions = transactions.filter(t => 
-                  t.envelopeId === env.id && t.month === currentMonth
-                );
-                const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-                const incomes = envelopeTransactions.filter(t => t.type === 'Income');
-                const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-                const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-                
-                // Show percentage of income that has been spent (can exceed 100% when overspending)
-                const percentage = Math.max(0, (totalSpent / totalIncome) * 100);
-                
                 console.log(`📊 Envelope: ${env.name}`, {
                   budgetedAmount,
                   totalIncome,
@@ -246,11 +249,13 @@ const EnvelopeListItem = ({
                         className={`h-full transition-all duration-300 ease-out ${
                           remainingBalance.toNumber() < 0 
                             ? 'bg-red-500' 
-                            : percentage >= 80 
-                              ? 'bg-yellow-500' 
-                              : 'bg-green-500'
+                            : (100 - percentage) <= 5 
+                              ? 'bg-red-500' 
+                              : percentage >= 80 
+                                ? 'bg-yellow-500' 
+                                : 'bg-green-400'
                         }`}
-                        style={{ width: `${percentage}%` }}
+                        style={{ width: `${Math.max(100 - percentage, 2)}%` }}
                       />
                     </div>
                   </>
