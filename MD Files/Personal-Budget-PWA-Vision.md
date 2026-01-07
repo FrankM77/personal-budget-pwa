@@ -32,13 +32,20 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Split Tracking**: Maintain relationships between split portions
 - **Split Editing**: Modify splits after creation
 
-### 5. Enhanced Envelope System
+### 5. Piggybanks (Savings Goals)
+- **Savings Goals**: Create and manage specific savings targets (vacation, emergency fund, etc.)
+- **Goal Tracking**: Visual progress bars showing savings progress toward each goal
+- **Automatic Transfers**: Schedule automatic contributions to piggybanks
+- **Goal Milestones**: Celebrate milestones and achievements along the savings journey
+- **Flexible Funding**: Add money from any envelope or directly from income
+
+### 6. Enhanced Envelope System
 - **Envelope Allocation**: Allocate specific amounts from income to envelopes
 - **Envelope Limits**: Set spending limits for each envelope
 - **Envelope Categories**: Organize envelopes by type (Essentials, Wants, Savings, Debt)
 - **Envelope Transfers**: Move money between envelopes within the same month
 
-### 6. Budget Analytics
+### 7. Budget Analytics
 - **Monthly Comparison**: Compare spending vs budget by month
 - **Category Analysis**: See spending patterns across categories
 - **Budget Performance**: Track how well you stick to your budget
@@ -175,7 +182,8 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 1. **✅ COMPLETED**: Month management, income tracking, basic allocation (Phase 1)
 2. **✅ COMPLETED**: Full income and envelope allocation management with interactive UI (Phase 2)
 3. **🎯 NEXT PRIORITY**: Split transactions (Phase 3) - **WORKING ON THIS NEXT**
-4. **Low Priority**: Enhanced analytics, advanced features, integrations
+4. 2nd next priority : After split transactions are working, then add piggybanks
+5. **Low Priority**: Enhanced analytics, advanced features, integrations
 
 ## Current Status: Phase 2 Complete - Moving to Split Transactions! ✅
 
