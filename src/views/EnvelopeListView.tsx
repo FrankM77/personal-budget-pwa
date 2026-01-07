@@ -30,7 +30,9 @@ const EnvelopeListItem = ({
   inputRef,
   dragConstraints,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  transactions,
+  currentMonth
 }: {
   env: any,
   budgetedAmount: number,
@@ -44,7 +46,9 @@ const EnvelopeListItem = ({
   inputRef: React.RefObject<HTMLInputElement | null>,
   dragConstraints: React.RefObject<HTMLElement | null>,
   onDragStart: () => void,
-  onDragEnd: () => void
+  onDragEnd: () => void,
+  transactions: any[],
+  currentMonth: string
 }) => {
   const controls = useDragControls();
   const [isDragging, setIsDragging] = useState(false);
@@ -207,6 +211,53 @@ const EnvelopeListItem = ({
               </span>
             </div>
           </div>
+          
+          {/* Budget Progress Bar */}
+          {budgetedAmount > 0 && (
+            <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+              {(() => {
+                // Calculate actual spending from transactions
+                const envelopeTransactions = transactions.filter(t => 
+                  t.envelopeId === env.id && t.month === currentMonth
+                );
+                const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+                const incomes = envelopeTransactions.filter(t => t.type === 'Income');
+                const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                
+                // Show percentage of income that has been spent (can exceed 100% when overspending)
+                const percentage = Math.max(0, (totalSpent / totalIncome) * 100);
+                
+                console.log(`📊 Envelope: ${env.name}`, {
+                  budgetedAmount,
+                  totalIncome,
+                  totalSpent,
+                  remainingBalance: remainingBalance.toNumber(),
+                  percentage
+                });
+                return (
+                  <>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400 mb-1">
+                      <span>Budget Used</span>
+                      <span>{percentage.toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-300 ease-out ${
+                          remainingBalance.toNumber() < 0 
+                            ? 'bg-red-500' 
+                            : percentage >= 80 
+                              ? 'bg-yellow-500' 
+                              : 'bg-green-500'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </div>
     </Reorder.Item>
@@ -693,6 +744,8 @@ export const EnvelopeListView: React.FC = () => {
                   dragConstraints={reorderConstraintsRef}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
+                  transactions={transactions}
+                  currentMonth={currentMonth}
                 />
               );
             })}
