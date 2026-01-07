@@ -168,12 +168,7 @@ const EnvelopeListItem = ({
           : '0 1px 2px rgba(15,23,42,0.08)',
         touchAction: 'none'
       }}
-      className={`${remainingBalance.toNumber() < 0 
-          ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800' 
-          : percentage >= 80 
-            ? 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800'
-            : 'bg-gray-50 dark:bg-zinc-800'
-        } p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none`}
+      className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
     >
       <div className="flex items-center gap-3 w-full">
         {/* Content Wrapper */}
@@ -221,7 +216,15 @@ const EnvelopeListItem = ({
 
             <div className="text-right">
               <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
-              <span className={`font-bold ${remainingBalance.isNegative() ? 'text-red-500' : 'text-green-600 dark:text-emerald-400'}`}>
+              <span className={`font-bold ${
+                  remainingBalance.toNumber() < 0 
+                    ? 'text-red-500' 
+                    : (100 - percentage) <= 5 
+                      ? 'text-red-500' 
+                      : percentage >= 80 
+                        ? 'text-yellow-600 dark:text-yellow-400' 
+                        : 'text-green-600 dark:text-emerald-400'
+                }`}>
                 ${remainingBalance.toNumber().toFixed(2)}
               </span>
             </div>
