@@ -95,7 +95,7 @@ const EnvelopeDetail: React.FC = () => {
 
     // Translate SwiftUI 'List' structure to Tailwind/Flexbox (Rule #1)
     return (
-        <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white p-4">
+        <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white p-4 pb-28">
             
             {/* --- Navigation Bar / Toolbar (Rule #4 / #1) --- */}
             <header className="flex justify-between items-center pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 bg-white dark:bg-black z-10 border-b border-gray-100 dark:border-zinc-800">

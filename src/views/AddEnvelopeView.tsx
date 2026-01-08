@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FolderPlus, PiggyBank } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
@@ -8,10 +8,11 @@ export const AddEnvelopeView: React.FC = () => {
   const { addEnvelope } = useEnvelopeStore();
   const { setEnvelopeAllocation } = useMonthlyBudgetStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [name, setName] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
-  const [isPiggybank, setIsPiggybank] = useState(false);
+  const isPiggybank = searchParams.get('type') === 'piggybank';
   const [targetAmount, setTargetAmount] = useState('');
   const [monthlyContribution, setMonthlyContribution] = useState('');
   const [color, setColor] = useState('#3B82F6');
@@ -78,34 +79,6 @@ export const AddEnvelopeView: React.FC = () => {
           </div>
 
           <form onSubmit={handleSave} className="p-6 space-y-6 pb-6">
-            {/* Type Toggle */}
-            <div className="flex gap-2 p-1 bg-gray-100 dark:bg-zinc-800 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setIsPiggybank(false)}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  !isPiggybank
-                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <FolderPlus size={18} className="inline mr-2" />
-                Envelope
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsPiggybank(true)}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  isPiggybank
-                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <PiggyBank size={18} className="inline mr-2" />
-                Piggybank
-              </button>
-            </div>
-
             {/* Name Input */}
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">

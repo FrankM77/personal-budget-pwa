@@ -84,7 +84,7 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
         console.log('✅ Firebase envelope creation successful:', savedEnv);
 
         // Replace temp envelope with real one from Firebase
-        // Convert Firebase envelope to store format
+        // Convert Firebase envelope to store format (preserve all fields including piggybank data)
         const storeEnvelope: Envelope = {
           id: savedEnv.id,
           name: savedEnv.name,
@@ -92,7 +92,9 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           lastUpdated: savedEnv.lastUpdated,
           isActive: savedEnv.isActive ?? true,
           orderIndex: savedEnv.orderIndex ?? 0,
-          userId: savedEnv.userId
+          userId: savedEnv.userId,
+          isPiggybank: savedEnv.isPiggybank,
+          piggybankConfig: savedEnv.piggybankConfig
         };
 
         set((state: any) => ({

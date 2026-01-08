@@ -79,17 +79,11 @@ import {
       if (!userId) {
         throw new Error('User ID is required to create envelope');
       }
-      console.log(`📝 EnvelopeService.createEnvelope: Adding envelope for user ${userId}:`, envelopeData);
-      console.log(`🔍 Original envelope had temp ID: ${tempId}`);
 
       try {
         const docRef = await addDoc(getCollectionRef(userId), envelopeData);
-        console.log(`📄 Envelope addDoc succeeded, docRef:`, docRef);
-        console.log(`📄 Document ID: ${docRef.id}`);
-
         // Create result with the real Firebase ID
         const result = { id: docRef.id, ...envelopeData, userId };
-        console.log(`📤 Final envelope result object:`, result);
         return result;
       } catch (error) {
         console.error(`💥 Envelope addDoc failed:`, error);

@@ -102,7 +102,9 @@ export const createSyncSlice = ({
           currentBalance: firebaseEnv.currentBalance || 0,
           lastUpdated: firebaseEnv.lastUpdated,
           isActive: firebaseEnv.isActive ?? true,
-          orderIndex: firebaseEnv.orderIndex ?? 0
+          orderIndex: firebaseEnv.orderIndex ?? 0,
+          isPiggybank: firebaseEnv.isPiggybank,
+          piggybankConfig: firebaseEnv.piggybankConfig
         });
 
         const envelopesToUpdate = fetchedEnvelopes.filter((env: any) => !('orderIndex' in env));

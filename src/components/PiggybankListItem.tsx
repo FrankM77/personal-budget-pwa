@@ -40,7 +40,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 
   return (
     <div
-      onClick={() => onNavigate(`/envelope/${piggybank.id}`)}
+      onClick={() => onNavigate(piggybank.id)}
       className="rounded-xl p-4 border transition-all cursor-pointer shadow-sm hover:shadow-md"
       style={{ background: accentBackground, borderColor: accentBorder }}
     >

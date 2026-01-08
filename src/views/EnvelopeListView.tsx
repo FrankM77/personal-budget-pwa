@@ -757,7 +757,7 @@ export const EnvelopeListView: React.FC = () => {
               <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
               Piggybanks
             </h2>
-            <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
+            <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
               <PlusCircle size={20} />
             </button>
           </div>
