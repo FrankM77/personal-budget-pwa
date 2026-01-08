@@ -32,12 +32,16 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Split Tracking**: Maintain relationships between split portions
 - **Split Editing**: Modify splits after creation
 
-### 5. Piggybanks (Savings Goals)
+### 5. Piggybanks (Savings Goals) ✅ CORE EXPERIENCE LIVE
 - **Savings Goals**: Create and manage specific savings targets (vacation, emergency fund, etc.)
 - **Goal Tracking**: Visual progress bars showing savings progress toward each goal
 - **Automatic Transfers**: Schedule automatic contributions to piggybanks
 - **Goal Milestones**: Celebrate milestones and achievements along the savings journey
 - **Flexible Funding**: Add money from any envelope or directly from income
+- **Recent Progress**:
+  - Inline monthly contribution editing directly within the piggybank list, consistent with envelope budget editing UX
+  - Auto-contribution engine capped to the real-world current month so navigating to future months no longer queues premature deposits
+  - Piggybank balances on the list now reflect cumulative savings to stay in sync with detail view totals
 
 ### 6. Enhanced Envelope System
 - **Envelope Allocation**: Allocate specific amounts from income to envelopes

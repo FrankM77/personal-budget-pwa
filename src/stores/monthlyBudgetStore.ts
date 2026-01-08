@@ -454,7 +454,15 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         try {
           console.log('🐷 Processing piggybank contributions for month:', month);
           const { envelopes, transactions, addTransaction } = useEnvelopeStore.getState();
-          
+
+          // Don't create contributions for months beyond the real current month
+          const now = new Date();
+          const currentRealMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          if (month > currentRealMonth) {
+            console.log(`Skipping piggybank contributions for ${month} - future month beyond ${currentRealMonth}`);
+            return;
+          }
+
           // Find all active piggybanks
           const piggybanks = envelopes.filter(e => e.isPiggybank && e.isActive);
           console.log(`Found ${piggybanks.length} active piggybanks`);

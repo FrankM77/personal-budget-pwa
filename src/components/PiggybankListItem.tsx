@@ -1,7 +1,10 @@
-import React from 'react';
-import { PiggyBank, TrendingUp, Pause } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { PiggyBank, TrendingUp, Pause, Loader2 } from 'lucide-react';
 import type { Envelope } from '../models/types';
 import { Decimal } from 'decimal.js';
+import { useEnvelopeStore } from '../stores/envelopeStore';
+import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useToastStore } from '../stores/toastStore';
 
 interface PiggybankListItemProps {
   piggybank: Envelope;
@@ -14,6 +17,15 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   balance,
   onNavigate
 }) => {
+  const updateEnvelope = useEnvelopeStore(state => state.updateEnvelope);
+  const transactions = useEnvelopeStore(state => state.transactions);
+  const updateTransaction = useEnvelopeStore(state => state.updateTransaction);
+  const currentMonth = useMonthlyBudgetStore(state => state.currentMonth);
+  const processMonthlyPiggybankContributions = useMonthlyBudgetStore(
+    state => state.processMonthlyPiggybankContributions
+  );
+  const showToast = useToastStore(state => state.showToast);
+
   const targetAmount = piggybank.piggybankConfig?.targetAmount;
   const monthlyContribution = piggybank.piggybankConfig?.monthlyContribution || 0;
   const color = piggybank.piggybankConfig?.color || '#3B82F6';
@@ -29,6 +41,12 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   };
   const accentBackground = `linear-gradient(135deg, ${hexToRgba(color, 0.14)} 0%, ${hexToRgba(color, 0.05)} 100%)`;
   const accentBorder = hexToRgba(color, 0.4);
+  const [isEditingContribution, setIsEditingContribution] = useState(false);
+  const [contributionInput, setContributionInput] = useState(
+    monthlyContribution ? monthlyContribution.toFixed(2) : '0.00'
+  );
+  const [isSavingContribution, setIsSavingContribution] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   
   // Calculate progress percentage
   const progressPercentage = targetAmount && targetAmount > 0
@@ -37,6 +55,97 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 
   // Determine if goal is reached
   const goalReached = targetAmount && balanceNum >= targetAmount;
+
+  useEffect(() => {
+    if (!isEditingContribution) {
+      setContributionInput(monthlyContribution ? monthlyContribution.toFixed(2) : '0.00');
+    }
+  }, [monthlyContribution, isEditingContribution]);
+
+  const beginContributionEdit = (event: React.MouseEvent | React.TouchEvent) => {
+    event.stopPropagation();
+    if (isSavingContribution) return;
+    setContributionInput(monthlyContribution ? monthlyContribution.toFixed(2) : '0.00');
+    setIsEditingContribution(true);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  };
+
+  const cancelContributionEdit = () => {
+    setIsEditingContribution(false);
+    setContributionInput(monthlyContribution ? monthlyContribution.toFixed(2) : '0.00');
+  };
+
+  const handleContributionSave = async () => {
+    if (!isEditingContribution || isSavingContribution) return;
+    const parsedValue = parseFloat(contributionInput);
+    if (Number.isNaN(parsedValue) || parsedValue < 0) {
+      showToast('Enter a valid contribution amount', 'error');
+      return;
+    }
+
+    if (parsedValue === monthlyContribution) {
+      setIsEditingContribution(false);
+      return;
+    }
+
+    setIsSavingContribution(true);
+    try {
+      const updatedEnvelope: Envelope = {
+        ...piggybank,
+        lastUpdated: new Date().toISOString(),
+        piggybankConfig: {
+          monthlyContribution: parsedValue,
+          targetAmount: piggybank.piggybankConfig?.targetAmount,
+          color: piggybank.piggybankConfig?.color,
+          icon: piggybank.piggybankConfig?.icon,
+          paused: piggybank.piggybankConfig?.paused,
+        },
+      };
+
+      await updateEnvelope(updatedEnvelope);
+
+      const currentMonthAutoTx = transactions.find(
+        tx =>
+          tx.envelopeId === piggybank.id &&
+          tx.isAutomatic === true &&
+          tx.month === currentMonth &&
+          tx.type === 'Income'
+      );
+
+      if (currentMonthAutoTx && currentMonthAutoTx.id) {
+        if (currentMonthAutoTx.amount !== parsedValue) {
+          await updateTransaction({
+            ...currentMonthAutoTx,
+            amount: parsedValue,
+          });
+        }
+      } else if (parsedValue > 0 && !isPaused) {
+        await processMonthlyPiggybankContributions(currentMonth);
+      }
+
+      showToast('Monthly contribution updated', 'success');
+      setContributionInput(parsedValue.toFixed(2));
+      setIsEditingContribution(false);
+    } catch (error) {
+      console.error('Failed to update piggybank contribution', error);
+      showToast('Failed to update contribution', 'error');
+    } finally {
+      setIsSavingContribution(false);
+    }
+  };
+
+  const handleContributionKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleContributionSave();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelContributionEdit();
+    }
+  };
 
   return (
     <div
@@ -109,17 +218,52 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
       )}
 
       {/* Monthly Contribution */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400">
+      <div className="mt-2">
         {isPaused ? (
-          <>
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400">
             <Pause size={14} className="text-orange-500" />
             <span className="text-orange-600 dark:text-orange-400">Paused</span>
-          </>
+          </div>
         ) : (
-          <>
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400">
             <TrendingUp size={14} style={{ color }} />
-            <span>${monthlyContribution.toFixed(2)}/month</span>
-          </>
+            {isEditingContribution ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleContributionSave();
+                }}
+                className="flex items-center gap-2"
+              >
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 font-semibold">
+                    $
+                  </span>
+                  <input
+                    ref={inputRef}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={contributionInput}
+                    onChange={(e) => setContributionInput(e.target.value)}
+                    onBlur={handleContributionSave}
+                    onKeyDown={handleContributionKeyDown}
+                    disabled={isSavingContribution}
+                    className="w-28 pl-6 pr-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                {isSavingContribution && <Loader2 size={16} className="animate-spin text-gray-400" />}
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={beginContributionEdit}
+                className="font-medium text-gray-900 dark:text-white hover:underline focus:outline-none"
+              >
+                ${monthlyContribution.toFixed(2)}/month
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

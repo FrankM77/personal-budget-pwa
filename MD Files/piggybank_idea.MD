@@ -69,7 +69,7 @@ Your idea of piggybanks as persistent envelopes with auto-contributions is excel
 Piggybanks are special envelopes that:
 1. **Persist across months** (unlike regular envelopes that reset)
 2. **Accumulate balance** month-over-month
-3. **Have target goals** (optional)
+3. **Have target goals**
 4. **Auto-contribute** each month (configurable amount)
 
 #### **Data Model Changes**
@@ -107,7 +107,7 @@ export interface PiggybankTransaction {
 
 #### **Implementation Strategy**
 
-### **Option 1: Piggybanks as Special Envelopes** (Recommended)
+### **Option 1: Piggybanks as Special Envelopes** <-----Use option 1
 This leverages your existing envelope infrastructure:
 
 **Envelope Schema Extension:**
@@ -160,14 +160,6 @@ export interface Envelope {
 4. ✅ Add quick "Contribute" action
 5. ✅ Show milestone celebrations (50%, 75%, 100% of goal)
 
-#### **Phase 4: Advanced Features**
-1. ✅ Withdrawal tracking
-2. ✅ Goal completion notifications
-3. ✅ Historical contribution charts
-4. ✅ Ability to pause/resume auto-contributions
-
----
-
 ### 📋 Recommended Implementation Plan
 
 #### **Phase 1: Core Piggybank Infrastructure**
@@ -186,8 +178,7 @@ export interface Envelope {
 1. ✅ Group piggybanks separately in `EnvelopeListView`
 2. ✅ Add progress bars for goal tracking
 3. ✅ Create piggybank-specific icons/colors
-4. ✅ Add quick "Contribute" action
-5. ✅ Show milestone celebrations (50%, 75%, 100% of goal)
+4. ✅ Show milestone celebrations (50%, 75%, 100% of goal)
 
 #### **Phase 4: Advanced Features**
 1. ✅ Withdrawal tracking
