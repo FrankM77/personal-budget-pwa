@@ -294,6 +294,8 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
             return new Decimal(0);
           }
 
+          // For piggybanks, calculate cumulative balance (all-time)
+          // For regular envelopes, use all transactions (month filtering happens in views)
           const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
 
           const expenses = envelopeTransactions.filter(t => t.type === 'Expense');

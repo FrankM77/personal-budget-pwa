@@ -18,6 +18,7 @@ export interface Transaction {
   transferId?: string; // Links two sides of a transfer
   userId?: string;
   month?: string; // Format: "2025-01" for monthly budgeting
+  isAutomatic?: boolean; // True for piggybank auto-contributions
 }
 
 export interface Envelope {
@@ -28,6 +29,16 @@ export interface Envelope {
   isActive: boolean;
   orderIndex: number;
   userId?: string;
+  
+  // Piggybank fields
+  isPiggybank?: boolean;
+  piggybankConfig?: {
+    targetAmount?: number;
+    monthlyContribution: number;
+    color?: string;
+    icon?: string;
+    paused?: boolean;
+  };
 }
 
 export interface DistributionTemplate {

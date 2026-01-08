@@ -41,6 +41,7 @@ interface MonthlyBudgetStore {
   restoreEnvelopeAllocation: (allocation: EnvelopeAllocation, originalIndex?: number) => Promise<void>;
   setEnvelopeAllocation: (envelopeId: string, budgetedAmount: number) => Promise<void>;
   copyFromPreviousMonth: () => Promise<void>;
+  processMonthlyPiggybankContributions: (month: string) => Promise<void>;
   calculateAvailableToBudget: () => number;
   refreshAvailableToBudget: () => Promise<void>;
   loadDemoData: (incomeSources: IncomeSource[], envelopeAllocations: EnvelopeAllocation[]) => void;
@@ -167,6 +168,9 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             envelopeAllocations,
             isLoading: false,
           });
+
+          // Process piggybank auto-contributions for this month
+          await get().processMonthlyPiggybankContributions(currentMonth);
         } catch (error) {
           console.error('Error fetching monthly data:', error);
           set({
@@ -431,6 +435,9 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 			}
 			// ---- END NEW LOGIC ----
 	
+			// Process piggybank auto-contributions for the new month
+			await get().processMonthlyPiggybankContributions(currentMonth);
+	
 			// Refresh data for the current month to update the UI
 			await get().fetchMonthlyData();
         } catch (error) {
@@ -439,6 +446,77 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             error: error instanceof Error ? error.message : 'Failed to copy month data',
             isLoading: false,
           });
+        }
+      },
+
+      // Process monthly piggybank auto-contributions
+      processMonthlyPiggybankContributions: async (month: string) => {
+        try {
+          console.log('🐷 Processing piggybank contributions for month:', month);
+          const { envelopes, transactions, addTransaction } = useEnvelopeStore.getState();
+          
+          // Find all active piggybanks
+          const piggybanks = envelopes.filter(e => e.isPiggybank && e.isActive);
+          console.log(`Found ${piggybanks.length} active piggybanks`);
+          
+          if (piggybanks.length === 0) {
+            console.log('No piggybanks to process');
+            return;
+          }
+          
+          // Check if contributions already exist for this month
+          const [year, monthNum] = month.split('-').map(Number);
+          
+          for (const piggybank of piggybanks) {
+            const contribution = piggybank.piggybankConfig?.monthlyContribution || 0;
+            const isPaused = piggybank.piggybankConfig?.paused || false;
+            
+            if (isPaused) {
+              console.log(`Skipping ${piggybank.name} - contributions paused`);
+              continue;
+            }
+            
+            if (contribution <= 0) {
+              console.log(`Skipping ${piggybank.name} - no contribution set`);
+              continue;
+            }
+            
+            // Check if auto-contribution already exists for this piggybank this month
+            const existingContribution = transactions.find(tx => 
+              tx.envelopeId === piggybank.id &&
+              tx.isAutomatic === true &&
+              tx.month === month &&
+              tx.type === 'Income'
+            );
+            
+            if (existingContribution) {
+              console.log(`Auto-contribution already exists for ${piggybank.name} in ${month}`);
+              continue;
+            }
+            
+            // Create auto-contribution transaction
+            console.log(`Creating auto-contribution for ${piggybank.name}: $${contribution}`);
+            const transactionDate = new Date(year, monthNum - 1, 1, 12, 0, 0);
+            
+            await addTransaction({
+              amount: contribution,
+              description: `Monthly contribution to ${piggybank.name}`,
+              date: transactionDate.toISOString(),
+              envelopeId: piggybank.id,
+              type: 'Income',
+              reconciled: false,
+              isAutomatic: true
+            });
+            
+            console.log(`✅ Created auto-contribution for ${piggybank.name}`);
+          }
+          
+          // Refresh available to budget after contributions
+          await get().refreshAvailableToBudget();
+          
+        } catch (error) {
+          console.error('Error processing piggybank contributions:', error);
+          throw error;
         }
       },
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FolderPlus } from 'lucide-react';
+import { ArrowLeft, FolderPlus, PiggyBank } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 
@@ -11,6 +11,10 @@ export const AddEnvelopeView: React.FC = () => {
 
   const [name, setName] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
+  const [isPiggybank, setIsPiggybank] = useState(false);
+  const [targetAmount, setTargetAmount] = useState('');
+  const [monthlyContribution, setMonthlyContribution] = useState('');
+  const [color, setColor] = useState('#3B82F6');
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,14 +30,26 @@ export const AddEnvelopeView: React.FC = () => {
     const maxOrderIndex = envelopes.length > 0 ? Math.max(...envelopes.map(e => e.orderIndex ?? 0)) : -1;
     const nextOrderIndex = maxOrderIndex + 1;
 
-    // Create the envelope
-    const newEnvelopeId = await addEnvelope({
+    // Create the envelope or piggybank
+    const envelopeData: any = {
       name,
       currentBalance: finalBalance,
       lastUpdated: new Date().toISOString(),
       isActive: true,
       orderIndex: nextOrderIndex
-    } as any);
+    };
+
+    if (isPiggybank) {
+      envelopeData.isPiggybank = true;
+      envelopeData.piggybankConfig = {
+        targetAmount: targetAmount ? parseFloat(targetAmount) : undefined,
+        monthlyContribution: parseFloat(monthlyContribution || '0'),
+        color,
+        icon: 'piggy-bank'
+      };
+    }
+
+    const newEnvelopeId = await addEnvelope(envelopeData);
 
     // Automatically create an allocation for the current month so it appears
     if (newEnvelopeId) {
@@ -44,40 +60,147 @@ export const AddEnvelopeView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pb-28">
       {/* Header */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-10 flex items-center shadow-sm">
         <button onClick={() => navigate('/')} className="mr-3 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">New Envelope</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{isPiggybank ? 'New Piggybank' : 'New Envelope'}</h1>
       </header>
 
       <div className="p-4 max-w-md mx-auto">
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
           <div className="p-6 bg-blue-50 dark:bg-zinc-800 border-b border-blue-100 dark:border-zinc-700 flex justify-center py-8">
             <div className="w-20 h-20 bg-blue-100 dark:bg-zinc-700 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
-              <FolderPlus size={40} />
+              {isPiggybank ? <PiggyBank size={40} /> : <FolderPlus size={40} />}
             </div>
           </div>
 
-          <form onSubmit={handleSave} className="p-6 space-y-6">
+          <form onSubmit={handleSave} className="p-6 space-y-6 pb-6">
+            {/* Type Toggle */}
+            <div className="flex gap-2 p-1 bg-gray-100 dark:bg-zinc-800 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setIsPiggybank(false)}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  !isPiggybank
+                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <FolderPlus size={18} className="inline mr-2" />
+                Envelope
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPiggybank(true)}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  isPiggybank
+                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <PiggyBank size={18} className="inline mr-2" />
+                Piggybank
+              </button>
+            </div>
+
             {/* Name Input */}
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                Envelope Name
+                {isPiggybank ? 'Piggybank Name' : 'Envelope Name'}
               </label>
               <input
                 type="text"
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Groceries, Rent, Fun Money"
+                placeholder={isPiggybank ? 'e.g. Vacation Fund, Emergency Savings' : 'e.g. Groceries, Rent, Fun Money'}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 autoFocus
                 required
               />
             </div>
+
+            {/* Piggybank-specific fields */}
+            {isPiggybank && (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="monthly-contribution" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    Monthly Auto-Contribution *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 font-semibold">$</span>
+                    <input
+                      type="number"
+                      id="monthly-contribution"
+                      value={monthlyContribution}
+                      onChange={(e) => setMonthlyContribution(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      required={isPiggybank}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-zinc-500">
+                    This amount will be automatically added each month and deducted from Available to Budget
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="target-amount" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    Target Goal (Optional)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 font-semibold">$</span>
+                    <input
+                      type="number"
+                      id="target-amount"
+                      value={targetAmount}
+                      onChange={(e) => setTargetAmount(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-zinc-500">
+                    Set a savings goal to track progress
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
+                    Color
+                  </label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {[
+                      { value: '#3B82F6', label: 'Blue' },
+                      { value: '#10B981', label: 'Green' },
+                      { value: '#F59E0B', label: 'Amber' },
+                      { value: '#EF4444', label: 'Red' },
+                      { value: '#8B5CF6', label: 'Purple' },
+                      { value: '#EC4899', label: 'Pink' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setColor(option.value)}
+                        className={`w-full aspect-square rounded-lg transition-all ${
+                          color === option.value
+                            ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-zinc-900'
+                            : 'hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: option.value }}
+                        title={option.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Initial Balance Input */}
             <div className="space-y-2">
@@ -117,12 +240,12 @@ export const AddEnvelopeView: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={!name.trim()}
+                disabled={!name.trim() || (isPiggybank && !monthlyContribution)}
                 className={`flex-1 py-3 px-4 rounded-xl font-semibold shadow-sm text-white transition-colors ${
-                  name.trim() ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600' : 'bg-gray-300 dark:bg-zinc-600 cursor-not-allowed'
+                  name.trim() && (!isPiggybank || monthlyContribution) ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600' : 'bg-gray-300 dark:bg-zinc-600 cursor-not-allowed'
                 }`}
               >
-                Create Envelope
+                {isPiggybank ? 'Create Piggybank' : 'Create Envelope'}
               </button>
             </div>
           </form>

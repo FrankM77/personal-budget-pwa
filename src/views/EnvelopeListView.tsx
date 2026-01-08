@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
@@ -11,10 +11,21 @@ import { LoadingScreen } from '../components/ui/LoadingScreen';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
+import { PiggybankListItem } from '../components/PiggybankListItem';
 import { useToastStore } from '../stores/toastStore';
 import { useNavigate } from 'react-router-dom';
 import type { IncomeSource } from '../models/types';
 import { Decimal } from 'decimal.js';
+
+// Helper to convert hex color to rgba (used for piggybank accents)
+const hexToRgba = (hex: string, alpha = 1) => {
+  const normalizedHex = hex.replace('#', '');
+  const bigint = parseInt(normalizedHex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 // Separate component for list item to allow individual useDragControls hook
 const EnvelopeListItem = ({ 
@@ -51,6 +62,12 @@ const EnvelopeListItem = ({
   currentMonth: string
 }) => {
   const controls = useDragControls();
+  const isPiggybank = Boolean(env.isPiggybank);
+  const piggyColor = env.piggybankConfig?.color || '#3B82F6';
+  const piggyBackground = isPiggybank
+    ? `linear-gradient(135deg, ${hexToRgba(piggyColor, 0.18)} 0%, ${hexToRgba(piggyColor, 0.08)} 100%)`
+    : undefined;
+  const piggyBorder = isPiggybank ? hexToRgba(piggyColor, 0.5) : undefined;
   const [isDragging, setIsDragging] = useState(false);
   const [isLongPressActive, setIsLongPressActive] = useState(false);
   const longPressTimeout = useRef<number | null>(null);
@@ -166,9 +183,13 @@ const EnvelopeListItem = ({
         boxShadow: isDragging
           ? '0 18px 45px rgba(15,23,42,0.35)'
           : '0 1px 2px rgba(15,23,42,0.08)',
-        touchAction: 'none'
+        touchAction: 'none',
+        background: piggyBackground,
+        borderColor: piggyBorder
       }}
-      className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none"
+      className={`p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none border ${
+        isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
+      }`}
     >
       <div className="flex items-center gap-3 w-full">
         {/* Content Wrapper */}
@@ -176,7 +197,33 @@ const EnvelopeListItem = ({
           className="flex-1"
           onClick={handleNavigate}
         >
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{env.name}</h3>
+          <div className="flex items-center gap-2 mb-2">
+            {isPiggybank && (
+              <span
+                className="w-8 h-8 rounded-full flex items-center justify-center border"
+                style={{
+                  borderColor: hexToRgba(piggyColor, 0.4),
+                  backgroundColor: hexToRgba(piggyColor, 0.15),
+                  color: piggyColor
+                }}
+              >
+                <PiggyBank size={16} />
+              </span>
+            )}
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                {env.name}
+              </h3>
+              {isPiggybank && (
+                <span
+                  className="text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: piggyColor }}
+                >
+                  Piggybank
+                </span>
+              )}
+            </div>
+          </div>
           <div className="flex justify-between items-center">
             <div 
               className="flex items-center space-x-4" 
@@ -441,10 +488,15 @@ export const EnvelopeListView: React.FC = () => {
   const [localEnvelopes, setLocalEnvelopes] = useState<typeof envelopes>([]);
   const localOrderRef = useRef<typeof envelopes>([]);
 
+  // Separate piggybanks from regular envelopes
+  const piggybanks = envelopes.filter(env => env.isPiggybank && env.isActive);
+
   useEffect(() => {
     // Update local envelopes when store changes, BUT ONLY if not currently dragging
     if (!isReordering) {
-      const filtered = [...envelopes]
+      // Filter out piggybanks from the spending envelopes section
+      const regularEnvelopes = envelopes.filter(env => !env.isPiggybank);
+      const filtered = [...regularEnvelopes]
         .filter(env => envelopeAllocations.some(alloc => alloc.envelopeId === env.id))
         .sort((a, b) => {
           const aOrder = a.orderIndex ?? 0;
@@ -696,6 +748,31 @@ export const EnvelopeListView: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Piggybanks Section */}
+      {piggybanks.length > 0 && (
+        <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
+              Piggybanks
+            </h2>
+            <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
+              <PlusCircle size={20} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            {piggybanks.map((piggybank) => (
+              <PiggybankListItem
+                key={piggybank.id}
+                piggybank={piggybank}
+                balance={getEnvelopeBalance(piggybank.id)}
+                onNavigate={(id) => navigate(`/envelope/${id}`)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Spending Envelopes Section */}
       <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
