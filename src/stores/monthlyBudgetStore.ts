@@ -481,6 +481,17 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
               continue;
             }
             
+            // Check if piggybank was created after this month (don't add contributions to past months)
+            if (piggybank.createdAt) {
+              const createdDate = new Date(piggybank.createdAt);
+              const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
+              
+              if (month < createdMonth) {
+                console.log(`Skipping ${piggybank.name} - month ${month} is before creation month ${createdMonth}`);
+                continue;
+              }
+            }
+            
             // Check if auto-contribution already exists for this piggybank this month
             const existingContribution = transactions.find(tx => 
               tx.envelopeId === piggybank.id &&

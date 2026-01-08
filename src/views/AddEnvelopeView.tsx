@@ -36,6 +36,7 @@ export const AddEnvelopeView: React.FC = () => {
       name,
       currentBalance: finalBalance,
       lastUpdated: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       isActive: true,
       orderIndex: nextOrderIndex
     };

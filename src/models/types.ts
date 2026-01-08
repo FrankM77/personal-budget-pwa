@@ -29,6 +29,7 @@ export interface Envelope {
   isActive: boolean;
   orderIndex: number;
   userId?: string;
+  createdAt?: string; // ISO String - when envelope was created
   
   // Piggybank fields
   isPiggybank?: boolean;

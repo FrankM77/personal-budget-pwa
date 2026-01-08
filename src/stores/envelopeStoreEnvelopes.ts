@@ -93,6 +93,7 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           isActive: savedEnv.isActive ?? true,
           orderIndex: savedEnv.orderIndex ?? 0,
           userId: savedEnv.userId,
+          createdAt: savedEnv.createdAt,
           isPiggybank: savedEnv.isPiggybank,
           piggybankConfig: savedEnv.piggybankConfig
         };

@@ -34,7 +34,8 @@ const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   lastUpdated: firebaseEnv.lastUpdated,
   isActive: firebaseEnv.isActive ?? true,
   orderIndex: firebaseEnv.orderIndex ?? 0,
-  userId: firebaseEnv.userId || undefined
+  userId: firebaseEnv.userId || undefined,
+  createdAt: firebaseEnv.createdAt
 });
 
 const convertFirebaseTemplate = (firebaseTemplate: any): DistributionTemplate => ({

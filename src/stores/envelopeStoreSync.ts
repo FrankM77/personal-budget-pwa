@@ -103,6 +103,7 @@ export const createSyncSlice = ({
           lastUpdated: firebaseEnv.lastUpdated,
           isActive: firebaseEnv.isActive ?? true,
           orderIndex: firebaseEnv.orderIndex ?? 0,
+          createdAt: firebaseEnv.createdAt,
           isPiggybank: firebaseEnv.isPiggybank,
           piggybankConfig: firebaseEnv.piggybankConfig
         });

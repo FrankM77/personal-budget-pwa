@@ -19,6 +19,7 @@ export interface FirestoreTransaction {
   transferId?: string | null;
   userId?: string;
   month?: string; // Format: "2025-01" for monthly budgeting
+  isAutomatic?: boolean; // True for auto-generated transactions (e.g., piggybank contributions)
 }
 
 export interface FirestoreDistributionTemplate {
