@@ -181,6 +181,10 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Collaborative Budgeting**: Share budgets with partners
 - **AI Insights**: Spending pattern analysis and suggestions
 - **Integration**: Bank account syncing for automatic transaction import
+- **Backup/Export UX**: Show clear success/failure feedback after CSV exports or backup generation so users know when downloads are ready
+- **Smart Month Onboarding**: Auto-select the real current month on launch and, when the month has no data, prompt the user to create that month’s budget (e.g., open Feb 2026 on Feb 1 and guide them to start budgeting)
+- **Settings Cleanup**: Remove the obsolete “Clean up orphaned templates” action so the Settings screen only lists still-supported tools
+- **Transaction Field Updates**: When creating transactions, add a dedicated “Merchant” input and reserve the existing Notes field for meta info (e.g., which bank/card was used) to enable better filtering later
 
 ## Implementation Priority
 1. **✅ COMPLETED**: Month management, income tracking, basic allocation (Phase 1)
