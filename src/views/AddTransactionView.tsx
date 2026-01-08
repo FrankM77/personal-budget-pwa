@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEnvelopeStore } from '../stores/envelopeStore';
+import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 
 export const AddTransactionView: React.FC = () => {
   const navigate = useNavigate();
@@ -10,18 +11,19 @@ export const AddTransactionView: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedEnvelopeId, setSelectedEnvelopeId] = useState('');
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
 
   // Form validation
-  const isFormValid = amount && parseFloat(amount) > 0 && selectedEnvelopeId;
+  const hasSplits = Object.keys(splitAmounts).length > 0;
+  const totalSplit = Object.values(splitAmounts).reduce((sum, amt) => sum + (amt || 0), 0);
+  const isSplitValid = Math.abs(totalSplit - parseFloat(amount || '0')) < 0.01;
+  const isFormValid = amount && parseFloat(amount) > 0 && hasSplits && isSplitValid;
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
-
-    const numAmount = parseFloat(amount);
     
     // Properly handle the date to avoid timezone issues
     const [year, month, day] = date.split('-').map(Number);
@@ -31,14 +33,19 @@ export const AddTransactionView: React.FC = () => {
     console.log('📅 Parsed date:', transactionDate.toISOString());
 
     try {
-      await addTransaction({
-        amount: numAmount,
-        description: note,
-        date: transactionDate.toISOString(),
-        envelopeId: selectedEnvelopeId,
-        type: transactionType === 'income' ? 'Income' : 'Expense',
-        reconciled: false
-      });
+      // Create a transaction for each split
+      const splitEntries = Object.entries(splitAmounts).filter(([_, amt]) => amt > 0);
+      
+      for (const [envelopeId, splitAmount] of splitEntries) {
+        await addTransaction({
+          amount: splitAmount,
+          description: splitEntries.length > 1 ? `${note} (Split)` : note,
+          date: transactionDate.toISOString(),
+          envelopeId,
+          type: transactionType === 'income' ? 'Income' : 'Expense',
+          reconciled: false
+        });
+      }
 
       // Navigate back to home
       navigate('/');
@@ -162,21 +169,13 @@ export const AddTransactionView: React.FC = () => {
             />
           </div>
 
-          {/* Envelope Dropdown */}
-          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Envelope</label>
-            <select
-              value={selectedEnvelopeId}
-              onChange={(e) => setSelectedEnvelopeId(e.target.value)}
-              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
-            >
-              <option value="" className="bg-white dark:bg-zinc-900">Select an envelope</option>
-              {sortedEnvelopes.map((env) => (
-                <option key={env.id} value={env.id} className="bg-white dark:bg-zinc-900">
-                  {env.name}
-                </option>
-              ))}
-            </select>
+          {/* Envelope Selection with Split Support */}
+          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 transition-colors">
+            <SplitTransactionHelper
+              envelopes={sortedEnvelopes}
+              transactionAmount={parseFloat(amount) || 0}
+              onSplitChange={setSplitAmounts}
+            />
           </div>
         </form>
       </div>

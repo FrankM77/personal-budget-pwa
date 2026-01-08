@@ -12,6 +12,7 @@ import { EmailVerificationView } from './views/EmailVerificationView';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { BottomNavigation } from './components/BottomNavigation';
 import { useEnvelopeStore } from './stores/envelopeStore';
 import { useAuthStore } from './stores/authStore';
 
@@ -170,6 +171,8 @@ function App() {
             }
           />
         </Routes>
+        {/* Bottom Navigation - Only show on main app pages */}
+        <BottomNavigation />
       </HashRouter>
 
       {/* Global Toast Notifications */}
