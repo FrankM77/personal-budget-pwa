@@ -39,7 +39,7 @@ export const AddTransactionView: React.FC = () => {
       for (const [envelopeId, splitAmount] of splitEntries) {
         await addTransaction({
           amount: splitAmount,
-          description: splitEntries.length > 1 ? `${note} (Split)` : note,
+          description: note,
           date: transactionDate.toISOString(),
           envelopeId,
           type: transactionType === 'income' ? 'Income' : 'Expense',

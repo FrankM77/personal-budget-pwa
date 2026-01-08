@@ -64,8 +64,36 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
   const hasError = selectedEnvelopes.length > 0 && Math.abs(remaining) > 0.01;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
+    <div className="space-y-3">
+      {selectedEnvelopes.length > 0 && (
+        <div className={`p-3 rounded-lg ${
+          hasError 
+            ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' 
+            : isValid 
+              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+              : 'bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700'
+        }`}>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600 dark:text-zinc-400">Remaining to Split:</span>
+            <span className={`font-bold text-lg ${
+              hasError 
+                ? 'text-red-600 dark:text-red-400' 
+                : isValid 
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-gray-900 dark:text-white'
+            }`}>
+              ${remaining.toFixed(2)}
+            </span>
+          </div>
+          {hasError && (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+              Split amounts must equal transaction total
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="flex justify-between items-center">
         <label className="text-xs text-gray-500 dark:text-zinc-400">
           {selectedEnvelopes.length > 1 ? 'Split Across Envelopes' : 'Select Envelope'}
         </label>
@@ -111,34 +139,6 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
           </div>
         ))}
       </div>
-      
-      {selectedEnvelopes.length > 0 && (
-        <div className={`mt-3 p-3 rounded-lg ${
-          hasError 
-            ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' 
-            : isValid 
-              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-              : 'bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700'
-        }`}>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600 dark:text-zinc-400">Remaining to Split:</span>
-            <span className={`font-bold text-lg ${
-              hasError 
-                ? 'text-red-600 dark:text-red-400' 
-                : isValid 
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-gray-900 dark:text-white'
-            }`}>
-              ${remaining.toFixed(2)}
-            </span>
-          </div>
-          {hasError && (
-            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-              Split amounts must equal transaction total
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 };

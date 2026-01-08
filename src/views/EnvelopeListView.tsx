@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { PlusCircle, List as ListIcon, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
@@ -622,13 +622,6 @@ export const EnvelopeListView: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/transactions')}
-              className="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              title="Transaction History"
-            >
-              <ListIcon size={22} />
-            </button>
                         <button
               onClick={handleStartFresh}
               className="text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
@@ -764,7 +757,7 @@ export const EnvelopeListView: React.FC = () => {
 
       <button
         onClick={() => navigate('/add-transaction')}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform"
+        className="fixed bottom-24 right-6 md:bottom-10 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform z-40 pointer-events-auto"
       >
         <PlusCircle size={28} />
       </button>
