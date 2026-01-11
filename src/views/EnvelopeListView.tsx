@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown } from 'lucide-react';
+import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeStore } from '../stores/envelopeStore';
@@ -53,7 +53,8 @@ const EnvelopeListItem = ({
   onMoveUp,
   onMoveDown,
   isFirst,
-  isLast
+  isLast,
+  isReorderUnlocked
   }: {
   env: any,
   budgetedAmount: number,
@@ -75,7 +76,7 @@ const EnvelopeListItem = ({
   onMoveDown: () => void,
   isFirst: boolean,
   isLast: boolean,
-
+  isReorderUnlocked: boolean
 }) => {
   const isPiggybank = Boolean(env.isPiggybank);
   const piggyColor = env.piggybankConfig?.color || '#3B82F6';
@@ -108,6 +109,8 @@ const EnvelopeListItem = ({
     
     // Don't navigate if editing this envelope's budget
     if (editingEnvelopeId === env.id) {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
     
@@ -142,7 +145,8 @@ const EnvelopeListItem = ({
 
   const content = (
     <div className="flex items-center gap-2 w-full">
-      {/* Reorder Buttons */}
+      {/* Reorder Buttons - only show when unlocked */}
+      {isReorderUnlocked && (
       <div className="flex flex-col gap-1">
         <button
           onClick={(e) => {
@@ -177,6 +181,7 @@ const EnvelopeListItem = ({
           <ChevronDown size={18} />
         </button>
       </div>
+      )}
       {/* Content Wrapper */}
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
@@ -209,7 +214,6 @@ const EnvelopeListItem = ({
         <div className="flex justify-between items-center">
           <div
             className="flex items-center space-x-4"
-            onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
             {editingEnvelopeId === env.id ? (
@@ -231,11 +235,18 @@ const EnvelopeListItem = ({
             ) : (
               <div
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   setEditingEnvelopeId(env.id);
                   setEditingAmount(budgetedAmount.toString());
                 }}
-                className="flex items-center space-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-2 py-1 rounded transition-colors"
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEditingEnvelopeId(env.id);
+                  setEditingAmount(budgetedAmount.toString());
+                }}
+                className="flex items-center space-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-3 py-2 rounded transition-colors cursor-pointer js-budget-target"
               >
                 <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
                 <span className="font-medium text-gray-900 dark:text-white">${budgetedAmount.toFixed(2)}</span>
@@ -307,7 +318,6 @@ const EnvelopeListItem = ({
       onClick={handleMoveableClick}
       style={{
         boxShadow: '0 1px 2px rgba(15,23,42,0.08)',
-        touchAction: 'none',
         background: piggyBackground,
         borderColor: piggyBorder,
         cursor: 'pointer'
@@ -381,6 +391,17 @@ export const EnvelopeListView: React.FC = () => {
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // State for reorder lock/unlock - persist in localStorage
+  const [isReorderUnlocked, setIsReorderUnlocked] = useState(() => {
+    const stored = localStorage.getItem('envelopeReorderUnlocked');
+    return stored === 'true';
+  });
+
+  // Persist reorder unlock state to localStorage
+  useEffect(() => {
+    localStorage.setItem('envelopeReorderUnlocked', isReorderUnlocked.toString());
+  }, [isReorderUnlocked]);
 
   // Function to get envelope balance for current month (matches store calculation)
   const getEnvelopeBalance = (envelopeId: string) => {
@@ -543,6 +564,9 @@ export const EnvelopeListView: React.FC = () => {
     }
 
     const initializeMoveable = () => {
+      // Only initialize Moveable if reordering is unlocked
+      if (!isReorderUnlocked) return;
+
       visibleEnvelopes.forEach((envelope) => {
         const element = moveableRefs.current[envelope.id];
         if (!element) return;
@@ -553,9 +577,9 @@ export const EnvelopeListView: React.FC = () => {
           return;
         }
 
-        const moveable = new Moveable(document.body, {
+        const moveable = new Moveable(reorderConstraintsRef.current!, {
           target: element,
-          draggable: true,
+          draggable: isReorderUnlocked,
           throttleDrag: 0,
           edgeDraggable: false,
           startDragRotate: 0,
@@ -712,7 +736,12 @@ export const EnvelopeListView: React.FC = () => {
         });
 
         // Handle click events from Moveable
-        moveable.on('click', () => {
+        moveable.on('click', (e) => {
+          // Check if the click originated from the budget field
+          const target = e.inputEvent.target as HTMLElement;
+          if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
+            return; // Don't navigate if clicking budget field
+          }
           handleEnvelopeClick(envelope.id);
         });
 
@@ -726,7 +755,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick]);
+  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick, isReorderUnlocked]);
 
 
 
@@ -885,7 +914,18 @@ export const EnvelopeListView: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
-                        <button
+            <button
+              onClick={() => setIsReorderUnlocked(!isReorderUnlocked)}
+              className={`transition-colors ${
+                isReorderUnlocked
+                  ? 'text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300'
+                  : 'text-gray-500 hover:text-gray-600 dark:text-zinc-400 dark:hover:text-zinc-300'
+              }`}
+              title={isReorderUnlocked ? 'Lock envelope order' : 'Unlock to reorder envelopes'}
+            >
+              {isReorderUnlocked ? <Unlock size={22} /> : <Lock size={22} />}
+            </button>
+            <button
               onClick={handleStartFresh}
               className="text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
               title="Start Fresh - Clear current month budget"
@@ -1059,6 +1099,7 @@ export const EnvelopeListView: React.FC = () => {
                        onMoveDown={handleMoveDown}
                        isFirst={index === 0}
                        isLast={index === visibleEnvelopes.length - 1}
+                       isReorderUnlocked={isReorderUnlocked}
                      />
                    );
                  })}
