@@ -6,6 +6,7 @@ export interface FirestoreAppSettings {
   id: string;
   userId: string;
   theme: 'light' | 'dark' | 'system';
+  enableMoveableReorder?: boolean;
 }
 
 export interface FirestoreTransaction {

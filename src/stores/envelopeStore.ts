@@ -48,6 +48,7 @@ interface EnvelopeStore {
   fetchData: () => Promise<void>;
   addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
   updateEnvelope: (envelope: Envelope) => Promise<void>;
+  reorderEnvelopes: (orderedIds: string[]) => Promise<void>;
   deleteEnvelope: (envelopeId: string) => Promise<void>;
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
   transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
@@ -262,6 +263,7 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
           return savedEnv.id;
         },
         updateEnvelope: envelopeSlice.updateEnvelope,
+        reorderEnvelopes: envelopeSlice.reorderEnvelopes,
         deleteEnvelope: envelopeSlice.deleteEnvelope,
         renameEnvelope: envelopeSlice.renameEnvelope,
         transferFunds: envelopeSlice.transferFunds,

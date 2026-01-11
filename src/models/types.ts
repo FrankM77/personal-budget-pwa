@@ -55,7 +55,7 @@ export interface AppSettings {
   id: string;
   userId?: string;
   theme: 'light' | 'dark' | 'system';
-  // Additional settings can be added here as needed
+  enableMoveableReorder?: boolean;
 }
 
 // Zero-Based Budgeting Types

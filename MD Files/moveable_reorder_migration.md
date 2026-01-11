@@ -44,7 +44,16 @@ We will layer Moveable *per envelope row*, dispatching final positions back into
    - Apply `matrix3d` transforms Moveable supplies for buttery motion.
    - Add subtle shadows / scale to active card (similar to Framer but smoother).
 
-### Phase 2 – Polish & Replace Legacy Path
+**Phase 1 Notes (Jan 11, 2026)**
+1. Added `enableMoveableReorder` flag support end-to-end and guarded the legacy Framer path so Moveable owns drag UX when enabled.
+2. Introduced a ref map + Moveable-per-row setup that constrains transforms to the Y-axis and uses snap-to-row math derived from row height + gap.
+3. Implemented visual offset handling so non-dragged rows slide smoothly using CSS transforms while the dragged row stays under Moveable control.
+4. Reordered data only after drag end, preventing flicker and ensuring store persistence stays in sync with UI order.
+5. Hooked Moveable’s native click handler to preserve tap-to-open behavior while still preventing accidental navigation right after a drag.
+
+All previously logged bugs (conflicting drag handlers, snap-back, stuck animations, and lost navigation) are resolved. A feature toggle UI still needs to be exposed in Settings before we can ship broadly.
+
+### Phase 2 – Polish & Replace Legacy Path (Blocked until Phase 1 ships)
 1. Ensure keyboard accessibility by providing fallback reorder buttons (up/down arrows) per card.
 2. Add analytics/telemetry to compare drag success rate between Framer vs Moveable.
 3. If metrics look good, flip the feature flag default to Moveable and delete the old Framer Motion branch.
@@ -56,12 +65,13 @@ We will layer Moveable *per envelope row*, dispatching final positions back into
 - **SSR**: Moveable is browser-only. Guard imports if we ever render on the server.
 
 ## Implementation Status
-- [x] **Feature Flag**: Added `enableMoveableReorder` setting with UI toggle
-- [x] **Moveable Integration**: Implemented per-envelope Moveable instances with smooth drag
-- [x] **Snap-to-row Logic**: Automatic snapping to row height increments
-- [x] **State Reconciliation**: Envelope order persists to Zustand store
-- [x] **Visual Feedback**: Matrix3d transforms, shadows, and scale effects
-- [x] **Touch Support**: Native pointer handling without long-press timers
+- [x] **Phase 0 Sandbox**: Playground validates Moveable APIs
+- [ ] **Feature Flag Toggle**: Add `enableMoveableReorder` control to Settings and persist via `updateAppSettings`
+- [x] **Moveable-Only Drag Path**: Disable Framer `Reorder` when Moveable flag is on; remove long-press timers
+- [x] **Snap-to-row Logic**: Ensure drag math snaps consistently across desktop + mobile
+- [x] **State Reconciliation**: Batch order persistence and keep `localEnvelopes` in sync without flicker
+- [x] **Visual Feedback**: Keep matrix transforms/shadows confined to Moveable path
+- [x] **Touch Support**: Confirm native pointer handling (no hacks) after above fixes
 
 ## Resolved Decisions
 1. **Framer Motion**: Keeping both implementations - users can toggle between them via feature flag

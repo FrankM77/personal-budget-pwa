@@ -57,7 +57,8 @@ export const createSettingsSlice = ({ set, get, getCurrentUserId }: SliceParams)
         const userId = getCurrentUserId();
         const defaultSettings: Omit<AppSettings, 'id'> = {
           userId,
-          theme: 'system'
+          theme: 'system',
+          enableMoveableReorder: false
         };
 
         const createdSettings = await AppSettingsService.createAppSettings(defaultSettings);
@@ -73,7 +74,8 @@ export const createSettingsSlice = ({ set, get, getCurrentUserId }: SliceParams)
           appSettings: {
             id: 'local-settings',
             userId,
-            theme: 'system'
+            theme: 'system',
+            enableMoveableReorder: false
           }
         });
       }

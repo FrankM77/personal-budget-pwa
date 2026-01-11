@@ -28,6 +28,10 @@ const hexToRgba = (hex: string, alpha = 1) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+const MOVEABLE_ITEM_GAP = 12;
+const clampValue = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
 // Separate component for list item to allow individual useDragControls hook
 const EnvelopeListItem = ({
   env,
@@ -47,7 +51,11 @@ const EnvelopeListItem = ({
   currentMonth,
   enableMoveableReorder,
   setMoveableRef,
-  lastDragEndTime
+  lastDragEndTime,
+  isReorderingActive,
+  activelyDraggingId,
+  onItemDragStart,
+  onItemDragEnd
   }: {
   env: any,
   budgetedAmount: number,
@@ -67,6 +75,10 @@ const EnvelopeListItem = ({
   enableMoveableReorder: boolean,
   setMoveableRef: (envelopeId: string) => (el: HTMLDivElement | null) => void,
   lastDragEndTime: React.MutableRefObject<number>,
+  isReorderingActive: boolean,
+  activelyDraggingId: string | null,
+  onItemDragStart: (id: string) => void,
+  onItemDragEnd: (id: string) => void,
 
 }) => {
   const controls = useDragControls();
@@ -82,6 +94,8 @@ const EnvelopeListItem = ({
   const longPressTimeout = useRef<number | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const itemRef = useRef<HTMLLIElement>(null);
+  const moveableItemRef = useRef<HTMLDivElement>(null);
+  const [didDragThisItem, setDidDragThisItem] = useState(false);
 
   // Calculate percentage for both background color and progress bar
   const envelopeTransactions = transactions.filter(t => 
@@ -101,6 +115,7 @@ const EnvelopeListItem = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (enableMoveableReorder) return;
     // Only respond to primary mouse button or touch
     if (e.button !== 0 && e.pointerType !== 'touch') return;
 
@@ -115,6 +130,7 @@ const EnvelopeListItem = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (enableMoveableReorder) return;
     if (!pointerStartRef.current || longPressTimeout.current === null) return;
 
     const dx = e.clientX - pointerStartRef.current.x;
@@ -126,12 +142,14 @@ const EnvelopeListItem = ({
   };
 
   const handlePointerUp = () => {
+    if (enableMoveableReorder) return;
     clearLongPressTimeout();
     setIsLongPressActive(false);
     pointerStartRef.current = null;
   };
 
   const handlePointerCancel = () => {
+    if (enableMoveableReorder) return;
     clearLongPressTimeout();
     setIsLongPressActive(false);
     pointerStartRef.current = null;
@@ -139,7 +157,13 @@ const EnvelopeListItem = ({
 
   const handleNavigate = (e: React.MouseEvent | React.TouchEvent) => {
     // Prevent navigation if currently dragging, recently dragged, or if this item was dragged
-    if (isDragging || Date.now() - lastDragEndTime.current < 100 || hasDraggedOnThisItem) {
+    const shouldBlockNavigation =
+      (enableMoveableReorder && isReorderingActive) ||
+      isDragging ||
+      Date.now() - lastDragEndTime.current < 200 ||
+      hasDraggedOnThisItem;
+
+    if (shouldBlockNavigation) {
       e.preventDefault();
       setHasDraggedOnThisItem(false); // Reset for next interaction
       return;
@@ -149,8 +173,51 @@ const EnvelopeListItem = ({
     }
   };
 
+  const handleMoveableClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Don't navigate if we just dragged this item or if currently reordering
+    if (didDragThisItem || isReorderingActive) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
+    // Don't navigate if editing this envelope's budget
+    if (editingEnvelopeId === env.id) {
+      return;
+    }
+    
+    // Navigate to envelope details
+    navigate(`/envelope/${env.id}`);
+  };
+
+  // Reset drag flag when it changes from another item
+  useEffect(() => {
+    if (activelyDraggingId && activelyDraggingId !== env.id) {
+      setDidDragThisItem(false);
+    }
+  }, [activelyDraggingId, env.id]);
+
+  // Handle drag start for this item
+  useEffect(() => {
+    if (activelyDraggingId === env.id) {
+      setDidDragThisItem(true);
+      onItemDragStart(env.id);
+    }
+  }, [activelyDraggingId, env.id, onItemDragStart]);
+
+  // Clear drag flag after a delay when drag ends
+  useEffect(() => {
+    if (!activelyDraggingId && didDragThisItem) {
+      const timer = setTimeout(() => {
+        setDidDragThisItem(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activelyDraggingId, didDragThisItem]);
+
   // Prevent scroll on touch devices when dragging
   useEffect(() => {
+    if (enableMoveableReorder) return;
     const element = itemRef.current;
     if (!element) return;
 
@@ -288,23 +355,32 @@ const EnvelopeListItem = ({
   );
 
   if (enableMoveableReorder) {
+    const isBeingDragged = activelyDraggingId === env.id;
+    
     return (
-      <div
-        ref={setMoveableRef(env.id)}
+      <motion.div
+        layout={!isBeingDragged}
+        transition={{
+          layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
+        }}
+        ref={(el) => {
+          setMoveableRef(env.id)(el);
+          moveableItemRef.current = el;
+        }}
+        onClick={handleMoveableClick}
         style={{
-          boxShadow: isDragging
-            ? '0 18px 45px rgba(15,23,42,0.35)'
-            : '0 1px 2px rgba(15,23,42,0.08)',
+          boxShadow: '0 1px 2px rgba(15,23,42,0.08)',
           touchAction: 'none',
           background: piggyBackground,
-          borderColor: piggyBorder
+          borderColor: piggyBorder,
+          cursor: 'pointer'
         }}
-        className={`p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none border ${
+        className={`p-4 rounded-xl active:scale-[0.99] transition-all select-none border ${
           isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
         }`}
       >
         {content}
-      </div>
+      </motion.div>
     );
   }
 
@@ -352,14 +428,18 @@ const EnvelopeListItem = ({
 
 export const EnvelopeListView: React.FC = () => {
   // Envelope store (for envelopes and transactions)
-  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity, appSettings } = useEnvelopeStore();
+  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity, appSettings, reorderEnvelopes } = useEnvelopeStore();
 
   // Feature flag for Moveable reordering
   const enableMoveableReorder = appSettings?.enableMoveableReorder ?? false;
 
   // Callback ref for Moveable elements
   const setMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
-    moveableRefs.current[envelopeId] = el;
+    if (el) {
+      moveableRefs.current[envelopeId] = el;
+    } else {
+      delete moveableRefs.current[envelopeId];
+    }
   }, []);
 
   // Monthly budget store (for zero-based budgeting features)
@@ -379,6 +459,17 @@ export const EnvelopeListView: React.FC = () => {
 
   const { showToast } = useToastStore();
   const navigate = useNavigate();
+
+  const persistReorder = useCallback(async (orderedEnvelopes: typeof envelopes) => {
+    if (!orderedEnvelopes.length) return;
+    const orderedIds = orderedEnvelopes.map(env => env.id);
+    try {
+      await reorderEnvelopes(orderedIds);
+    } catch (error) {
+      console.error('Failed to persist envelope order:', error);
+      showToast('Failed to save envelope order', 'error');
+    }
+  }, [reorderEnvelopes, showToast]);
 
   // Local state for modals and UI
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
@@ -486,27 +577,19 @@ export const EnvelopeListView: React.FC = () => {
   // Moveable refs and instances for new reordering system
   const moveableRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const moveableInstances = useRef<{ [key: string]: Moveable | null }>({});
+  const [activelyDraggingId, setActivelyDraggingId] = useState<string | null>(null);
+  const moveableDragState = useRef<{ 
+    activeId: string | null; 
+    startIndex: number; 
+    currentIndex: number;
+    itemHeight: number;
+  }>({
+    activeId: null,
+    startIndex: 0,
+    currentIndex: 0,
+    itemHeight: 0
+  });
   
-  // Handler for reordering completion
-  const handleReorder = useCallback(async (newOrder: typeof envelopes) => {
-    // We don't want to update state immediately to avoid jumping,
-    // but we need to persist the new order indices
-    console.log('📦 Reordered envelopes:', newOrder.map(e => e.name));
-
-    // Update order indices for all envelopes
-    for (let index = 0; index < newOrder.length; index++) {
-      const env = newOrder[index];
-      if (env.orderIndex !== index) {
-        console.log('Updating envelope', env.id, 'orderIndex from', env.orderIndex, 'to', index);
-        await useEnvelopeStore.getState().updateEnvelope({
-          ...env,
-          orderIndex: index
-        });
-        console.log('Updated envelope', env.id, 'orderIndex to', index);
-      }
-    }
-  }, []);
-
   // Envelopes should already be sorted by orderIndex from the store/service
   // Filter envelopes to only show those that have an allocation for the current month
   // We use a local state for the reorder list to allow smooth dragging
@@ -517,28 +600,21 @@ export const EnvelopeListView: React.FC = () => {
   const piggybanks = envelopes.filter(env => env.isPiggybank === true && env.isActive);
 
   useEffect(() => {
-    console.log('Envelopes or allocations changed, updating localEnvelopes. isReordering:', isReordering);
-    // Update local envelopes when store changes, BUT ONLY if not currently dragging
-      if (!isReordering) {
-        // Filter out piggybanks from the spending envelopes section
-        const piggybanks = envelopes.filter(env => env.isPiggybank && env.isActive);
-        const regularEnvelopes = envelopes.filter(env => !env.isPiggybank);
-        console.log('Piggybanks:', piggybanks.map(e => ({ name: e.name, isPiggybank: e.isPiggybank })));
-        console.log('Regular envelopes:', regularEnvelopes.map(e => ({ name: e.name, isPiggybank: e.isPiggybank })));
+    if (!isReordering) {
+      const filtered = envelopes
+        .filter(env => 
+          !env.isPiggybank && 
+          env.isActive !== false &&
+          envelopeAllocations.some(alloc => alloc.envelopeId === env.id)
+        )
+        .sort((a, b) => {
+          const aOrder = a.orderIndex ?? 0;
+          const bOrder = b.orderIndex ?? 0;
+          return aOrder - bOrder;
+        });
 
-
-
-        const filtered = [...regularEnvelopes]
-          .filter(env => envelopeAllocations.some(alloc => alloc.envelopeId === env.id) && !env.isPiggybank)
-          .sort((a, b) => {
-            const aOrder = a.orderIndex ?? 0;
-            const bOrder = b.orderIndex ?? 0;
-            return aOrder - bOrder;
-          });
-
-
-        setLocalEnvelopes(filtered);
-       localOrderRef.current = filtered;
+      setLocalEnvelopes(filtered);
+      localOrderRef.current = filtered;
     }
   }, [envelopes, envelopeAllocations, isReordering]);
 
@@ -547,126 +623,232 @@ export const EnvelopeListView: React.FC = () => {
     localOrderRef.current = newOrder;
   };
 
-  const handleDragStart = () => setIsReordering(true);
+  const handleDragStart = useCallback(() => setIsReordering(true), []);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setIsReordering(false);
     if (localOrderRef.current.length) {
-      handleReorder(localOrderRef.current);
+      persistReorder(localOrderRef.current);
     }
-  };
+  }, [persistReorder]);
+
+  const handleItemDragStart = useCallback((_id: string) => {
+    // Item-specific drag start handler (currently just for tracking)
+  }, []);
+
+  const handleItemDragEnd = useCallback((_id: string) => {
+    // Item-specific drag end handler (currently just for tracking)
+  }, []);
+
+  const handleEnvelopeClick = useCallback((envelopeId: string) => {
+    if (editingEnvelopeId !== envelopeId) {
+      navigate(`/envelope/${envelopeId}`);
+    }
+  }, [editingEnvelopeId, navigate]);
 
   const visibleEnvelopes = localEnvelopes;
 
   // Initialize Moveable instances when feature flag is enabled
   useEffect(() => {
-    if (!enableMoveableReorder || !visibleEnvelopes.length) return;
+    const destroyMoveables = () => {
+      Object.values(moveableInstances.current).forEach(instance => instance?.destroy());
+      moveableInstances.current = {};
+    };
+
+    if (!enableMoveableReorder) {
+      destroyMoveables();
+      return;
+    }
+
+    if (!visibleEnvelopes.length) {
+      return;
+    }
 
     const initializeMoveable = () => {
       visibleEnvelopes.forEach((envelope) => {
         const element = moveableRefs.current[envelope.id];
-        if (element && !moveableInstances.current[envelope.id]) {
-          const moveable = new Moveable(document.body, {
-            target: element,
-            draggable: true,
-            rotatable: false,
-            scalable: false,
-            resizable: false,
-            warpable: false,
-            pinchable: false,
-            snappable: false,
-            clickable: false, // Disable Moveable's click handling
-            preventClickEventOnDrag: false,
-            elementGuidelines: [],
-            hideDefaultLines: true,
-            hideChildMoveableDefaultLines: true,
-            renderDirections: [],
-            hideThrottleDragRotateLine: true,
-          });
+        if (!element) return;
 
-          moveable.on('dragStart', () => {
-            console.log('Moveable dragStart for', envelope.id);
-            // Don't set isReordering yet - wait for actual movement
-          });
-
-          moveable.on('drag', (e) => {
-            // Only set reordering state when there's significant movement
-            const dragDistance = Math.sqrt(e.dist[0] * e.dist[0] + e.dist[1] * e.dist[1]);
-            if (dragDistance > 10 && !isReordering) {
-              setIsReordering(true);
-            }
-            e.target.style.transform = e.transform;
-            // Add visual feedback during drag
-            (e.target as HTMLElement).style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
-            (e.target as HTMLElement).style.scale = '1.04';
-            (e.target as HTMLElement).style.zIndex = '20';
-
-            // Shift other items during drag
-            const yOffset = e.beforeDist[1];
-            const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
-            visibleEnvelopes.forEach((env, index) => {
-              if (env.id === envelope.id) return;
-              const envElement = moveableRefs.current[env.id];
-              if (envElement && Math.abs(index - currentIndex) <= Math.abs(yOffset / 80)) {
-                const direction = yOffset > 0 ? -1 : 1;
-                const distance = Math.abs(yOffset) / 80;
-                const translateY = direction * Math.min(distance, 1) * 80;
-                envElement.style.transform = `translateY(${translateY}px)`;
-              } else if (envElement) {
-                envElement.style.transform = '';
-              }
-            });
-          });
-
-          moveable.on('dragEnd', (e) => {
-            console.log('Moveable dragEnd for', envelope.id, e.lastEvent?.dist);
-            lastDragEndTime.current = Date.now();
-            // Reset all transforms
-            Object.values(moveableRefs.current).forEach(element => {
-              if (element) element.style.transform = '';
-            });
-            // Reset visual feedback
-            (e.target as HTMLElement).style.boxShadow = '';
-            (e.target as HTMLElement).style.scale = '';
-            (e.target as HTMLElement).style.zIndex = '';
-            const wasReordering = isReordering;
-            setIsReordering(false);
-
-            // Only perform reordering if there was actual drag movement
-            if (wasReordering) {
-              const dragDistance = e.lastEvent ? e.lastEvent.dist[1] : 0;
-              const itemHeight = (e.target as HTMLElement).offsetHeight + 12; // Including margin
-
-              const positionsMoved = Math.round(dragDistance / itemHeight);
-              const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
-              const newIndex = Math.max(0, Math.min(visibleEnvelopes.length - 1, currentIndex + positionsMoved));
-
-              if (newIndex !== currentIndex) {
-                const newEnvelopes = [...visibleEnvelopes];
-                const [removed] = newEnvelopes.splice(currentIndex, 1);
-                newEnvelopes.splice(newIndex, 0, removed);
-                setLocalEnvelopes(newEnvelopes);
-                handleReorder(newEnvelopes);
-              }
-            }
-          });
-
-          moveableInstances.current[envelope.id] = moveable;
+        const existingInstance = moveableInstances.current[envelope.id];
+        if (existingInstance) {
+          existingInstance.target = element;
+          return;
         }
+
+        const moveable = new Moveable(document.body, {
+          target: element,
+          draggable: true,
+          throttleDrag: 0,
+          edgeDraggable: false,
+          startDragRotate: 0,
+          throttleDragRotate: 0,
+          rotatable: false,
+          scalable: false,
+          resizable: false,
+          warpable: false,
+          pinchable: false,
+          snappable: true,
+          snapThreshold: 5,
+          isDisplaySnapDigit: false,
+          isDisplayInnerSnapDigit: false,
+          snapGap: true,
+          snapDirections: {"top": true, "bottom": true, "left": false, "right": false},
+          elementSnapDirections: {"top": true, "bottom": true, "left": false, "right": false},
+          clickable: true,
+          preventClickDefault: false,
+          preventClickEventOnDrag: true,
+          checkInput: false,
+          dragArea: true,
+          hideDefaultLines: true,
+          hideChildMoveableDefaultLines: true,
+          renderDirections: [],
+        });
+
+        moveable.on('dragStart', (e) => {
+          const startIndex = localOrderRef.current.findIndex(env => env.id === envelope.id);
+          const targetEl = e.target as HTMLElement;
+          const rect = targetEl.getBoundingClientRect();
+          const itemHeight = rect.height + MOVEABLE_ITEM_GAP;
+          
+          setActivelyDraggingId(envelope.id);
+          moveableDragState.current = {
+            activeId: envelope.id,
+            startIndex,
+            currentIndex: startIndex,
+            itemHeight
+          };
+          
+          if (targetEl) {
+            targetEl.style.transition = 'none';
+            targetEl.style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
+            targetEl.style.zIndex = '20';
+          }
+          handleDragStart();
+        });
+
+        let rafId: number | null = null;
+        moveable.on('drag', (e) => {
+          const targetEl = e.target as HTMLElement;
+          
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+          }
+          
+          rafId = requestAnimationFrame(() => {
+            const dragState = moveableDragState.current;
+            if (dragState.activeId !== envelope.id) return;
+
+            // Constrain to Y-axis only
+            const translateY = e.beforeTranslate[1];
+            targetEl.style.transform = `translateY(${translateY}px)`;
+            targetEl.style.transition = 'none';
+
+            // Calculate target index based on drag distance
+            const { itemHeight, startIndex } = dragState;
+            if (!itemHeight) return;
+            
+            const indexOffset = Math.round(translateY / itemHeight);
+            const targetIndex = clampValue(
+              startIndex + indexOffset,
+              0,
+              localOrderRef.current.length - 1
+            );
+
+            // Update other items' positions to make space
+            if (targetIndex !== dragState.currentIndex) {
+              dragState.currentIndex = targetIndex;
+              
+              // Apply visual offsets to other items
+              localOrderRef.current.forEach((env, idx) => {
+                if (env.id === envelope.id) return;
+                
+                const otherEl = moveableRefs.current[env.id];
+                if (!otherEl) return;
+                
+                let offset = 0;
+                if (startIndex < targetIndex) {
+                  // Dragging down: shift items up
+                  if (idx > startIndex && idx <= targetIndex) {
+                    offset = -itemHeight;
+                  }
+                } else if (startIndex > targetIndex) {
+                  // Dragging up: shift items down
+                  if (idx >= targetIndex && idx < startIndex) {
+                    offset = itemHeight;
+                  }
+                }
+                
+                otherEl.style.transform = offset ? `translateY(${offset}px)` : '';
+                otherEl.style.transition = 'transform 0.2s ease';
+              });
+            }
+            
+            rafId = null;
+          });
+        });
+
+        moveable.on('dragEnd', (e) => {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          
+          const targetEl = e.target as HTMLElement;
+          const dragState = moveableDragState.current;
+          const { startIndex, currentIndex } = dragState;
+          
+          // Clear all transforms
+          targetEl.style.transform = '';
+          targetEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease';
+          targetEl.style.boxShadow = '';
+          
+          // Clear transforms on other items
+          localOrderRef.current.forEach((env) => {
+            if (env.id === envelope.id) return;
+            const otherEl = moveableRefs.current[env.id];
+            if (otherEl) {
+              otherEl.style.transform = '';
+              otherEl.style.transition = '';
+            }
+          });
+          
+          // Reorder the array if position changed
+          if (startIndex !== currentIndex) {
+            const updated = [...localOrderRef.current];
+            const [item] = updated.splice(startIndex, 1);
+            updated.splice(currentIndex, 0, item);
+            localOrderRef.current = updated;
+            setLocalEnvelopes(updated);
+          }
+          
+          // Cleanup after animation
+          setTimeout(() => {
+            targetEl.style.zIndex = '';
+            targetEl.style.transition = '';
+            setActivelyDraggingId(null);
+          }, 300);
+          
+          moveableDragState.current = { activeId: null, startIndex: 0, currentIndex: 0, itemHeight: 0 };
+          lastDragEndTime.current = Date.now();
+          handleDragEnd();
+        });
+
+        // Handle click events from Moveable
+        moveable.on('click', () => {
+          handleEnvelopeClick(envelope.id);
+        });
+
+        moveableInstances.current[envelope.id] = moveable;
       });
     };
 
-    // Small delay to ensure DOM elements are ready
-    const timeoutId = setTimeout(initializeMoveable, 100);
+    const timeoutId = window.setTimeout(initializeMoveable, 80);
 
     return () => {
       clearTimeout(timeoutId);
-      Object.values(moveableInstances.current).forEach(instance => {
-        if (instance) instance.destroy();
-      });
-      moveableInstances.current = {};
+      destroyMoveables();
     };
-  }, [enableMoveableReorder, visibleEnvelopes, handleReorder]);
+  }, [enableMoveableReorder, visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick]);
 
 
 
@@ -952,37 +1134,43 @@ export const EnvelopeListView: React.FC = () => {
          ) : (
            <div ref={reorderConstraintsRef}>
              {enableMoveableReorder ? (
-               <div className="space-y-3">
-                 {visibleEnvelopes.map((env) => {
-                   const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
-                   const budgetedAmount = allocation?.budgetedAmount || 0;
-                   const remainingBalance = getEnvelopeBalance(env.id);
+               <AnimatePresence initial={false}>
+                 <div className="space-y-3">
+                   {visibleEnvelopes.map((env) => {
+                     const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
+                     const budgetedAmount = allocation?.budgetedAmount || 0;
+                     const remainingBalance = getEnvelopeBalance(env.id);
 
-                   return (
-                     <EnvelopeListItem
-                       key={env.id}
-                       env={env}
-                       budgetedAmount={budgetedAmount}
-                       remainingBalance={remainingBalance}
-                       editingEnvelopeId={editingEnvelopeId}
-                       setEditingEnvelopeId={setEditingEnvelopeId}
-                       editingAmount={editingAmount}
-                       setEditingAmount={setEditingAmount}
-                       handleBudgetSave={handleBudgetSave}
-                       navigate={navigate}
-                       inputRef={inputRef}
-                       dragConstraints={reorderConstraintsRef}
-                       onDragStart={handleDragStart}
-                       onDragEnd={handleDragEnd}
-                        transactions={transactions}
-                        currentMonth={currentMonth}
-                         enableMoveableReorder={enableMoveableReorder}
-                         setMoveableRef={setMoveableRef}
-                         lastDragEndTime={lastDragEndTime}
-                       />
-                     );
-                   })}
-                 </div>
+                     return (
+                       <EnvelopeListItem
+                         key={env.id}
+                         env={env}
+                         budgetedAmount={budgetedAmount}
+                         remainingBalance={remainingBalance}
+                         editingEnvelopeId={editingEnvelopeId}
+                         setEditingEnvelopeId={setEditingEnvelopeId}
+                         editingAmount={editingAmount}
+                         setEditingAmount={setEditingAmount}
+                         handleBudgetSave={handleBudgetSave}
+                         navigate={navigate}
+                         inputRef={inputRef}
+                         dragConstraints={reorderConstraintsRef}
+                         onDragStart={handleDragStart}
+                         onDragEnd={handleDragEnd}
+                          transactions={transactions}
+                          currentMonth={currentMonth}
+                           enableMoveableReorder={enableMoveableReorder}
+                           setMoveableRef={setMoveableRef}
+                           lastDragEndTime={lastDragEndTime}
+                           isReorderingActive={isReordering}
+                           activelyDraggingId={activelyDraggingId}
+                           onItemDragStart={handleItemDragStart}
+                           onItemDragEnd={handleItemDragEnd}
+                         />
+                       );
+                     })}
+                   </div>
+                 </AnimatePresence>
              ) : (
                <Reorder.Group
                  axis="y"
@@ -1014,10 +1202,14 @@ export const EnvelopeListView: React.FC = () => {
                        onDragEnd={handleDragEnd}
                         transactions={transactions}
                         currentMonth={currentMonth}
-                         enableMoveableReorder={enableMoveableReorder}
-                         setMoveableRef={setMoveableRef}
-                         lastDragEndTime={lastDragEndTime}
-                       />
+                        enableMoveableReorder={enableMoveableReorder}
+                        setMoveableRef={setMoveableRef}
+                        lastDragEndTime={lastDragEndTime}
+                        isReorderingActive={isReordering}
+                        activelyDraggingId={activelyDraggingId}
+                        onItemDragStart={handleItemDragStart}
+                        onItemDragEnd={handleItemDragEnd}
+                      />
                      );
                    })}
                  </Reorder.Group>

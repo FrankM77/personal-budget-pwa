@@ -16,6 +16,31 @@ type SliceParams = {
   isNetworkError: (error: any) => boolean;
 };
 
+const sanitizeEnvelopeForSave = (envelope: Envelope): Envelope => {
+  const sanitized: Envelope = { ...envelope };
+  const sanitizedRecord = sanitized as unknown as Record<string, unknown>;
+
+  (Object.keys(sanitized) as (keyof Envelope)[]).forEach((key) => {
+    const value = sanitized[key];
+    if (value === undefined) {
+      delete sanitizedRecord[key as string];
+    }
+  });
+
+  if (sanitized.piggybankConfig) {
+    const cleanedConfig = { ...sanitized.piggybankConfig };
+    const cleanedConfigRecord = cleanedConfig as unknown as Record<string, unknown>;
+    (Object.keys(cleanedConfig) as (keyof NonNullable<typeof sanitized.piggybankConfig>)[]).forEach((key) => {
+      if (cleanedConfig[key] === undefined) {
+        delete cleanedConfigRecord[key as string];
+      }
+    });
+    sanitized.piggybankConfig = cleanedConfig;
+  }
+
+  return sanitized;
+};
+
 export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError }: SliceParams) => {
   const convertFirebaseTransaction = (firebaseTx: any): Transaction => ({
     id: firebaseTx.id,
@@ -312,18 +337,81 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
       }
     },
 
+    reorderEnvelopes: async (orderedIds: string[]): Promise<void> => {
+      if (!orderedIds.length) {
+        return;
+      }
+
+      const state = get();
+      const orderMap = new Map<string, number>();
+      orderedIds.forEach((id, index) => {
+        orderMap.set(id, index);
+      });
+
+      const previousEnvelopes = state.envelopes;
+
+      const updatedEnvelopes = previousEnvelopes.map((env) => {
+        if (!orderMap.has(env.id)) return env;
+        const nextOrder = orderMap.get(env.id)!;
+        if (env.orderIndex === nextOrder) return env;
+        return {
+          ...env,
+          orderIndex: nextOrder,
+        };
+      });
+
+      const changedEnvelopes = updatedEnvelopes.filter((env, index) => env !== previousEnvelopes[index]);
+
+      if (!changedEnvelopes.length) {
+        return;
+      }
+
+      set({
+        envelopes: updatedEnvelopes,
+        isLoading: true,
+      });
+
+      try {
+        const userId = getCurrentUserId();
+        await Promise.all(
+          changedEnvelopes.map((env) => {
+            const sanitized = sanitizeEnvelopeForSave(env);
+            return EnvelopeService.saveEnvelope(userId, sanitized);
+          })
+        );
+        set({ isLoading: false });
+      } catch (err: any) {
+        console.error('Reorder envelopes failed:', err);
+        if (isNetworkError(err)) {
+          set({
+            isLoading: false,
+            pendingSync: true,
+            error: null,
+          });
+        } else {
+          set({
+            envelopes: previousEnvelopes,
+            isLoading: false,
+            error: err?.message ?? 'Failed to reorder envelopes',
+          });
+          throw err;
+        }
+      }
+    },
+
     updateEnvelope: async (envelope: Envelope): Promise<void> => {
+      const sanitizedEnvelope = sanitizeEnvelopeForSave(envelope);
       // Update local state immediately
       set((state: any) => ({
         envelopes: state.envelopes.map((env: Envelope) =>
-          env.id === envelope.id ? envelope : env
+          env.id === sanitizedEnvelope.id ? sanitizedEnvelope : env
         ),
         isLoading: true
       }));
 
       try {
         const userId = getCurrentUserId();
-        await EnvelopeService.saveEnvelope(userId, envelope);
+        await EnvelopeService.saveEnvelope(userId, sanitizedEnvelope);
         set({ isLoading: false });
       } catch (err: any) {
         console.error('Update Envelope Failed:', err);
