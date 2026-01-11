@@ -78,6 +78,7 @@ const EnvelopeListItem = ({
   const piggyBorder = isPiggybank ? hexToRgba(piggyColor, 0.5) : undefined;
   const [isDragging, setIsDragging] = useState(false);
   const [isLongPressActive, setIsLongPressActive] = useState(false);
+  const [hasDraggedOnThisItem, setHasDraggedOnThisItem] = useState(false);
   const longPressTimeout = useRef<number | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const itemRef = useRef<HTMLLIElement>(null);
@@ -136,9 +137,13 @@ const EnvelopeListItem = ({
     pointerStartRef.current = null;
   };
 
-  const handleNavigate = () => {
-    // Prevent navigation if currently dragging or recently dragged
-    if (isDragging || Date.now() - lastDragEndTime.current < 100) return;
+  const handleNavigate = (e: React.MouseEvent | React.TouchEvent) => {
+    // Prevent navigation if currently dragging, recently dragged, or if this item was dragged
+    if (isDragging || Date.now() - lastDragEndTime.current < 100 || hasDraggedOnThisItem) {
+      e.preventDefault();
+      setHasDraggedOnThisItem(false); // Reset for next interaction
+      return;
+    }
     if (editingEnvelopeId !== env.id) {
       navigate(`/envelope/${env.id}`);
     }
@@ -561,8 +566,6 @@ export const EnvelopeListView: React.FC = () => {
       visibleEnvelopes.forEach((envelope) => {
         const element = moveableRefs.current[envelope.id];
         if (element && !moveableInstances.current[envelope.id]) {
-          let hasDragged = false;
-
           const moveable = new Moveable(document.body, {
             target: element,
             draggable: true,
@@ -572,7 +575,8 @@ export const EnvelopeListView: React.FC = () => {
             warpable: false,
             pinchable: false,
             snappable: false,
-            clickable: true,
+            clickable: false, // Disable Moveable's click handling
+            preventClickEventOnDrag: false,
             elementGuidelines: [],
             hideDefaultLines: true,
             hideChildMoveableDefaultLines: true,
@@ -580,74 +584,72 @@ export const EnvelopeListView: React.FC = () => {
             hideThrottleDragRotateLine: true,
           });
 
-           moveable.on('dragStart', () => {
-             console.log('Moveable dragStart for', envelope.id);
-             // Don't set isReordering yet - wait for actual drag movement
-           });
+          moveable.on('dragStart', () => {
+            console.log('Moveable dragStart for', envelope.id);
+            // Don't set isReordering yet - wait for actual movement
+          });
 
-           moveable.on('drag', (e) => {
-             hasDragged = true;
-             // Only set reordering state when actual drag movement occurs
-             if (!isReordering) {
-               setIsReordering(true);
-             }
-             e.target.style.transform = e.transform;
-             // Add visual feedback during drag
-             (e.target as HTMLElement).style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
-             (e.target as HTMLElement).style.scale = '1.04';
-             (e.target as HTMLElement).style.zIndex = '20';
+          moveable.on('drag', (e) => {
+            // Only set reordering state when there's significant movement
+            const dragDistance = Math.sqrt(e.dist[0] * e.dist[0] + e.dist[1] * e.dist[1]);
+            if (dragDistance > 10 && !isReordering) {
+              setIsReordering(true);
+            }
+            e.target.style.transform = e.transform;
+            // Add visual feedback during drag
+            (e.target as HTMLElement).style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
+            (e.target as HTMLElement).style.scale = '1.04';
+            (e.target as HTMLElement).style.zIndex = '20';
 
-             // Shift other items during drag
-             const yOffset = e.beforeDist[1];
-             const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
-             visibleEnvelopes.forEach((env, index) => {
-               if (env.id === envelope.id) return;
-               const envElement = moveableRefs.current[env.id];
-               if (envElement && Math.abs(index - currentIndex) <= Math.abs(yOffset / 80)) {
-                 const direction = yOffset > 0 ? -1 : 1;
-                 const distance = Math.abs(yOffset) / 80;
-                 const translateY = direction * Math.min(distance, 1) * 80;
-                 envElement.style.transform = `translateY(${translateY}px)`;
-               } else if (envElement) {
-                 envElement.style.transform = '';
-               }
-             });
-           });
-
-            moveable.on('dragEnd', (e) => {
-              console.log('Moveable dragEnd for', envelope.id, e.lastEvent?.dist);
-              lastDragEndTime.current = Date.now();
-              // Reset all transforms
-              Object.values(moveableRefs.current).forEach(element => {
-                if (element) element.style.transform = '';
-              });
-              // Reset visual feedback
-              (e.target as HTMLElement).style.boxShadow = '';
-              (e.target as HTMLElement).style.scale = '';
-              (e.target as HTMLElement).style.zIndex = '';
-              setIsReordering(false);
-
-              // Only perform reordering if there was actual drag movement
-              if (hasDragged) {
-                const dragDistance = e.lastEvent ? e.lastEvent.dist[1] : 0;
-                const itemHeight = (e.target as HTMLElement).offsetHeight + 12; // Including margin
-
-                const positionsMoved = Math.round(dragDistance / itemHeight);
-                const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
-                const newIndex = Math.max(0, Math.min(visibleEnvelopes.length - 1, currentIndex + positionsMoved));
-
-
-                 if (newIndex !== currentIndex) {
-                   const newEnvelopes = [...visibleEnvelopes];
-                   const [removed] = newEnvelopes.splice(currentIndex, 1);
-                   newEnvelopes.splice(newIndex, 0, removed);
-                   setLocalEnvelopes(newEnvelopes);
-                   handleReorder(newEnvelopes);
-                 }
+            // Shift other items during drag
+            const yOffset = e.beforeDist[1];
+            const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
+            visibleEnvelopes.forEach((env, index) => {
+              if (env.id === envelope.id) return;
+              const envElement = moveableRefs.current[env.id];
+              if (envElement && Math.abs(index - currentIndex) <= Math.abs(yOffset / 80)) {
+                const direction = yOffset > 0 ? -1 : 1;
+                const distance = Math.abs(yOffset) / 80;
+                const translateY = direction * Math.min(distance, 1) * 80;
+                envElement.style.transform = `translateY(${translateY}px)`;
+              } else if (envElement) {
+                envElement.style.transform = '';
               }
-              // Reset for next interaction
-              hasDragged = false;
             });
+          });
+
+          moveable.on('dragEnd', (e) => {
+            console.log('Moveable dragEnd for', envelope.id, e.lastEvent?.dist);
+            lastDragEndTime.current = Date.now();
+            // Reset all transforms
+            Object.values(moveableRefs.current).forEach(element => {
+              if (element) element.style.transform = '';
+            });
+            // Reset visual feedback
+            (e.target as HTMLElement).style.boxShadow = '';
+            (e.target as HTMLElement).style.scale = '';
+            (e.target as HTMLElement).style.zIndex = '';
+            const wasReordering = isReordering;
+            setIsReordering(false);
+
+            // Only perform reordering if there was actual drag movement
+            if (wasReordering) {
+              const dragDistance = e.lastEvent ? e.lastEvent.dist[1] : 0;
+              const itemHeight = (e.target as HTMLElement).offsetHeight + 12; // Including margin
+
+              const positionsMoved = Math.round(dragDistance / itemHeight);
+              const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
+              const newIndex = Math.max(0, Math.min(visibleEnvelopes.length - 1, currentIndex + positionsMoved));
+
+              if (newIndex !== currentIndex) {
+                const newEnvelopes = [...visibleEnvelopes];
+                const [removed] = newEnvelopes.splice(currentIndex, 1);
+                newEnvelopes.splice(newIndex, 0, removed);
+                setLocalEnvelopes(newEnvelopes);
+                handleReorder(newEnvelopes);
+              }
+            }
+          });
 
           moveableInstances.current[envelope.id] = moveable;
         }
