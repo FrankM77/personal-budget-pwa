@@ -44,8 +44,11 @@
 │   ├── icon-512.png
 │   └── vite.svg
 ├── MD Files/
+│   ├── moveable_reorder_migration.md
+│   ├── Personal-Budget-PWA-Vision.md
 │   ├── Project-Summary-2025-12-19.md
-│   └── [Previous summaries...]
+│   ├── Project-Summary-2025-12-20-2026-01-11.md
+│   └── [Previous project files...]
 └── src/
     ├── App.css
     ├── App.tsx
@@ -56,6 +59,7 @@
     ├── components/           # Reusable UI Widgets
     │   ├── modals/
     │   │   ├── DistributeFundsModal.tsx
+    │   │   ├── PiggybankModal.tsx
     │   │   ├── TransactionModal.tsx
     │   │   └── TransferModal.tsx
     │   ├── ui/
@@ -63,6 +67,8 @@
     │   │   ├── Toast.tsx
     │   │   └── UserMenu.tsx
     │   └── EnvelopeTransactionRow.tsx
+    ├── hooks/                # Custom React Hooks
+    │   └── usePasswordValidation.ts
     ├── models/               # TypeScript Definitions
     │   └── types.ts
     ├── stores/               # State Management (Zustand - Recently Refactored)
@@ -75,6 +81,7 @@
     │   ├── envelopeStoreTemplates.ts     # Distribution template operations
     │   ├── envelopeStoreTransactions.ts  # Transaction CRUD operations
     │   ├── authStore.ts
+    │   ├── monthlyBudgetStore.ts         # Zero-based budgeting
     │   ├── themeStore.ts
     │   └── toastStore.ts
     ├── utils/                # Helpers
@@ -82,6 +89,7 @@
     └── views/                # Full-Page Screens
         ├── AddEnvelopeView.tsx
         ├── AddTransactionView.tsx
+        ├── EmailVerificationView.tsx
         ├── EnvelopeDetail.tsx
         ├── EnvelopeListView.tsx
         ├── LoginView.tsx
@@ -219,8 +227,59 @@ Successfully broke down the monolithic `src/stores/envelopeStore.ts` Zustand sto
 - **Network Status Tracking**: Online/offline indicators and connectivity awareness.
 - **Automatic Sync**: Firestore's offline persistence handles all CRUD operations.
 - **Cross-Device Sync**: Data automatically synchronizes across all user devices.
-- **3-Way Theme Switching**: Light/Dark/System with Firebase persistence.
-- **Distribution Template Sync**: Budget templates share across devices.
+### Piggybank Feature Implementation (2025-12-20)
+
+**🏦 Piggybank Architecture:**
+Piggybanks are special envelopes that persist across months with auto-contributions, designed for long-term savings goals.
+
+**Core Concept:**
+- **Persist across months** (unlike regular envelopes that reset)
+- **Accumulate balance** month-over-month  
+- **Have target goals** with progress tracking
+- **Auto-contribute** each month (configurable amount)
+
+**Data Model:**
+```typescript
+export interface Envelope {
+  // ... existing fields
+  isPiggybank?: boolean;
+  piggybankConfig?: {
+    targetAmount?: number;
+    monthlyContribution: number;
+    color?: string;
+    icon?: string;
+  };
+}
+```
+
+**Implementation Strategy - Option 1: Piggybanks as Special Envelopes**
+This leverages existing envelope infrastructure with minimal new code required.
+
+**Phase 1: Core Piggybank Infrastructure ✅ COMPLETED**
+1. ✅ Extend `Envelope` interface with piggybank fields
+2. ✅ Update `EnvelopeService` to handle piggybank-specific fields  
+3. ✅ Create `PiggybankModal` component for creation/editing
+4. ✅ Modify balance calculations to support cumulative balances
+
+**Phase 2: Auto-Contribution System ✅ COMPLETED**
+1. ✅ Add `isAutomatic` flag to `Transaction` type
+2. ✅ Create `processMonthlyPiggybankContributions()` function
+3. ✅ Hook into month creation/copy workflow
+4. ✅ Add UI to modify monthly contribution amounts
+
+**Phase 3: UI Polish ✅ COMPLETED**
+1. ✅ Group piggybanks separately in `EnvelopeListView`
+2. ✅ Add progress bars for goal tracking
+3. ✅ Create piggybank-specific icons/colors
+4. ✅ Show milestone celebrations (50%, 75%, 100% of goal)
+
+**Key Benefits:**
+- ✅ Reuses existing envelope CRUD operations
+- ✅ Transactions already work with envelopes
+- ✅ Minimal new code required
+- ✅ Piggybanks appear in envelope list (can be filtered/grouped)
+- ✅ Offline support already built-in
+- ✅ Seamless integration with zero-based budgeting workflow
 
 ## 5. Critical Bug Fixes & Resolutions (Completed)
 

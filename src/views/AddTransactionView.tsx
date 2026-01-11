@@ -9,6 +9,7 @@ export const AddTransactionView: React.FC = () => {
 
   // Form state
   const [amount, setAmount] = useState('');
+  const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
@@ -40,6 +41,7 @@ export const AddTransactionView: React.FC = () => {
         await addTransaction({
           amount: splitAmount,
           description: note,
+          merchant: merchant || undefined,
           date: transactionDate.toISOString(),
           envelopeId,
           type: transactionType === 'income' ? 'Income' : 'Expense',
@@ -144,6 +146,18 @@ export const AddTransactionView: React.FC = () => {
                 className={`bg-transparent text-4xl font-bold text-center w-40 focus:outline-none ${amountColor} placeholder-gray-700`}
               />
             </div>
+          </div>
+
+          {/* Merchant Input */}
+          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
+            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Merchant</label>
+            <input
+              type="text"
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+              placeholder="Where did you make this transaction?"
+              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+            />
           </div>
 
           {/* Note Input */}

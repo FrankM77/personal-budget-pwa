@@ -12,6 +12,7 @@ export interface Transaction {
   date: string; // ISO String (e.g., "2024-01-01T12:00:00Z")
   amount: number;
   description: string;
+  merchant?: string; // Merchant or vendor name
   envelopeId: string;
   reconciled: boolean;
   type: TransactionType;

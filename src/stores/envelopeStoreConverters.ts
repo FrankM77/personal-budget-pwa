@@ -5,11 +5,14 @@ export const convertFirebaseTransaction = (firebaseTx: any): Transaction => ({
   date: firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : firebaseTx.date,
   amount: parseFloat(firebaseTx.amount) || 0,
   description: firebaseTx.description || '',
+  merchant: firebaseTx.merchant || undefined,
   envelopeId: firebaseTx.envelopeId || '',
   reconciled: firebaseTx.reconciled || false,
   type: firebaseTx.type === 'income' ? 'Income' : firebaseTx.type === 'expense' ? 'Expense' : 'Transfer',
   transferId: firebaseTx.transferId || undefined,
-  userId: firebaseTx.userId || undefined
+  userId: firebaseTx.userId || undefined,
+  isAutomatic: firebaseTx.isAutomatic || false,
+  month: firebaseTx.month || undefined
 });
 
 export const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({

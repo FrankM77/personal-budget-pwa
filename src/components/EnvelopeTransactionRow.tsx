@@ -90,10 +90,10 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
       className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 active:bg-gray-50 dark:active:bg-zinc-800 transition-colors cursor-pointer group border-b border-gray-100 dark:border-zinc-800 last:border-0"
     >
       <div className="flex flex-col gap-1 overflow-hidden">
-        {/* Description & Reconciled Badge */}
+        {/* Main Title: Merchant (preferred) or Description */}
         <div className="flex items-center gap-2">
             <span className="font-medium text-gray-900 dark:text-white truncate">
-                {transaction.description || "No Description"}
+                {transaction.merchant || transaction.description || "No Description"}
             </span>
             {transaction.reconciled && (
                 <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">
@@ -102,9 +102,16 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
             )}
         </div>
 
+        {/* Note (show if merchant exists and description exists and they're different) */}
+        {transaction.merchant && transaction.description && transaction.description !== transaction.merchant && (
+          <div className="text-xs text-gray-600 dark:text-zinc-400 truncate">
+            {transaction.description}
+          </div>
+        )}
+
         {/* Date & Envelope Name */}
         <div className="text-xs text-gray-500 dark:text-zinc-500 flex items-center gap-1">
-            {/* ✅ CALLING SAFE FORMATTER */}
+            {/* CALLING SAFE FORMATTER */}
             <span>{formatDateSafe(transaction.date)}</span>
             {envelopeName && (
                 <>

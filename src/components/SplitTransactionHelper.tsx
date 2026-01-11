@@ -65,7 +65,7 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
 
   return (
     <div className="space-y-3">
-      {selectedEnvelopes.length > 0 && (
+      {selectedEnvelopes.length > 1 && (
         <div className={`p-3 rounded-lg ${
           hasError 
             ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' 

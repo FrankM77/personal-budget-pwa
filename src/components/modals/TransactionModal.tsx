@@ -15,6 +15,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const { addTransaction, updateTransaction, deleteTransaction } = useEnvelopeStore();
   
   const [amount, setAmount] = useState('');
+  const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD for input
 
@@ -25,6 +26,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
     const timeoutId = window.setTimeout(() => {
       if (mode === 'edit' && initialTransaction) {
         setAmount(initialTransaction.amount.toString()); // Convert number to string
+        setMerchant(initialTransaction.merchant || '');
         setNote(initialTransaction.description);
         try {
           const d = new Date(initialTransaction.date);
@@ -40,6 +42,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         }
       } else {
         setAmount('');
+        setMerchant('');
         setNote('');
         setDate(new Date().toISOString().split('T')[0]);
       }
@@ -67,6 +70,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         await addTransaction({
           amount: numAmount,
           description: note,
+          merchant: merchant || undefined,
           date: new Date(date).toISOString(),
           envelopeId: currentEnvelope.id!,
           type: 'Income',
@@ -77,6 +81,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         await addTransaction({
           amount: numAmount,
           description: note,
+          merchant: merchant || undefined,
           date: new Date(date).toISOString(),
           envelopeId: currentEnvelope.id!,
           type: 'Expense',
@@ -88,6 +93,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           ...initialTransaction,
           amount: numAmount,
           description: note,
+          merchant: merchant || undefined,
           date: new Date(date).toISOString(),
         });
       }
@@ -160,11 +166,23 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
             </div>
           </div>
 
+          {/* Merchant Input */}
+          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
+            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Merchant</label>
+            <input
+              type="text"
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+              placeholder="Where did you make this transaction?"
+              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+            />
+          </div>
+
           {/* Note Input */}
           <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
             <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Note</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="What is this for?"

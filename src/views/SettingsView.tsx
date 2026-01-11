@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, RefreshCw, Loader, X, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, X, AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useAuthStore } from '../stores/authStore';
 import packageJson from '../../package.json';
@@ -8,23 +8,20 @@ import packageJson from '../../package.json';
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings, cleanupOrphanedTemplates } = useEnvelopeStore();
+  const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings } = useEnvelopeStore();
   const { currentUser, deleteAccount } = useAuthStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
   });
-  const [isCleaningTemplates, setIsCleaningTemplates] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isUpdatingMoveable, setIsUpdatingMoveable] = useState(false);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 
   // Use appSettings theme, fallback to system
   const currentTheme = appSettings?.theme ?? 'system';
-  const moveableEnabled = appSettings?.enableMoveableReorder ?? false;
 
   // Initialize app settings if they don't exist
   useEffect(() => {
@@ -212,20 +209,6 @@ export const SettingsView: React.FC = () => {
     event.target.value = '';
   };
 
-  const handleCleanupTemplates = async () => {
-    setIsCleaningTemplates(true);
-    try {
-      showStatus('success', 'Scanning templates for orphaned references...');
-      await cleanupOrphanedTemplates();
-      showStatus('success', 'Orphaned templates have been cleaned up successfully.');
-    } catch (error) {
-      console.error('Template cleanup failed:', error);
-      showStatus('error', 'Failed to clean up orphaned templates. Check console for details.');
-    } finally {
-      setIsCleaningTemplates(false);
-    }
-  };
-
   const handleReset = async () => {
     if (
       window.confirm(
@@ -269,27 +252,6 @@ export const SettingsView: React.FC = () => {
       setIsDeletingAccount(false);
       setShowDeleteDialog(false);
       setDeletePassword('');
-    }
-  };
-
-  const handleToggleMoveable = async () => {
-    if (!appSettings) {
-      showStatus('error', 'Settings are still loading. Try again in a moment.');
-      return;
-    }
-
-    setIsUpdatingMoveable(true);
-    try {
-      await updateAppSettings({ enableMoveableReorder: !moveableEnabled });
-      showStatus(
-        'success',
-        `Moveable reordering ${!moveableEnabled ? 'enabled' : 'disabled'}.`
-      );
-    } catch (error) {
-      console.error('Failed to toggle Moveable reorder flag:', error);
-      showStatus('error', 'Could not update Moveable reorder setting.');
-    } finally {
-      setIsUpdatingMoveable(false);
     }
   };
 
@@ -347,41 +309,6 @@ export const SettingsView: React.FC = () => {
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-zinc-500">Data Last Modified</p>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{dataSummary.lastUpdated}</p>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Experiments */}
-        <section>
-          <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Experiments</h2>
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-900 dark:text-white font-medium">Moveable Reordering</p>
-                <p className="text-xs text-gray-500 dark:text-zinc-400">
-                  Try the new physics-like drag experience powered by Moveable.
-                </p>
-              </div>
-              <button
-                onClick={handleToggleMoveable}
-                disabled={isUpdatingMoveable}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                  moveableEnabled
-                    ? 'bg-blue-500'
-                    : 'bg-gray-300 dark:bg-zinc-700'
-                } ${isUpdatingMoveable ? 'opacity-70 cursor-wait' : ''}`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    moveableEnabled ? 'translate-x-5' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-zinc-500">
-              {moveableEnabled
-                ? 'Enabled — envelope list will use Moveable for drag & drop (beta).'
-                : 'Disabled — using the legacy Framer Motion reordering.'}
             </div>
           </div>
         </section>
@@ -468,32 +395,6 @@ export const SettingsView: React.FC = () => {
                 <span className="text-gray-900 dark:text-white font-medium">Export Transactions (CSV)</span>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
-            </button>
-
-            <button
-              onClick={handleCleanupTemplates}
-              disabled={isCleaningTemplates}
-              className={`w-full p-4 flex items-center justify-between transition-colors ${
-                isCleaningTemplates
-                  ? 'bg-gray-50 dark:bg-zinc-800/50 cursor-not-allowed'
-                  : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {isCleaningTemplates ? (
-                  <Loader className="text-blue-500 animate-spin" size={20} />
-                ) : (
-                  <RefreshCw className="text-blue-500" size={20} />
-                )}
-                <span className={`font-medium ${isCleaningTemplates ? 'text-gray-500 dark:text-zinc-400' : 'text-gray-900 dark:text-white'}`}>
-                  {isCleaningTemplates ? 'Cleaning Templates...' : 'Clean Up Orphaned Templates'}
-                </span>
-              </div>
-              {isCleaningTemplates ? (
-                <div className="text-gray-400 text-sm">Working...</div>
-              ) : (
-                <ChevronRight className="text-gray-400" size={18} />
-              )}
             </button>
 
             <input

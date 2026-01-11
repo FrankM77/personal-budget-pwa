@@ -49,14 +49,18 @@ We will layer Moveable *per envelope row*, dispatching final positions back into
 2. Introduced a ref map + Moveable-per-row setup that constrains transforms to the Y-axis and uses snap-to-row math derived from row height + gap.
 3. Implemented visual offset handling so non-dragged rows slide smoothly using CSS transforms while the dragged row stays under Moveable control.
 4. Reordered data only after drag end, preventing flicker and ensuring store persistence stays in sync with UI order.
-5. Hooked Moveable’s native click handler to preserve tap-to-open behavior while still preventing accidental navigation right after a drag.
+5. Hooked Moveable's native click handler to preserve tap-to-open behavior while still preventing accidental navigation right after a drag.
 
-All previously logged bugs (conflicting drag handlers, snap-back, stuck animations, and lost navigation) are resolved. A feature toggle UI still needs to be exposed in Settings before we can ship broadly.
+All previously logged bugs (conflicting drag handlers, snap-back, stuck animations, and lost navigation) are resolved.
 
-### Phase 2 – Polish & Replace Legacy Path (Blocked until Phase 1 ships)
-1. Ensure keyboard accessibility by providing fallback reorder buttons (up/down arrows) per card.
-2. Add analytics/telemetry to compare drag success rate between Framer vs Moveable.
-3. If metrics look good, flip the feature flag default to Moveable and delete the old Framer Motion branch.
+**Phase 1 Cleanup (Jan 11, 2026)**
+1. Removed the Moveable reorder toggle from Settings page - Moveable is now the default.
+2. Removed the 'clean up orphaned templates' action from Settings page as templates are no longer used.
+3. Removed all feature flag logic from EnvelopeListView - deleted Framer Motion Reorder code path.
+4. Cleaned up unused parameters and functions from the codebase.
+
+### Phase 2 – Polish & Accessibility ✅ COMPLETED
+1. ✅ Added keyboard accessibility with up/down arrow buttons on each envelope card for users who prefer button-based reordering.
 
 ## Technical Considerations
 - **Performance**: Moveable manipulates transforms without forcing React renders, but we must avoid re-rendering the entire list on every `onDrag` tick. Keep derived positions in refs or a lightweight store slice.
@@ -66,22 +70,24 @@ All previously logged bugs (conflicting drag handlers, snap-back, stuck animatio
 
 ## Implementation Status
 - [x] **Phase 0 Sandbox**: Playground validates Moveable APIs
-- [ ] **Feature Flag Toggle**: Add `enableMoveableReorder` control to Settings and persist via `updateAppSettings`
-- [x] **Moveable-Only Drag Path**: Disable Framer `Reorder` when Moveable flag is on; remove long-press timers
-- [x] **Snap-to-row Logic**: Ensure drag math snaps consistently across desktop + mobile
-- [x] **State Reconciliation**: Batch order persistence and keep `localEnvelopes` in sync without flicker
-- [x] **Visual Feedback**: Keep matrix transforms/shadows confined to Moveable path
-- [x] **Touch Support**: Confirm native pointer handling (no hacks) after above fixes
+- [x] **Moveable-Only Drag Path**: Framer Motion Reorder code removed - Moveable is now the default
+- [x] **Snap-to-row Logic**: Drag math snaps consistently across desktop + mobile
+- [x] **State Reconciliation**: Order persistence batched and `localEnvelopes` stays in sync without flicker
+- [x] **Visual Feedback**: Matrix transforms/shadows working smoothly
+- [x] **Touch Support**: Native pointer handling confirmed (no hacks needed)
+- [x] **Keyboard Accessibility**: Up/down arrow buttons added to each envelope card
+- [x] **Feature Flag Removed**: Moveable is now the default and only reordering method
 
 ## Resolved Decisions
-1. **Framer Motion**: Keeping both implementations - users can toggle between them via feature flag
+1. **Framer Motion**: Removed - Moveable is now the default and only reordering method
 2. **Multi-select**: Not needed for current use case - single envelope reordering is sufficient
 3. **Partial States**: Not persisting - drag operations are atomic (complete or cancel)
+4. **Keyboard Accessibility**: Implemented via up/down arrow buttons on each card
 
-## Next Steps
-1. **User Testing**: Enable the feature flag and gather feedback on drag smoothness vs Framer Motion
-2. **Performance Tuning**: Optimize Moveable instances and memory usage
-3. **Phase 2**: Add keyboard accessibility and telemetry, then potentially make Moveable the default
+## Future Enhancements (Optional)
+1. **Performance Tuning**: Monitor Moveable instances and memory usage in production
+2. **Analytics**: Track reordering usage patterns to inform future UX improvements
+3. **Animations**: Consider adding more sophisticated spring animations for button-based reordering
 
 ---
-**Status**: Phase 0 & 1 ✅ COMPLETED - Moveable reordering is implemented and functional behind a feature flag. The implementation provides buttery-smooth drag interactions with native touch support and preserves all existing functionality.
+**Status**: Phase 0, 1, & 2 ✅ COMPLETED - Moveable reordering is now the default reordering method. The implementation provides buttery-smooth drag interactions with native touch support, keyboard accessibility via arrow buttons, and preserves all existing functionality. Feature flag and legacy Framer Motion code have been removed.

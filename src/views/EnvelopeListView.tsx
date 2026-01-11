@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank } from 'lucide-react';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
+import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
@@ -44,18 +44,16 @@ const EnvelopeListItem = ({
   handleBudgetSave,
   navigate,
   inputRef,
-  dragConstraints,
-  onDragStart,
-  onDragEnd,
   transactions,
   currentMonth,
-  enableMoveableReorder,
   setMoveableRef,
-  lastDragEndTime,
   isReorderingActive,
   activelyDraggingId,
   onItemDragStart,
-  onItemDragEnd
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast
   }: {
   env: any,
   budgetedAmount: number,
@@ -67,33 +65,24 @@ const EnvelopeListItem = ({
   handleBudgetSave: () => void,
   navigate: (path: string) => void,
   inputRef: React.RefObject<HTMLInputElement | null>,
-  dragConstraints: React.RefObject<HTMLElement | null>,
-  onDragStart: () => void,
-  onDragEnd: () => void,
   transactions: any[],
   currentMonth: string,
-  enableMoveableReorder: boolean,
   setMoveableRef: (envelopeId: string) => (el: HTMLDivElement | null) => void,
-  lastDragEndTime: React.MutableRefObject<number>,
   isReorderingActive: boolean,
   activelyDraggingId: string | null,
   onItemDragStart: (id: string) => void,
-  onItemDragEnd: (id: string) => void,
+  onMoveUp: () => void,
+  onMoveDown: () => void,
+  isFirst: boolean,
+  isLast: boolean,
 
 }) => {
-  const controls = useDragControls();
   const isPiggybank = Boolean(env.isPiggybank);
   const piggyColor = env.piggybankConfig?.color || '#3B82F6';
   const piggyBackground = isPiggybank
     ? `linear-gradient(135deg, ${hexToRgba(piggyColor, 0.18)} 0%, ${hexToRgba(piggyColor, 0.08)} 100%)`
     : undefined;
   const piggyBorder = isPiggybank ? hexToRgba(piggyColor, 0.5) : undefined;
-  const [isDragging, setIsDragging] = useState(false);
-  const [isLongPressActive, setIsLongPressActive] = useState(false);
-  const [hasDraggedOnThisItem, setHasDraggedOnThisItem] = useState(false);
-  const longPressTimeout = useRef<number | null>(null);
-  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
-  const itemRef = useRef<HTMLLIElement>(null);
   const moveableItemRef = useRef<HTMLDivElement>(null);
   const [didDragThisItem, setDidDragThisItem] = useState(false);
 
@@ -107,71 +96,7 @@ const EnvelopeListItem = ({
   const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   const percentage = Math.max(0, (totalSpent / totalIncome) * 100);
 
-  const clearLongPressTimeout = () => {
-    if (longPressTimeout.current !== null) {
-      clearTimeout(longPressTimeout.current);
-      longPressTimeout.current = null;
-    }
-  };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (enableMoveableReorder) return;
-    // Only respond to primary mouse button or touch
-    if (e.button !== 0 && e.pointerType !== 'touch') return;
-
-    pointerStartRef.current = { x: e.clientX, y: e.clientY };
-
-    clearLongPressTimeout();
-    longPressTimeout.current = window.setTimeout(() => {
-      // Start drag after a short long-press delay
-      setIsLongPressActive(true);
-      controls.start(e);
-    }, 220);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (enableMoveableReorder) return;
-    if (!pointerStartRef.current || longPressTimeout.current === null) return;
-
-    const dx = e.clientX - pointerStartRef.current.x;
-    const dy = e.clientY - pointerStartRef.current.y;
-    if (Math.hypot(dx, dy) > 8) {
-      // User is scrolling or moving too much before long-press activates
-      clearLongPressTimeout();
-    }
-  };
-
-  const handlePointerUp = () => {
-    if (enableMoveableReorder) return;
-    clearLongPressTimeout();
-    setIsLongPressActive(false);
-    pointerStartRef.current = null;
-  };
-
-  const handlePointerCancel = () => {
-    if (enableMoveableReorder) return;
-    clearLongPressTimeout();
-    setIsLongPressActive(false);
-    pointerStartRef.current = null;
-  };
-
-  const handleNavigate = (e: React.MouseEvent | React.TouchEvent) => {
-    // Prevent navigation if currently dragging, recently dragged, or if this item was dragged
-    const shouldBlockNavigation =
-      (enableMoveableReorder && isReorderingActive) ||
-      isDragging ||
-      Date.now() - lastDragEndTime.current < 200 ||
-      hasDraggedOnThisItem;
-
-    if (shouldBlockNavigation) {
-      e.preventDefault();
-      setHasDraggedOnThisItem(false); // Reset for next interaction
-      return;
-    }
-    if (editingEnvelopeId !== env.id) {
-      navigate(`/envelope/${env.id}`);
-    }
-  };
 
   const handleMoveableClick = (e: React.MouseEvent | React.TouchEvent) => {
     // Don't navigate if we just dragged this item or if currently reordering
@@ -215,32 +140,45 @@ const EnvelopeListItem = ({
     }
   }, [activelyDraggingId, didDragThisItem]);
 
-  // Prevent scroll on touch devices when dragging
-  useEffect(() => {
-    if (enableMoveableReorder) return;
-    const element = itemRef.current;
-    if (!element) return;
-
-    const preventScroll = (e: TouchEvent) => {
-      if (isDragging || isLongPressActive) {
-        e.preventDefault();
-      }
-    };
-
-    element.addEventListener('touchmove', preventScroll, { passive: false });
-
-    return () => {
-      element.removeEventListener('touchmove', preventScroll);
-    };
-  }, [isDragging, isLongPressActive]);
-
   const content = (
-    <div className="flex items-center gap-3 w-full">
+    <div className="flex items-center gap-2 w-full">
+      {/* Reorder Buttons */}
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveUp();
+          }}
+          disabled={isFirst}
+          className={`p-1 rounded transition-colors ${
+            isFirst
+              ? 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'
+              : 'text-gray-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+          }`}
+          title="Move up"
+          aria-label="Move envelope up"
+        >
+          <ChevronUp size={18} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveDown();
+          }}
+          disabled={isLast}
+          className={`p-1 rounded transition-colors ${
+            isLast
+              ? 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'
+              : 'text-gray-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+          }`}
+          title="Move down"
+          aria-label="Move envelope down"
+        >
+          <ChevronDown size={18} />
+        </button>
+      </div>
       {/* Content Wrapper */}
-      <div
-        className="flex-1"
-        onClick={handleNavigate}
-      >
+      <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
           {isPiggybank && (
             <span
@@ -354,84 +292,38 @@ const EnvelopeListItem = ({
     </div>
   );
 
-  if (enableMoveableReorder) {
-    const isBeingDragged = activelyDraggingId === env.id;
-    
-    return (
-      <motion.div
-        layout={!isBeingDragged}
-        transition={{
-          layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
-        }}
-        ref={(el) => {
-          setMoveableRef(env.id)(el);
-          moveableItemRef.current = el;
-        }}
-        onClick={handleMoveableClick}
-        style={{
-          boxShadow: '0 1px 2px rgba(15,23,42,0.08)',
-          touchAction: 'none',
-          background: piggyBackground,
-          borderColor: piggyBorder,
-          cursor: 'pointer'
-        }}
-        className={`p-4 rounded-xl active:scale-[0.99] transition-all select-none border ${
-          isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
-        }`}
-      >
-        {content}
-      </motion.div>
-    );
-  }
-
+  const isBeingDragged = activelyDraggingId === env.id;
+  
   return (
-    <Reorder.Item
-      ref={itemRef}
-      value={env}
-      dragListener={false}
-      dragControls={controls}
-      dragConstraints={dragConstraints}
-      dragElastic={0.16}
-      dragMomentum={false}
-      onDragStart={() => {
-        setIsDragging(true);
-        onDragStart();
+    <motion.div
+      layout={!isBeingDragged}
+      transition={{
+        layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
       }}
-      onDragEnd={() => {
-        setIsDragging(false);
-        setIsLongPressActive(false);
-        onDragEnd();
+      ref={(el) => {
+        setMoveableRef(env.id)(el);
+        moveableItemRef.current = el;
       }}
-      transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.7 }}
-      whileDrag={{ scale: 1.04, zIndex: 20 }}
-      layout
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerMove={handlePointerMove}
-      onPointerCancel={handlePointerCancel}
+      onClick={handleMoveableClick}
       style={{
-        boxShadow: isDragging
-          ? '0 18px 45px rgba(15,23,42,0.35)'
-          : '0 1px 2px rgba(15,23,42,0.08)',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.08)',
         touchAction: 'none',
         background: piggyBackground,
-        borderColor: piggyBorder
+        borderColor: piggyBorder,
+        cursor: 'pointer'
       }}
-      className={`p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none border ${
+      className={`p-4 rounded-xl active:scale-[0.99] transition-all select-none border ${
         isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
       }`}
     >
       {content}
-    </Reorder.Item>
+    </motion.div>
   );
 };
 
 export const EnvelopeListView: React.FC = () => {
   // Envelope store (for envelopes and transactions)
-  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity, appSettings, reorderEnvelopes } = useEnvelopeStore();
-
-  // Feature flag for Moveable reordering
-  const enableMoveableReorder = appSettings?.enableMoveableReorder ?? false;
+  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity, reorderEnvelopes } = useEnvelopeStore();
 
   // Callback ref for Moveable elements
   const setMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
@@ -618,11 +510,6 @@ export const EnvelopeListView: React.FC = () => {
     }
   }, [envelopes, envelopeAllocations, isReordering]);
 
-  const handleReorderUpdate = (newOrder: typeof envelopes) => {
-    setLocalEnvelopes(newOrder);
-    localOrderRef.current = newOrder;
-  };
-
   const handleDragStart = useCallback(() => setIsReordering(true), []);
 
   const handleDragEnd = useCallback(() => {
@@ -636,10 +523,6 @@ export const EnvelopeListView: React.FC = () => {
     // Item-specific drag start handler (currently just for tracking)
   }, []);
 
-  const handleItemDragEnd = useCallback((_id: string) => {
-    // Item-specific drag end handler (currently just for tracking)
-  }, []);
-
   const handleEnvelopeClick = useCallback((envelopeId: string) => {
     if (editingEnvelopeId !== envelopeId) {
       navigate(`/envelope/${envelopeId}`);
@@ -648,17 +531,12 @@ export const EnvelopeListView: React.FC = () => {
 
   const visibleEnvelopes = localEnvelopes;
 
-  // Initialize Moveable instances when feature flag is enabled
+  // Initialize Moveable instances
   useEffect(() => {
     const destroyMoveables = () => {
       Object.values(moveableInstances.current).forEach(instance => instance?.destroy());
       moveableInstances.current = {};
     };
-
-    if (!enableMoveableReorder) {
-      destroyMoveables();
-      return;
-    }
 
     if (!visibleEnvelopes.length) {
       return;
@@ -848,7 +726,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [enableMoveableReorder, visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick]);
+  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick]);
 
 
 
@@ -1133,56 +1011,30 @@ export const EnvelopeListView: React.FC = () => {
           </div>
          ) : (
            <div ref={reorderConstraintsRef}>
-             {enableMoveableReorder ? (
-               <AnimatePresence initial={false}>
-                 <div className="space-y-3">
-                   {visibleEnvelopes.map((env) => {
-                     const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
-                     const budgetedAmount = allocation?.budgetedAmount || 0;
-                     const remainingBalance = getEnvelopeBalance(env.id);
-
-                     return (
-                       <EnvelopeListItem
-                         key={env.id}
-                         env={env}
-                         budgetedAmount={budgetedAmount}
-                         remainingBalance={remainingBalance}
-                         editingEnvelopeId={editingEnvelopeId}
-                         setEditingEnvelopeId={setEditingEnvelopeId}
-                         editingAmount={editingAmount}
-                         setEditingAmount={setEditingAmount}
-                         handleBudgetSave={handleBudgetSave}
-                         navigate={navigate}
-                         inputRef={inputRef}
-                         dragConstraints={reorderConstraintsRef}
-                         onDragStart={handleDragStart}
-                         onDragEnd={handleDragEnd}
-                          transactions={transactions}
-                          currentMonth={currentMonth}
-                           enableMoveableReorder={enableMoveableReorder}
-                           setMoveableRef={setMoveableRef}
-                           lastDragEndTime={lastDragEndTime}
-                           isReorderingActive={isReordering}
-                           activelyDraggingId={activelyDraggingId}
-                           onItemDragStart={handleItemDragStart}
-                           onItemDragEnd={handleItemDragEnd}
-                         />
-                       );
-                     })}
-                   </div>
-                 </AnimatePresence>
-             ) : (
-               <Reorder.Group
-                 axis="y"
-                 values={localEnvelopes}
-                 onReorder={handleReorderUpdate}
-                 className="space-y-3"
-                 layoutScroll
-               >
-                 {visibleEnvelopes.map((env) => {
+             <AnimatePresence initial={false}>
+               <div className="space-y-3">
+                 {visibleEnvelopes.map((env, index) => {
                    const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
                    const budgetedAmount = allocation?.budgetedAmount || 0;
                    const remainingBalance = getEnvelopeBalance(env.id);
+
+                   const handleMoveUp = () => {
+                     if (index === 0) return;
+                     const newOrder = [...localOrderRef.current];
+                     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                     localOrderRef.current = newOrder;
+                     setLocalEnvelopes(newOrder);
+                     persistReorder(newOrder);
+                   };
+
+                   const handleMoveDown = () => {
+                     if (index === visibleEnvelopes.length - 1) return;
+                     const newOrder = [...localOrderRef.current];
+                     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                     localOrderRef.current = newOrder;
+                     setLocalEnvelopes(newOrder);
+                     persistReorder(newOrder);
+                   };
 
                    return (
                      <EnvelopeListItem
@@ -1197,23 +1049,21 @@ export const EnvelopeListView: React.FC = () => {
                        handleBudgetSave={handleBudgetSave}
                        navigate={navigate}
                        inputRef={inputRef}
-                       dragConstraints={reorderConstraintsRef}
-                       onDragStart={handleDragStart}
-                       onDragEnd={handleDragEnd}
-                        transactions={transactions}
-                        currentMonth={currentMonth}
-                        enableMoveableReorder={enableMoveableReorder}
-                        setMoveableRef={setMoveableRef}
-                        lastDragEndTime={lastDragEndTime}
-                        isReorderingActive={isReordering}
-                        activelyDraggingId={activelyDraggingId}
-                        onItemDragStart={handleItemDragStart}
-                        onItemDragEnd={handleItemDragEnd}
-                      />
-                     );
-                   })}
-                 </Reorder.Group>
-             )}
+                       transactions={transactions}
+                       currentMonth={currentMonth}
+                       setMoveableRef={setMoveableRef}
+                       isReorderingActive={isReordering}
+                       activelyDraggingId={activelyDraggingId}
+                       onItemDragStart={handleItemDragStart}
+                       onMoveUp={handleMoveUp}
+                       onMoveDown={handleMoveDown}
+                       isFirst={index === 0}
+                       isLast={index === visibleEnvelopes.length - 1}
+                     />
+                   );
+                 })}
+               </div>
+             </AnimatePresence>
            </div>
          )}
       </section>

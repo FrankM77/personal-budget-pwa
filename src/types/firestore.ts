@@ -15,6 +15,7 @@ export interface FirestoreTransaction {
   amount: string;
   date: Timestamp;
   description: string;
+  merchant?: string;
   reconciled: boolean;
   type: FirestoreTransactionType;
   transferId?: string | null;
