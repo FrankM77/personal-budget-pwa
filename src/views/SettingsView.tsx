@@ -20,7 +20,7 @@ export const SettingsView: React.FC = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isExportingCSV, setIsExportingCSV] = useState(false);
-  const [exportResult, setExportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 
@@ -115,16 +115,20 @@ export const SettingsView: React.FC = () => {
       localStorage.setItem('lastBackupDate', now);
       setLastBackupDate(now);
 
-      showStatus('success', 'Backup downloaded successfully.');
+      setOperationResult({ success: true, message: 'Backup downloaded successfully.' });
     } catch (error) {
       console.error(error);
-      showStatus('error', 'Failed to create backup file.');
+      setOperationResult({ 
+        success: false, 
+        message: 'Failed to create backup file.',
+        onRetry: handleBackup 
+      });
     }
   };
 
   const handleExportCSV = () => {
     setIsExportingCSV(true);
-    setExportResult(null);
+    setOperationResult(null);
     try {
       const headers = ['Date', 'Merchant', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
 
@@ -164,10 +168,14 @@ export const SettingsView: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      setExportResult({ success: true, message: 'Transactions CSV exported successfully.' });
+      setOperationResult({ success: true, message: 'Transactions CSV exported successfully.' });
     } catch (error) {
       console.error(error);
-      setExportResult({ success: false, message: 'Failed to export CSV. Please try again.' });
+      setOperationResult({ 
+        success: false, 
+        message: 'Failed to export CSV. Please try again.',
+        onRetry: handleExportCSV
+      });
     } finally {
       setIsExportingCSV(false);
     }
@@ -550,16 +558,16 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* Export Result Modal */}
-      {exportResult && (
+      {/* Operation Result Modal */}
+      {operationResult && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-sm w-full p-6 shadow-xl text-center">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
-              exportResult.success 
+              operationResult.success 
                 ? 'bg-green-100 dark:bg-emerald-900/30' 
                 : 'bg-red-100 dark:bg-red-900/30'
             }`}>
-              {exportResult.success ? (
+              {operationResult.success ? (
                 <CheckCircle className="w-6 h-6 text-green-600 dark:text-emerald-400" />
               ) : (
                 <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -567,17 +575,17 @@ export const SettingsView: React.FC = () => {
             </div>
             
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {exportResult.success ? 'Export Successful' : 'Export Failed'}
+              {operationResult.success ? 'Success' : 'Error'}
             </h3>
             
             <p className="text-gray-600 dark:text-zinc-400 mb-6">
-              {exportResult.message}
+              {operationResult.message}
             </p>
 
             <div className="flex gap-3 justify-center">
-              {exportResult.success ? (
+              {operationResult.success ? (
                 <button
-                  onClick={() => setExportResult(null)}
+                  onClick={() => setOperationResult(null)}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
                 >
                   Okay
@@ -585,20 +593,23 @@ export const SettingsView: React.FC = () => {
               ) : (
                 <>
                    <button
-                    onClick={() => setExportResult(null)}
+                    onClick={() => setOperationResult(null)}
                     className="px-4 py-2 text-gray-700 dark:text-zinc-300 border border-gray-300 dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={() => {
-                        setExportResult(null);
-                        handleExportCSV();
-                    }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-                  >
-                    Re-try
-                  </button>
+                  {operationResult.onRetry && (
+                    <button
+                      onClick={() => {
+                          const retry = operationResult.onRetry;
+                          setOperationResult(null);
+                          if (retry) retry();
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      Re-try
+                    </button>
+                  )}
                 </>
               )}
             </div>
