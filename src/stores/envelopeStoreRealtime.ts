@@ -35,7 +35,9 @@ const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   isActive: firebaseEnv.isActive ?? true,
   orderIndex: firebaseEnv.orderIndex ?? 0,
   userId: firebaseEnv.userId || undefined,
-  createdAt: firebaseEnv.createdAt
+  createdAt: firebaseEnv.createdAt,
+  isPiggybank: firebaseEnv.isPiggybank,
+  piggybankConfig: firebaseEnv.piggybankConfig
 });
 
 const convertFirebaseTemplate = (firebaseTemplate: any): DistributionTemplate => ({

@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
+import Moveable from 'moveable';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { MonthSelector } from '../components/ui/MonthSelector';
@@ -28,13 +29,13 @@ const hexToRgba = (hex: string, alpha = 1) => {
 };
 
 // Separate component for list item to allow individual useDragControls hook
-const EnvelopeListItem = ({ 
-  env, 
-  budgetedAmount, 
-  remainingBalance, 
-  editingEnvelopeId, 
+const EnvelopeListItem = ({
+  env,
+  budgetedAmount,
+  remainingBalance,
+  editingEnvelopeId,
   setEditingEnvelopeId,
-  editingAmount, 
+  editingAmount,
   setEditingAmount,
   handleBudgetSave,
   navigate,
@@ -43,8 +44,11 @@ const EnvelopeListItem = ({
   onDragStart,
   onDragEnd,
   transactions,
-  currentMonth
-}: {
+  currentMonth,
+  enableMoveableReorder,
+  setMoveableRef,
+  lastDragEndTime
+  }: {
   env: any,
   budgetedAmount: number,
   remainingBalance: any,
@@ -59,7 +63,11 @@ const EnvelopeListItem = ({
   onDragStart: () => void,
   onDragEnd: () => void,
   transactions: any[],
-  currentMonth: string
+  currentMonth: string,
+  enableMoveableReorder: boolean,
+  setMoveableRef: (envelopeId: string) => (el: HTMLDivElement | null) => void,
+  lastDragEndTime: React.MutableRefObject<number>,
+
 }) => {
   const controls = useDragControls();
   const isPiggybank = Boolean(env.isPiggybank);
@@ -129,8 +137,8 @@ const EnvelopeListItem = ({
   };
 
   const handleNavigate = () => {
-    // Prevent navigation if this interaction was a drag
-    if (isDragging) return;
+    // Prevent navigation if currently dragging or recently dragged
+    if (isDragging || Date.now() - lastDragEndTime.current < 100) return;
     if (editingEnvelopeId !== env.id) {
       navigate(`/envelope/${env.id}`);
     }
@@ -154,8 +162,149 @@ const EnvelopeListItem = ({
     };
   }, [isDragging, isLongPressActive]);
 
+  const content = (
+    <div className="flex items-center gap-3 w-full">
+      {/* Content Wrapper */}
+      <div
+        className="flex-1"
+        onClick={handleNavigate}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          {isPiggybank && (
+            <span
+              className="w-8 h-8 rounded-full flex items-center justify-center border"
+              style={{
+                borderColor: hexToRgba(piggyColor, 0.4),
+                backgroundColor: hexToRgba(piggyColor, 0.15),
+                color: piggyColor
+              }}
+            >
+              <PiggyBank size={16} />
+            </span>
+          )}
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {env.name}
+            </h3>
+            {isPiggybank && (
+              <span
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: piggyColor }}
+              >
+                Piggybank
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-between items-center">
+          <div
+            className="flex items-center space-x-4"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {editingEnvelopeId === env.id ? (
+              <div className="flex items-center space-x-1">
+                <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
+                <form onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}>
+                  <input
+                    ref={inputRef}
+                    type="number"
+                    value={editingAmount}
+                    onChange={(e) => setEditingAmount(e.target.value)}
+                    onBlur={handleBudgetSave}
+                    className="w-24 px-2 py-1 text-sm border rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white"
+                    step="0.01"
+                    autoFocus
+                  />
+                </form>
+              </div>
+            ) : (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingEnvelopeId(env.id);
+                  setEditingAmount(budgetedAmount.toString());
+                }}
+                className="flex items-center space-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-2 py-1 rounded transition-colors"
+              >
+                <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
+                <span className="font-medium text-gray-900 dark:text-white">${budgetedAmount.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="text-right">
+            <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
+            <span className={`font-bold ${
+                remainingBalance.toNumber() < 0
+                  ? 'text-red-500'
+                  : (100 - percentage) <= 5
+                    ? 'text-red-500'
+                    : percentage >= 80
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-green-600 dark:text-emerald-400'
+              }`}>
+              ${remainingBalance.toNumber().toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        {/* Budget Progress Bar */}
+        {budgetedAmount > 0 && (
+          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              return (
+                <>
+                  <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400 mb-1">
+                    <span>Budget Used</span>
+                    <span>{percentage.toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ease-out ${
+                        remainingBalance.toNumber() < 0
+                          ? 'bg-red-500'
+                          : (100 - percentage) <= 5
+                            ? 'bg-red-500'
+                            : percentage >= 80
+                              ? 'bg-yellow-500'
+                              : 'bg-green-400'
+                      }`}
+                      style={{ width: `${Math.max(100 - percentage, 2)}%` }}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (enableMoveableReorder) {
+    return (
+      <div
+        ref={setMoveableRef(env.id)}
+        style={{
+          boxShadow: isDragging
+            ? '0 18px 45px rgba(15,23,42,0.35)'
+            : '0 1px 2px rgba(15,23,42,0.08)',
+          touchAction: 'none',
+          background: piggyBackground,
+          borderColor: piggyBorder
+        }}
+        className={`p-4 rounded-xl cursor-pointer active:scale-[0.99] transition-transform select-none border ${
+          isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
+        }`}
+      >
+        {content}
+      </div>
+    );
+  }
+
   return (
-    <Reorder.Item 
+    <Reorder.Item
       ref={itemRef}
       value={env}
       dragListener={false}
@@ -191,137 +340,22 @@ const EnvelopeListItem = ({
         isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
       }`}
     >
-      <div className="flex items-center gap-3 w-full">
-        {/* Content Wrapper */}
-        <div 
-          className="flex-1"
-          onClick={handleNavigate}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            {isPiggybank && (
-              <span
-                className="w-8 h-8 rounded-full flex items-center justify-center border"
-                style={{
-                  borderColor: hexToRgba(piggyColor, 0.4),
-                  backgroundColor: hexToRgba(piggyColor, 0.15),
-                  color: piggyColor
-                }}
-              >
-                <PiggyBank size={16} />
-              </span>
-            )}
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                {env.name}
-              </h3>
-              {isPiggybank && (
-                <span
-                  className="text-xs font-semibold uppercase tracking-wide"
-                  style={{ color: piggyColor }}
-                >
-                  Piggybank
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex justify-between items-center">
-            <div 
-              className="flex items-center space-x-4" 
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {editingEnvelopeId === env.id ? (
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
-                  <form onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}>
-                    <input
-                      ref={inputRef}
-                      type="number"
-                      value={editingAmount}
-                      onChange={(e) => setEditingAmount(e.target.value)}
-                      onBlur={handleBudgetSave}
-                      className="w-24 px-2 py-1 text-sm border rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white"
-                      step="0.01"
-                      autoFocus
-                    />
-                  </form>
-                </div>
-              ) : (
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingEnvelopeId(env.id);
-                    setEditingAmount(budgetedAmount.toString());
-                  }}
-                  className="flex items-center space-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-2 py-1 rounded transition-colors"
-                >
-                  <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">${budgetedAmount.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="text-right">
-              <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
-              <span className={`font-bold ${
-                  remainingBalance.toNumber() < 0 
-                    ? 'text-red-500' 
-                    : (100 - percentage) <= 5 
-                      ? 'text-red-500' 
-                      : percentage >= 80 
-                        ? 'text-yellow-600 dark:text-yellow-400' 
-                        : 'text-green-600 dark:text-emerald-400'
-                }`}>
-                ${remainingBalance.toNumber().toFixed(2)}
-              </span>
-            </div>
-          </div>
-          
-          {/* Budget Progress Bar */}
-          {budgetedAmount > 0 && (
-            <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-              {(() => {
-                console.log(`📊 Envelope: ${env.name}`, {
-                  budgetedAmount,
-                  totalIncome,
-                  totalSpent,
-                  remainingBalance: remainingBalance.toNumber(),
-                  percentage
-                });
-                return (
-                  <>
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400 mb-1">
-                      <span>Budget Used</span>
-                      <span>{percentage.toFixed(0)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-300 ease-out ${
-                          remainingBalance.toNumber() < 0 
-                            ? 'bg-red-500' 
-                            : (100 - percentage) <= 5 
-                              ? 'bg-red-500' 
-                              : percentage >= 80 
-                                ? 'bg-yellow-500' 
-                                : 'bg-green-400'
-                        }`}
-                        style={{ width: `${Math.max(100 - percentage, 2)}%` }}
-                      />
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      </div>
+      {content}
     </Reorder.Item>
   );
 };
 
 export const EnvelopeListView: React.FC = () => {
   // Envelope store (for envelopes and transactions)
-  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity } = useEnvelopeStore();
+  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity, appSettings } = useEnvelopeStore();
+
+  // Feature flag for Moveable reordering
+  const enableMoveableReorder = appSettings?.enableMoveableReorder ?? false;
+
+  // Callback ref for Moveable elements
+  const setMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
+    moveableRefs.current[envelopeId] = el;
+  }, []);
 
   // Monthly budget store (for zero-based budgeting features)
   const {
@@ -366,37 +400,14 @@ export const EnvelopeListView: React.FC = () => {
     const envelopeTransactions = transactions.filter(t => 
       t.envelopeId === envelopeId && t.month === currentMonth
     );
-    
-    // Also check all transactions for this envelope (for debugging)
-    const allEnvelopeTransactions = transactions.filter(t => t.envelopeId === envelopeId);
-    
-    console.log(`💰 Balance calc for envelope ${envelopeId}:`, {
-      currentMonth,
-      totalTransactions: transactions.length,
-      allEnvelopeTransactions: allEnvelopeTransactions.map(t => ({
-        id: t.id,
-        amount: t.amount,
-        type: t.type,
-        month: t.month,
-        date: t.date
-      })),
-      matchingMonthTransactions: envelopeTransactions.map(t => ({
-        id: t.id,
-        amount: t.amount,
-        type: t.type,
-        month: t.month,
-        date: t.date
-      }))
-    });
-    
+
     const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
     const incomes = envelopeTransactions.filter(t => t.type === 'Income');
     const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
     const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
-    
+
     // Balance = Income - Expenses (same as store calculation)
     const balance = totalIncome.minus(totalSpent);
-    console.log(`💰 Final balance for envelope ${envelopeId}:`, balance.toNumber());
     
     return balance;
   };
@@ -464,23 +475,32 @@ export const EnvelopeListView: React.FC = () => {
 
   const [isReordering, setIsReordering] = useState(false);
   const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
+  const lastDragEndTime = useRef<number>(0);
+
+
+  // Moveable refs and instances for new reordering system
+  const moveableRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const moveableInstances = useRef<{ [key: string]: Moveable | null }>({});
   
   // Handler for reordering completion
-  const handleReorder = (newOrder: typeof envelopes) => {
-    // We don't want to update state immediately to avoid jumping, 
+  const handleReorder = useCallback(async (newOrder: typeof envelopes) => {
+    // We don't want to update state immediately to avoid jumping,
     // but we need to persist the new order indices
     console.log('📦 Reordered envelopes:', newOrder.map(e => e.name));
-    
+
     // Update order indices for all envelopes
-    newOrder.forEach((env, index) => {
+    for (let index = 0; index < newOrder.length; index++) {
+      const env = newOrder[index];
       if (env.orderIndex !== index) {
-        useEnvelopeStore.getState().updateEnvelope({
+        console.log('Updating envelope', env.id, 'orderIndex from', env.orderIndex, 'to', index);
+        await useEnvelopeStore.getState().updateEnvelope({
           ...env,
           orderIndex: index
         });
+        console.log('Updated envelope', env.id, 'orderIndex to', index);
       }
-    });
-  };
+    }
+  }, []);
 
   // Envelopes should already be sorted by orderIndex from the store/service
   // Filter envelopes to only show those that have an allocation for the current month
@@ -489,23 +509,31 @@ export const EnvelopeListView: React.FC = () => {
   const localOrderRef = useRef<typeof envelopes>([]);
 
   // Separate piggybanks from regular envelopes
-  const piggybanks = envelopes.filter(env => env.isPiggybank && env.isActive);
+  const piggybanks = envelopes.filter(env => env.isPiggybank === true && env.isActive);
 
   useEffect(() => {
+    console.log('Envelopes or allocations changed, updating localEnvelopes. isReordering:', isReordering);
     // Update local envelopes when store changes, BUT ONLY if not currently dragging
-    if (!isReordering) {
-      // Filter out piggybanks from the spending envelopes section
-      const regularEnvelopes = envelopes.filter(env => !env.isPiggybank);
-      const filtered = [...regularEnvelopes]
-        .filter(env => envelopeAllocations.some(alloc => alloc.envelopeId === env.id))
-        .sort((a, b) => {
-          const aOrder = a.orderIndex ?? 0;
-          const bOrder = b.orderIndex ?? 0;
-          return aOrder - bOrder;
-        });
+      if (!isReordering) {
+        // Filter out piggybanks from the spending envelopes section
+        const piggybanks = envelopes.filter(env => env.isPiggybank && env.isActive);
+        const regularEnvelopes = envelopes.filter(env => !env.isPiggybank);
+        console.log('Piggybanks:', piggybanks.map(e => ({ name: e.name, isPiggybank: e.isPiggybank })));
+        console.log('Regular envelopes:', regularEnvelopes.map(e => ({ name: e.name, isPiggybank: e.isPiggybank })));
 
-      setLocalEnvelopes(filtered);
-      localOrderRef.current = filtered;
+
+
+        const filtered = [...regularEnvelopes]
+          .filter(env => envelopeAllocations.some(alloc => alloc.envelopeId === env.id) && !env.isPiggybank)
+          .sort((a, b) => {
+            const aOrder = a.orderIndex ?? 0;
+            const bOrder = b.orderIndex ?? 0;
+            return aOrder - bOrder;
+          });
+
+
+        setLocalEnvelopes(filtered);
+       localOrderRef.current = filtered;
     }
   }, [envelopes, envelopeAllocations, isReordering]);
 
@@ -524,6 +552,110 @@ export const EnvelopeListView: React.FC = () => {
   };
 
   const visibleEnvelopes = localEnvelopes;
+
+  // Initialize Moveable instances when feature flag is enabled
+  useEffect(() => {
+    if (!enableMoveableReorder || !visibleEnvelopes.length) return;
+
+    const initializeMoveable = () => {
+      visibleEnvelopes.forEach((envelope) => {
+        const element = moveableRefs.current[envelope.id];
+        if (element && !moveableInstances.current[envelope.id]) {
+
+          const moveable = new Moveable(document.body, {
+            target: element,
+            draggable: true,
+            rotatable: false,
+            scalable: false,
+            resizable: false,
+            warpable: false,
+            pinchable: false,
+            snappable: false,
+            clickable: true,
+            elementGuidelines: [],
+            hideDefaultLines: true,
+            hideChildMoveableDefaultLines: true,
+            renderDirections: [],
+            hideThrottleDragRotateLine: true,
+          });
+
+           moveable.on('dragStart', () => {
+             console.log('Moveable dragStart for', envelope.id);
+             setIsReordering(true);
+           });
+
+           moveable.on('drag', (e) => {
+             e.target.style.transform = e.transform;
+             // Add visual feedback during drag
+             (e.target as HTMLElement).style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
+             (e.target as HTMLElement).style.scale = '1.04';
+             (e.target as HTMLElement).style.zIndex = '20';
+
+             // Shift other items during drag
+             const yOffset = e.beforeDist[1];
+             const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
+             visibleEnvelopes.forEach((env, index) => {
+               if (env.id === envelope.id) return;
+               const envElement = moveableRefs.current[env.id];
+               if (envElement && Math.abs(index - currentIndex) <= Math.abs(yOffset / 80)) {
+                 const direction = yOffset > 0 ? -1 : 1;
+                 const distance = Math.abs(yOffset) / 80;
+                 const translateY = direction * Math.min(distance, 1) * 80;
+                 envElement.style.transform = `translateY(${translateY}px)`;
+               } else if (envElement) {
+                 envElement.style.transform = '';
+               }
+             });
+           });
+
+           moveable.on('dragEnd', (e) => {
+             console.log('Moveable dragEnd for', envelope.id, e.lastEvent?.dist);
+             lastDragEndTime.current = Date.now();
+             // Reset all transforms
+             Object.values(moveableRefs.current).forEach(element => {
+               if (element) element.style.transform = '';
+             });
+             // Reset visual feedback
+             (e.target as HTMLElement).style.boxShadow = '';
+             (e.target as HTMLElement).style.scale = '';
+             (e.target as HTMLElement).style.zIndex = '';
+             setIsReordering(false);
+
+             const dragDistance = e.lastEvent ? e.lastEvent.dist[1] : 0;
+             const itemHeight = (e.target as HTMLElement).offsetHeight + 12; // Including margin
+
+             const positionsMoved = Math.round(dragDistance / itemHeight);
+             const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
+             const newIndex = Math.max(0, Math.min(visibleEnvelopes.length - 1, currentIndex + positionsMoved));
+
+
+              if (newIndex !== currentIndex) {
+                const newEnvelopes = [...visibleEnvelopes];
+                const [removed] = newEnvelopes.splice(currentIndex, 1);
+                newEnvelopes.splice(newIndex, 0, removed);
+                setLocalEnvelopes(newEnvelopes);
+                handleReorder(newEnvelopes);
+              }
+           });
+
+          moveableInstances.current[envelope.id] = moveable;
+        }
+      });
+    };
+
+    // Small delay to ensure DOM elements are ready
+    const timeoutId = setTimeout(initializeMoveable, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      Object.values(moveableInstances.current).forEach(instance => {
+        if (instance) instance.destroy();
+      });
+      moveableInstances.current = {};
+    };
+  }, [enableMoveableReorder, visibleEnvelopes, handleReorder]);
+
+
 
   const totalBalance = envelopes.reduce(
     (sum, env) => sum + getEnvelopeBalance(env.id!).toNumber(),
@@ -635,7 +767,13 @@ export const EnvelopeListView: React.FC = () => {
   console.log('📱 Showing main content');
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .moveable-control { display: none !important; }
+        .moveable-origin { display: none !important; }
+        .moveable-line { display: none !important; }
+      ` }} />
+      <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 z-30">
         <div className="flex justify-between items-center">
@@ -760,24 +898,24 @@ export const EnvelopeListView: React.FC = () => {
             <PlusCircle size={20} />
           </button>
         </div>
-        {piggybanks.length > 0 ? (
-          <div className="space-y-3">
-            {piggybanks.map((piggybank) => (
-              <PiggybankListItem
-                key={piggybank.id}
-                piggybank={piggybank}
-                balance={getEnvelopeBalance(piggybank.id)}
-                onNavigate={(id) => navigate(`/envelope/${id}`)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
-            <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No piggybanks yet</p>
-            <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
-          </div>
-        )}
+         {piggybanks.length > 0 ? (
+           <div className="space-y-3">
+             {piggybanks.map((piggybank) => (
+               <PiggybankListItem
+                 key={piggybank.id}
+                 piggybank={piggybank}
+                 balance={getEnvelopeBalance(piggybank.id)}
+                 onNavigate={(id) => navigate(`/envelope/${id}`)}
+               />
+             ))}
+           </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
+              <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No piggybanks yet</p>
+              <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
+            </div>
+          )}
       </section>
 
       {/* Spending Envelopes Section */}
@@ -798,44 +936,81 @@ export const EnvelopeListView: React.FC = () => {
             </p>
             <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 font-medium hover:text-blue-700 dark:hover:text-blue-200 transition-colors">Create First Envelope</button>
           </div>
-        ) : (
-          <div ref={reorderConstraintsRef}>
-            <Reorder.Group 
-              axis="y" 
-              values={localEnvelopes} 
-              onReorder={handleReorderUpdate}
-              className="space-y-3"
-              layoutScroll
-            >
-            {visibleEnvelopes.map((env) => {
-              const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
-              const budgetedAmount = allocation?.budgetedAmount || 0;
-              const remainingBalance = getEnvelopeBalance(env.id);
+         ) : (
+           <div ref={reorderConstraintsRef}>
+             {enableMoveableReorder ? (
+               <div className="space-y-3">
+                 {visibleEnvelopes.map((env) => {
+                   const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
+                   const budgetedAmount = allocation?.budgetedAmount || 0;
+                   const remainingBalance = getEnvelopeBalance(env.id);
 
-              return (
-                <EnvelopeListItem
-                  key={env.id}
-                  env={env}
-                  budgetedAmount={budgetedAmount}
-                  remainingBalance={remainingBalance}
-                  editingEnvelopeId={editingEnvelopeId}
-                  setEditingEnvelopeId={setEditingEnvelopeId}
-                  editingAmount={editingAmount}
-                  setEditingAmount={setEditingAmount}
-                  handleBudgetSave={handleBudgetSave}
-                  navigate={navigate}
-                  inputRef={inputRef}
-                  dragConstraints={reorderConstraintsRef}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  transactions={transactions}
-                  currentMonth={currentMonth}
-                />
-              );
-            })}
-          </Reorder.Group>
-          </div>
-        )}
+                   return (
+                     <EnvelopeListItem
+                       key={env.id}
+                       env={env}
+                       budgetedAmount={budgetedAmount}
+                       remainingBalance={remainingBalance}
+                       editingEnvelopeId={editingEnvelopeId}
+                       setEditingEnvelopeId={setEditingEnvelopeId}
+                       editingAmount={editingAmount}
+                       setEditingAmount={setEditingAmount}
+                       handleBudgetSave={handleBudgetSave}
+                       navigate={navigate}
+                       inputRef={inputRef}
+                       dragConstraints={reorderConstraintsRef}
+                       onDragStart={handleDragStart}
+                       onDragEnd={handleDragEnd}
+                        transactions={transactions}
+                        currentMonth={currentMonth}
+                         enableMoveableReorder={enableMoveableReorder}
+                         setMoveableRef={setMoveableRef}
+                         lastDragEndTime={lastDragEndTime}
+                       />
+                     );
+                   })}
+                 </div>
+             ) : (
+               <Reorder.Group
+                 axis="y"
+                 values={localEnvelopes}
+                 onReorder={handleReorderUpdate}
+                 className="space-y-3"
+                 layoutScroll
+               >
+                 {visibleEnvelopes.map((env) => {
+                   const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
+                   const budgetedAmount = allocation?.budgetedAmount || 0;
+                   const remainingBalance = getEnvelopeBalance(env.id);
+
+                   return (
+                     <EnvelopeListItem
+                       key={env.id}
+                       env={env}
+                       budgetedAmount={budgetedAmount}
+                       remainingBalance={remainingBalance}
+                       editingEnvelopeId={editingEnvelopeId}
+                       setEditingEnvelopeId={setEditingEnvelopeId}
+                       editingAmount={editingAmount}
+                       setEditingAmount={setEditingAmount}
+                       handleBudgetSave={handleBudgetSave}
+                       navigate={navigate}
+                       inputRef={inputRef}
+                       dragConstraints={reorderConstraintsRef}
+                       onDragStart={handleDragStart}
+                       onDragEnd={handleDragEnd}
+                        transactions={transactions}
+                        currentMonth={currentMonth}
+                         enableMoveableReorder={enableMoveableReorder}
+                         setMoveableRef={setMoveableRef}
+                         lastDragEndTime={lastDragEndTime}
+                       />
+                     );
+                   })}
+                 </Reorder.Group>
+             )}
+           </div>
+         )}
       </section>
 
       <button
@@ -850,8 +1025,9 @@ export const EnvelopeListView: React.FC = () => {
       {/* This modal is no longer used for editing, but we'll leave it for now in case it's needed elsewhere. */}
       {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => envelopes.find(e => e.id === envelopeId)?.name || ''} /> */}
 
-      <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.length} totalAllocated={envelopeAllocations.reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.length} totalAllocated={envelopeAllocations.reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+      </div>
     </div>
-    </div>
+    </>
   );
 };
