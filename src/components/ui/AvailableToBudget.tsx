@@ -67,7 +67,7 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
 
   if (isLoading) {
     return (
-      <div className={variant === 'header' ? 'p-2' : 'bg-gray-50 dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 animate-pulse'}>
+      <div className={variant === 'header' ? 'py-1.5 px-2' : 'bg-gray-50 dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 animate-pulse'}>
         <div className="flex items-center justify-between mb-4">
           <div className="h-6 bg-gray-200 dark:bg-zinc-700 rounded w-32"></div>
           <div className="h-8 bg-gray-200 dark:bg-zinc-700 rounded w-20"></div>
@@ -78,26 +78,26 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   }
 
   return (
-    <div className={variant === 'header' ? 'p-2' : `rounded-2xl p-6 border ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
+    <div className={variant === 'header' ? 'py-1.5 px-2' : `rounded-2xl p-6 border ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
       {/* Header */}
-      <div className={variant === 'header' ? 'flex items-center gap-4 mb-2' : `flex items-center justify-between mb-4`}>
+      <div className={variant === 'header' ? 'flex items-center gap-3 mb-0.5' : `flex items-center justify-between mb-4`}>
         <div className="flex-shrink-0 text-center">
-          <div className="text-sm text-gray-600 dark:text-zinc-400">Assigned:</div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">${totalAllocated.toFixed(2)}</div>
+          <div className="text-xs text-gray-600 dark:text-zinc-400">Assigned:</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-white">${totalAllocated.toFixed(2)}</div>
         </div>
 
         {variant === 'header' && (
           <div className="flex-1 flex justify-center items-center">
             {isZero ? (
-              <img src="/personal-budget-pwa/images/budget-balanced.png" alt="Budget Balanced" className="w-8 h-8" />
+              <img src="/personal-budget-pwa/images/budget-balanced.png" alt="Budget Balanced" className="w-6 h-6" />
             ) : isNegative ? (
               <div className="text-center">
-                <div className="text-sm text-red-600 dark:text-red-400 font-medium">You're not in Congress!</div>
+                <div className="text-xs text-red-600 dark:text-red-400 font-medium">You're not in Congress!</div>
               </div>
             ) : (
-              <div className="w-full h-2 bg-gray-200 dark:bg-zinc-700 rounded-full">
+              <div className="w-full h-1.5 bg-gray-200 dark:bg-zinc-700 rounded-full">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${barColor}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${barColor}`}
                   style={{ width: `${barWidth}%` }}
                 />
               </div>
@@ -109,18 +109,18 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
         <div className="flex-shrink-0 text-center">
           {isPositive ? (
             <>
-              <div className="text-sm text-gray-600 dark:text-zinc-400">Left to Budget:</div>
-              <div className="text-lg font-semibold text-gray-900 dark:text-white">${amount.toFixed(2)}</div>
+              <div className="text-xs text-gray-600 dark:text-zinc-400">Left to Budget:</div>
+              <div className="text-base font-semibold text-gray-900 dark:text-white">${amount.toFixed(2)}</div>
             </>
           ) : isZero ? (
             <>
-              <div className="text-sm text-green-600 dark:text-emerald-400">All Budgeted!</div>
-              <div className="text-lg font-semibold text-green-600 dark:text-emerald-400">$0.00</div>
+              <div className="text-xs text-green-600 dark:text-emerald-400">All Budgeted!</div>
+              <div className="text-base font-semibold text-green-600 dark:text-emerald-400">$0.00</div>
             </>
           ) : (
             <>
-              <div className="text-sm text-red-600 dark:text-red-400">Over Budget:</div>
-              <div className="text-lg font-semibold text-red-600 dark:text-red-400">-${Math.abs(amount).toFixed(2)}</div>
+              <div className="text-xs text-red-600 dark:text-red-400">Over Budget:</div>
+              <div className="text-base font-semibold text-red-600 dark:text-red-400">-${Math.abs(amount).toFixed(2)}</div>
             </>
           )}
         </div>

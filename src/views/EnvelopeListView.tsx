@@ -184,7 +184,7 @@ const EnvelopeListItem = ({
       )}
       {/* Content Wrapper */}
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1">
           {isPiggybank && (
             <span
               className="w-8 h-8 rounded-full flex items-center justify-center border"
@@ -877,7 +877,7 @@ export const EnvelopeListView: React.FC = () => {
       ` }} />
       <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 py-3">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+4px)] pb-1">
         <div className="flex justify-between items-center">
           {/* Sync Status */}
           <div className="flex items-center gap-2">
@@ -956,7 +956,7 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
 
-    <div className="pt-40 p-4 max-w-md mx-auto space-y-6">
+    <div className="pt-24 p-4 max-w-md mx-auto space-y-6">
       {/* Copy Previous Month Prompt */}
       {showCopyPrompt && (
         <CopyPreviousMonthPrompt
