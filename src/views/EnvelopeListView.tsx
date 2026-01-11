@@ -561,6 +561,7 @@ export const EnvelopeListView: React.FC = () => {
       visibleEnvelopes.forEach((envelope) => {
         const element = moveableRefs.current[envelope.id];
         if (element && !moveableInstances.current[envelope.id]) {
+          let hasDragged = false;
 
           const moveable = new Moveable(document.body, {
             target: element,
@@ -581,10 +582,15 @@ export const EnvelopeListView: React.FC = () => {
 
            moveable.on('dragStart', () => {
              console.log('Moveable dragStart for', envelope.id);
-             setIsReordering(true);
+             // Don't set isReordering yet - wait for actual drag movement
            });
 
            moveable.on('drag', (e) => {
+             hasDragged = true;
+             // Only set reordering state when actual drag movement occurs
+             if (!isReordering) {
+               setIsReordering(true);
+             }
              e.target.style.transform = e.transform;
              // Add visual feedback during drag
              (e.target as HTMLElement).style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
@@ -608,35 +614,40 @@ export const EnvelopeListView: React.FC = () => {
              });
            });
 
-           moveable.on('dragEnd', (e) => {
-             console.log('Moveable dragEnd for', envelope.id, e.lastEvent?.dist);
-             lastDragEndTime.current = Date.now();
-             // Reset all transforms
-             Object.values(moveableRefs.current).forEach(element => {
-               if (element) element.style.transform = '';
-             });
-             // Reset visual feedback
-             (e.target as HTMLElement).style.boxShadow = '';
-             (e.target as HTMLElement).style.scale = '';
-             (e.target as HTMLElement).style.zIndex = '';
-             setIsReordering(false);
+            moveable.on('dragEnd', (e) => {
+              console.log('Moveable dragEnd for', envelope.id, e.lastEvent?.dist);
+              lastDragEndTime.current = Date.now();
+              // Reset all transforms
+              Object.values(moveableRefs.current).forEach(element => {
+                if (element) element.style.transform = '';
+              });
+              // Reset visual feedback
+              (e.target as HTMLElement).style.boxShadow = '';
+              (e.target as HTMLElement).style.scale = '';
+              (e.target as HTMLElement).style.zIndex = '';
+              setIsReordering(false);
 
-             const dragDistance = e.lastEvent ? e.lastEvent.dist[1] : 0;
-             const itemHeight = (e.target as HTMLElement).offsetHeight + 12; // Including margin
+              // Only perform reordering if there was actual drag movement
+              if (hasDragged) {
+                const dragDistance = e.lastEvent ? e.lastEvent.dist[1] : 0;
+                const itemHeight = (e.target as HTMLElement).offsetHeight + 12; // Including margin
 
-             const positionsMoved = Math.round(dragDistance / itemHeight);
-             const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
-             const newIndex = Math.max(0, Math.min(visibleEnvelopes.length - 1, currentIndex + positionsMoved));
+                const positionsMoved = Math.round(dragDistance / itemHeight);
+                const currentIndex = visibleEnvelopes.findIndex(env => env.id === envelope.id);
+                const newIndex = Math.max(0, Math.min(visibleEnvelopes.length - 1, currentIndex + positionsMoved));
 
 
-              if (newIndex !== currentIndex) {
-                const newEnvelopes = [...visibleEnvelopes];
-                const [removed] = newEnvelopes.splice(currentIndex, 1);
-                newEnvelopes.splice(newIndex, 0, removed);
-                setLocalEnvelopes(newEnvelopes);
-                handleReorder(newEnvelopes);
+                 if (newIndex !== currentIndex) {
+                   const newEnvelopes = [...visibleEnvelopes];
+                   const [removed] = newEnvelopes.splice(currentIndex, 1);
+                   newEnvelopes.splice(newIndex, 0, removed);
+                   setLocalEnvelopes(newEnvelopes);
+                   handleReorder(newEnvelopes);
+                 }
               }
-           });
+              // Reset for next interaction
+              hasDragged = false;
+            });
 
           moveableInstances.current[envelope.id] = moveable;
         }
