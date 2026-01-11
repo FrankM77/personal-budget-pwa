@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, X, AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
@@ -9,6 +10,7 @@ export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { envelopes, transactions, distributionTemplates, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings } = useEnvelopeStore();
+
   const { currentUser, deleteAccount } = useAuthStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
@@ -17,6 +19,8 @@ export const SettingsView: React.FC = () => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
+  const [exportResult, setExportResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 
@@ -119,11 +123,16 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleExportCSV = () => {
+    setIsExportingCSV(true);
+    setExportResult(null);
     try {
-      const headers = ['Date', 'Description', 'Amount', 'Type', 'Envelope', 'Reconciled'];
+      const headers = ['Date', 'Merchant', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
+
       const rows = transactions.map((t) => {
         const envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
-        const safeDesc = (t.description || '').replace(/"/g, '""');
+        const safeMerchant = (t.merchant || '').replace(/"/g, '""');
+        const safeNotes = (t.description || '').replace(/"/g, '""');
+
         let dateStr = 'Invalid Date';
         if (t.date) {
           if (typeof t.date === 'string') {
@@ -135,10 +144,12 @@ export const SettingsView: React.FC = () => {
         }
         return [
           dateStr,
-          `"${safeDesc}"`,
+          `"${safeMerchant}"`,
+          `"${safeNotes}"`,
           (t.amount as number).toFixed(2),
           t.type,
           `"${envName}"`,
+
           t.reconciled ? 'Yes' : 'No',
         ].join(',');
       });
@@ -153,10 +164,12 @@ export const SettingsView: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      showStatus('success', 'CSV export ready to open in Excel/Numbers.');
+      setExportResult({ success: true, message: 'Transactions CSV exported successfully.' });
     } catch (error) {
       console.error(error);
-      showStatus('error', 'Failed to export CSV.');
+      setExportResult({ success: false, message: 'Failed to export CSV. Please try again.' });
+    } finally {
+      setIsExportingCSV(false);
     }
   };
 
@@ -386,16 +399,25 @@ export const SettingsView: React.FC = () => {
               <ChevronRight className="text-gray-400" size={18} />
             </button>
 
-            <button
-              onClick={handleExportCSV}
-              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="text-blue-500" size={20} />
-                <span className="text-gray-900 dark:text-white font-medium">Export Transactions (CSV)</span>
-              </div>
-              <ChevronRight className="text-gray-400" size={18} />
-            </button>
+            <div className="p-4">
+              <button
+                onClick={handleExportCSV}
+                disabled={isExportingCSV}
+                className="w-full flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed rounded-xl border border-gray-100 dark:border-zinc-800 px-4 py-3 bg-white dark:bg-zinc-900"
+              >
+                <div className="flex items-center gap-3">
+                  {isExportingCSV ? (
+                    <Loader className="text-blue-500 animate-spin" size={20} />
+                  ) : (
+                    <FileText className="text-blue-500" size={20} />
+                  )}
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {isExportingCSV ? 'Preparing CSV…' : 'Export Transactions (CSV)'}
+                  </span>
+                </div>
+                <ChevronRight className="text-gray-400" size={18} />
+              </button>
+            </div>
 
             <input
               type="file"
@@ -523,6 +545,62 @@ export const SettingsView: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Result Modal */}
+      {exportResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-sm w-full p-6 shadow-xl text-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              exportResult.success 
+                ? 'bg-green-100 dark:bg-emerald-900/30' 
+                : 'bg-red-100 dark:bg-red-900/30'
+            }`}>
+              {exportResult.success ? (
+                <CheckCircle className="w-6 h-6 text-green-600 dark:text-emerald-400" />
+              ) : (
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              )}
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              {exportResult.success ? 'Export Successful' : 'Export Failed'}
+            </h3>
+            
+            <p className="text-gray-600 dark:text-zinc-400 mb-6">
+              {exportResult.message}
+            </p>
+
+            <div className="flex gap-3 justify-center">
+              {exportResult.success ? (
+                <button
+                  onClick={() => setExportResult(null)}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                >
+                  Okay
+                </button>
+              ) : (
+                <>
+                   <button
+                    onClick={() => setExportResult(null)}
+                    className="px-4 py-2 text-gray-700 dark:text-zinc-300 border border-gray-300 dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                        setExportResult(null);
+                        handleExportCSV();
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                  >
+                    Re-try
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
