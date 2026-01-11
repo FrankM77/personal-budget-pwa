@@ -6,6 +6,7 @@ interface AvailableToBudgetProps {
   totalIncome: number;
   totalAllocated: number;
   isLoading?: boolean;
+  variant?: 'default' | 'header';
 }
 
 export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
@@ -13,14 +14,23 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   totalIncome,
   totalAllocated,
   isLoading = false,
+  variant = 'default',
 }) => {
   // Calculate progress percentage
   const progressPercentage = totalIncome > 0 ? ((totalAllocated / totalIncome) * 100) : 0;
 
-  // Determine status and styling
-  const isZeroBalance = Math.abs(amount) < 0.01;
-  const isOverAllocated = amount < 0;
-  const isUnderAllocated = amount > 0;
+  // Determine display state
+  const isPositive = amount > 0;
+  const isZero = Math.abs(amount) < 0.01;
+  const isNegative = amount < 0;
+
+  const barWidth = isZero ? 100 : Math.min(progressPercentage, 100);
+  const barColor = isNegative ? 'bg-red-500' : 'bg-green-500';
+
+  // Legacy variables for compatibility
+  const isZeroBalance = isZero;
+  const isOverAllocated = isNegative;
+  const isUnderAllocated = isPositive;
 
   const getStatusConfig = () => {
     if (isZeroBalance) {
@@ -54,11 +64,10 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   };
 
   const statusConfig = getStatusConfig();
-  const StatusIcon = statusConfig.icon;
 
   if (isLoading) {
     return (
-      <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 animate-pulse">
+      <div className={variant === 'header' ? 'p-2' : 'bg-gray-50 dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 animate-pulse'}>
         <div className="flex items-center justify-between mb-4">
           <div className="h-6 bg-gray-200 dark:bg-zinc-700 rounded w-32"></div>
           <div className="h-8 bg-gray-200 dark:bg-zinc-700 rounded w-20"></div>
@@ -69,38 +78,56 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   }
 
   return (
-    <div className={`rounded-2xl p-6 border ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
+    <div className={variant === 'header' ? 'p-2' : `rounded-2xl p-6 border ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
-            <StatusIcon size={24} className={statusConfig.color} />
-          </div>
-          <div>
-            <h3 className={`font-semibold ${statusConfig.color}`}>
-              {statusConfig.title}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-zinc-400">
-              {statusConfig.subtitle}
-            </p>
-          </div>
+      <div className={variant === 'header' ? 'flex items-center gap-4 mb-2' : `flex items-center justify-between mb-4`}>
+        <div className="flex-shrink-0 text-center">
+          <div className="text-sm text-gray-600 dark:text-zinc-400">Assigned:</div>
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">${totalAllocated.toFixed(2)}</div>
         </div>
 
-        {/* Main Amount */}
-        <div className="text-right">
-          <div className={`text-3xl font-bold ${statusConfig.color}`}>
-            {isOverAllocated ? '-' : ''}${Math.abs(amount).toFixed(2)}
+        {variant === 'header' && (
+          <div className="flex-1 flex justify-center items-center">
+            {isZero ? (
+              <img src="/personal-budget-pwa/images/budget-balanced.png" alt="Budget Balanced" className="w-8 h-8" />
+            ) : isNegative ? (
+              <div className="text-center">
+                <div className="text-sm text-red-600 dark:text-red-400 font-medium">You're not in Congress!</div>
+              </div>
+            ) : (
+              <div className="w-full h-2 bg-gray-200 dark:bg-zinc-700 rounded-full">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${barColor}`}
+                  style={{ width: `${barWidth}%` }}
+                />
+              </div>
+            )}
           </div>
-          {isZeroBalance && (
-            <div className="text-sm text-green-600 dark:text-emerald-400 font-medium">
-              Perfect Balance
-            </div>
+        )}
+
+        {/* Main Amount */}
+        <div className="flex-shrink-0 text-center">
+          {isPositive ? (
+            <>
+              <div className="text-sm text-gray-600 dark:text-zinc-400">Left to Budget:</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">${amount.toFixed(2)}</div>
+            </>
+          ) : isZero ? (
+            <>
+              <div className="text-sm text-green-600 dark:text-emerald-400">All Budgeted!</div>
+              <div className="text-lg font-semibold text-green-600 dark:text-emerald-400">$0.00</div>
+            </>
+          ) : (
+            <>
+              <div className="text-sm text-red-600 dark:text-red-400">Over Budget:</div>
+              <div className="text-lg font-semibold text-red-600 dark:text-red-400">-${Math.abs(amount).toFixed(2)}</div>
+            </>
           )}
         </div>
       </div>
 
       {/* Progress Bar */}
-      {!isZeroBalance && totalIncome > 0 && (
+      {variant !== 'header' && !isZeroBalance && totalIncome > 0 && (
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-gray-600 dark:text-zinc-400">
             <span>Allocated</span>
@@ -126,26 +153,28 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
       )}
 
       {/* Stats Row */}
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-zinc-700">
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-              ${totalIncome.toFixed(2)}
+      {variant !== 'header' && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-zinc-700">
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                ${totalIncome.toFixed(2)}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-zinc-400">
+                Total Income
+              </div>
             </div>
-            <div className="text-sm text-gray-600 dark:text-zinc-400">
-              Total Income
-            </div>
-          </div>
-          <div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-              ${totalAllocated.toFixed(2)}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-zinc-400">
-              Allocated
+            <div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                ${totalAllocated.toFixed(2)}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-zinc-400">
+                Allocated
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

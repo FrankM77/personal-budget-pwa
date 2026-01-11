@@ -877,7 +877,7 @@ export const EnvelopeListView: React.FC = () => {
       ` }} />
       <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar */}
-      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 sticky top-0 z-30">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Sync Status */}
           <div className="flex items-center gap-2">
@@ -936,30 +936,27 @@ export const EnvelopeListView: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-4">
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Personal Budget</h1>
-        </div>
+        {/* Available to Budget */}
+        <AvailableToBudget
+          amount={availableToBudget}
+          totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
+          totalAllocated={envelopeAllocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
+          isLoading={isLoading}
+          variant="header"
+        />
+
+        {/* Month Selector */}
+        <MonthSelector
+          currentMonth={currentMonth}
+          onMonthChange={(newMonth) => {
+            setShowCopyPrompt(false);
+            useMonthlyBudgetStore.getState().setCurrentMonth(newMonth);
+          }}
+        />
       </header>
 
 
-    <div className="p-4 max-w-md mx-auto space-y-6">
-      {/* Month Selector */}
-      <MonthSelector
-        currentMonth={currentMonth}
-        onMonthChange={(newMonth) => {
-          setShowCopyPrompt(false);
-          useMonthlyBudgetStore.getState().setCurrentMonth(newMonth);
-        }}
-      />
-
-      {/* Available to Budget */}
-      <AvailableToBudget
-        amount={availableToBudget}
-        totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
-        totalAllocated={envelopeAllocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
-        isLoading={isLoading}
-      />
-
+    <div className="pt-40 p-4 max-w-md mx-auto space-y-6">
       {/* Copy Previous Month Prompt */}
       {showCopyPrompt && (
         <CopyPreviousMonthPrompt

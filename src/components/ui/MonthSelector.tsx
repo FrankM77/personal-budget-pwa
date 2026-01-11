@@ -52,7 +52,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 py-3">
+    <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-3">
       <div className="flex items-center justify-between max-w-md mx-auto">
         {/* Previous Month Button */}
         <button
