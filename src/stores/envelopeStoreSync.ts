@@ -35,10 +35,26 @@ export const createSyncSlice = ({
     }
 
     console.log('🔄 fetchData: Starting data fetch for user:', userId);
-    set({ isLoading: true, error: null });
+    
+    // Check if we have cached data (from Zustand persist hydration)
+    const hasCachedData = state.envelopes.length > 0 || state.transactions.length > 0;
+    
+    // If we have cached data, use it immediately and fetch in background
+    if (hasCachedData) {
+      console.log('📦 Using cached envelope data, fetching updates in background...');
+      // Don't set isLoading to true - use cached data immediately
+    } else {
+      set({ isLoading: true, error: null });
+    }
+    
     try {
-      let fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings;
-      [fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings] = await Promise.all([
+      // Create a timeout promise (5 seconds)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Firebase query timeout')), 5000);
+      });
+
+      // Create fetch promise
+      const fetchPromise = Promise.all([
         EnvelopeService.getAllEnvelopes(userId).catch(err => {
           console.error('❌ Failed to fetch envelopes:', err);
           return [];
@@ -56,6 +72,13 @@ export const createSyncSlice = ({
           return null;
         })
       ]);
+
+      // Race between Firebase queries and timeout
+      let fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings;
+      [fetchedEnvelopes, fetchedTransactions, fetchedTemplates, fetchedSettings] = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any;
 
       console.log('✅ fetchData: Firebase calls completed');
       console.log('📊 Fetched data counts:', {
@@ -189,8 +212,19 @@ export const createSyncSlice = ({
       });
     } catch (err: any) {
       console.error('Sync Failed:', err);
-      if (isNetworkError(err)) {
-        set({ isLoading: false, pendingSync: true });
+      
+      // Check if we have cached data to fall back to
+      const currentState = get();
+      const hasCachedData = currentState.envelopes.length > 0 || currentState.transactions.length > 0;
+      
+      if (err.message === 'Firebase query timeout' || isNetworkError(err)) {
+        if (hasCachedData) {
+          console.log('📦 Using cached envelope data due to timeout/network error (likely offline)');
+          set({ isLoading: false, pendingSync: true });
+        } else {
+          console.error('❌ No cached envelope data available');
+          set({ isLoading: false, pendingSync: true, error: 'Unable to load data. Please check your connection.' });
+        }
       } else {
         set({ error: err.message, isLoading: false });
       }
