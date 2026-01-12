@@ -152,8 +152,9 @@ export const createSyncSlice = ({
           ...currentState.envelopes.map((e: Envelope) => e.id),
           ...(fetchedEnvelopes as Envelope[]).map((e: Envelope) => e.id)
         ]);
+        // Keep local-only envelopes including temp ones (pending sync)
         const localOnlyEnvelopes = currentState.envelopes.filter((env: Envelope) =>
-          env.id && !(fetchedEnvelopes as Envelope[]).some((fetched: Envelope) => fetched.id === env.id) && !env.id.startsWith('temp-')
+          env.id && !(fetchedEnvelopes as Envelope[]).some((fetched: Envelope) => fetched.id === env.id)
         );
         const localOnlyTransactions = currentState.transactions.filter((tx: Transaction) =>
           tx.id && !(fetchedTransactions as Transaction[]).some((fetched: Transaction) => fetched.id === tx.id) &&
@@ -258,6 +259,119 @@ export const createSyncSlice = ({
     }
 
     set({ pendingSync: true });
+    
+    // Sync temp envelopes to Firebase first
+    const tempEnvelopes = state.envelopes.filter((env: Envelope) => env.id.startsWith('temp-'));
+    if (tempEnvelopes.length > 0) {
+      console.log(`🔄 Syncing ${tempEnvelopes.length} temp envelopes to Firebase...`);
+      
+      for (const tempEnv of tempEnvelopes) {
+        try {
+          const { id, ...envelopeData } = tempEnv;
+          // Ensure userId is present
+          if (!envelopeData.userId) {
+            envelopeData.userId = getCurrentUserId();
+          }
+          const savedEnv = await EnvelopeService.createEnvelope(envelopeData);
+          console.log(`✅ Synced temp envelope ${id} -> ${savedEnv.id}`);
+          
+          // Replace temp envelope with real one
+          set((state: any) => ({
+            envelopes: state.envelopes.map((env: Envelope) =>
+              env.id === id ? { ...savedEnv, order: tempEnv.order } : env
+            )
+          }));
+          
+          // Update transactions to point to new envelope ID
+          set((state: any) => ({
+            transactions: state.transactions.map((tx: Transaction) =>
+              tx.envelopeId === id ? { ...tx, envelopeId: savedEnv.id } : tx
+            )
+          }));
+          
+          // Update allocations to point to new envelope ID
+          const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+          const budgetStore = useMonthlyBudgetStore.getState();
+          const updatedAllocations = budgetStore.envelopeAllocations.map(alloc =>
+            alloc.envelopeId === id ? { ...alloc, envelopeId: savedEnv.id } : alloc
+          );
+          useMonthlyBudgetStore.setState({ envelopeAllocations: updatedAllocations });
+          
+          // Now sync the allocation for this envelope
+          const tempAllocsForThisEnvelope = updatedAllocations.filter(alloc =>
+            alloc.envelopeId === savedEnv.id && alloc.id?.startsWith('temp-')
+          );
+          
+          if (tempAllocsForThisEnvelope.length > 0) {
+            const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+            const service = MonthlyBudgetService.getInstance();
+            
+            for (const tempAlloc of tempAllocsForThisEnvelope) {
+              try {
+                await service.createEnvelopeAllocation({
+                  envelopeId: tempAlloc.envelopeId,
+                  budgetedAmount: tempAlloc.budgetedAmount,
+                  userId: tempAlloc.userId,
+                  month: tempAlloc.month
+                });
+                console.log(`✅ Synced allocation for envelope ${savedEnv.id}`);
+              } catch (err) {
+                console.error(`❌ Failed to sync allocation:`, err);
+              }
+            }
+            
+            // Refresh allocations to get real IDs
+            const refreshedAllocations = await service.getEnvelopeAllocations(
+              tempAllocsForThisEnvelope[0].userId,
+              budgetStore.currentMonth
+            );
+            useMonthlyBudgetStore.setState({ envelopeAllocations: refreshedAllocations });
+          }
+        } catch (err) {
+          console.error(`❌ Failed to sync temp envelope ${tempEnv.id}:`, err);
+        }
+      }
+    }
+    
+    // Sync any remaining temp allocations to Firebase (only if their envelope has a real ID)
+    try {
+      const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+      const budgetStore = useMonthlyBudgetStore.getState();
+      const tempAllocations = budgetStore.envelopeAllocations.filter(alloc => 
+        alloc.id?.startsWith('temp-') && !alloc.envelopeId.startsWith('temp-')
+      );
+      
+      if (tempAllocations.length > 0) {
+        console.log(`🔄 Syncing ${tempAllocations.length} temp allocations to Firebase...`);
+        const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+        const service = MonthlyBudgetService.getInstance();
+        
+        for (const tempAlloc of tempAllocations) {
+          try {
+            await service.createEnvelopeAllocation({
+              envelopeId: tempAlloc.envelopeId,
+              budgetedAmount: tempAlloc.budgetedAmount,
+              userId: tempAlloc.userId,
+              month: tempAlloc.month
+            });
+            console.log(`✅ Synced temp allocation ${tempAlloc.id} for envelope ${tempAlloc.envelopeId}`);
+          } catch (err) {
+            console.error(`❌ Failed to sync temp allocation ${tempAlloc.id}:`, err);
+          }
+        }
+        
+        // Refresh allocations to get real IDs and remove temp ones
+        const refreshedAllocations = await service.getEnvelopeAllocations(
+          budgetStore.envelopeAllocations[0]?.userId || getCurrentUserId(),
+          budgetStore.currentMonth
+        );
+        useMonthlyBudgetStore.setState({ envelopeAllocations: refreshedAllocations });
+        console.log('✅ Allocations refreshed after sync');
+      }
+    } catch (err) {
+      console.error('Failed to sync temp allocations:', err);
+    }
+    
     try {
       await get().fetchData();
     } catch (err) {

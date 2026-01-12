@@ -472,5 +472,318 @@ setInitialFetchTriggered(true);  // ✅ Set immediately
 
 ---
 
-**Last Updated:** January 12, 2026, 10:40 AM  
-**Status:** Offline functionality fully restored and tested
+## Offline Write Operations (January 12, 2026)
+
+### Problem: Envelopes Created Offline Not Appearing in UI
+
+After fixing the initial offline read operations, a new issue emerged: envelopes created while offline would not appear in the UI immediately, or would disappear when going back online.
+
+### Root Causes Identified
+
+#### Issue 1: Allocation Not Created Before Navigation
+**Problem:** Envelope was created with optimistic update, but the allocation was created in a `.then()` callback after navigation had already occurred. The `EnvelopeListView` filters envelopes to only show those with allocations:
+
+```typescript
+envelopes.filter(env => 
+  envelopeAllocations.some(alloc => alloc.envelopeId === env.id)
+)
+```
+
+Without an allocation, the envelope was filtered out even though it existed in the store.
+
+**Fix:** Added 50ms delay before navigation to ensure both envelope and allocation optimistic updates complete:
+
+```typescript
+// AddEnvelopeView.tsx
+const envelopePromise = addEnvelope(envelopeData);
+
+envelopePromise.then((newEnvelopeId) => {
+  if (newEnvelopeId) {
+    setEnvelopeAllocation(newEnvelopeId, 0).catch(err => 
+      console.error('Failed to create allocation:', err)
+    );
+  }
+}).catch(err => {
+  console.error('Failed to create envelope:', err);
+});
+
+// Small delay to ensure optimistic updates complete before navigation
+setTimeout(() => {
+  navigate('/');
+}, 50);
+```
+
+#### Issue 2: Allocation Missing Optimistic Update
+**Problem:** `createEnvelopeAllocation` in `monthlyBudgetStore` was waiting for Firebase to complete before adding the allocation to the store. This meant the allocation didn't exist when the component rendered.
+
+**Fix:** Added optimistic update to `createEnvelopeAllocation`:
+
+```typescript
+// monthlyBudgetStore.ts - createEnvelopeAllocation
+// Optimistic update - add allocation immediately to local state
+const tempId = `temp-${Date.now()}-${Math.random()}`;
+const now = new Date().toISOString();
+const tempAllocation: EnvelopeAllocation = {
+  ...allocationData,
+  id: tempId,
+  userId,
+  month: currentMonth,
+  createdAt: now,
+  updatedAt: now
+};
+
+set(state => ({
+  envelopeAllocations: [...state.envelopeAllocations, tempAllocation]
+}));
+
+// Try to sync with Firebase (with timeout)
+try {
+  const firebasePromise = service.createEnvelopeAllocation({...});
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+  );
+  
+  await Promise.race([firebasePromise, timeoutPromise]);
+  
+  // If successful, refresh to get real ID
+  const refreshedAllocations = await service.getEnvelopeAllocations(userId, currentMonth);
+  set({ envelopeAllocations: refreshedAllocations });
+} catch (err: any) {
+  const isOffline = err.message?.includes('timeout') || !navigator.onLine;
+  if (isOffline) {
+    // Keep the temp allocation
+  } else {
+    // Remove temp allocation on real error
+    set(state => ({
+      envelopeAllocations: state.envelopeAllocations.filter(a => a.id !== tempId)
+    }));
+    throw err;
+  }
+}
+```
+
+#### Issue 3: Allocation EnvelopeId Not Updated When Envelope Syncs
+**Problem:** When going back online, the envelope would sync to Firebase and get a real ID, but the allocation's `envelopeId` field still pointed to the old temp envelope ID. This caused the envelope to be filtered out because the allocation no longer matched.
+
+**Fix:** Update allocation `envelopeId` when envelope syncs successfully:
+
+```typescript
+// envelopeStoreEnvelopes.ts - createEnvelope
+// After envelope syncs to Firebase and gets real ID
+const savedEnv: Envelope = await Promise.race([firebasePromise, timeoutPromise]);
+
+// Replace temp envelope with real one
+set((state: any) => ({
+  envelopes: state.envelopes.map((env: Envelope) =>
+    env.id === tempId ? storeEnvelope : env
+  )
+}));
+
+// Update transactions to point to new envelope ID
+set((state: any) => ({
+  transactions: state.transactions.map((tx: Transaction) =>
+    tx.envelopeId === tempId ? { ...tx, envelopeId: savedEnv.id } : tx
+  )
+}));
+
+// Update allocations to point to new envelope ID
+const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+const budgetStore = useMonthlyBudgetStore.getState();
+const updatedAllocations = budgetStore.envelopeAllocations.map(alloc =>
+  alloc.envelopeId === tempId ? { ...alloc, envelopeId: savedEnv.id } : alloc
+);
+useMonthlyBudgetStore.setState({ envelopeAllocations: updatedAllocations });
+```
+
+### Files Modified
+
+1. **`src/views/AddEnvelopeView.tsx`**
+   - Added 50ms delay before navigation to ensure optimistic updates complete
+   - Chain allocation creation after envelope creation
+
+2. **`src/stores/monthlyBudgetStore.ts`**
+   - Added optimistic update to `createEnvelopeAllocation`
+   - Added timeout handling for Firebase calls
+   - Keep temp allocation when offline, remove only on real errors
+
+3. **`src/stores/envelopeStoreEnvelopes.ts`**
+   - Update allocation `envelopeId` when envelope syncs to Firebase
+   - Cross-store update to keep allocation pointing to correct envelope
+
+### Test Results
+
+✅ **Create envelope offline:** Envelope appears immediately in UI after short delay  
+✅ **Envelope persists offline:** Envelope stays visible during navigation  
+✅ **Go back online:** Envelope syncs to Firebase and stays visible  
+✅ **Navigate after sync:** Envelope remains visible with real Firebase ID  
+✅ **Allocation stays linked:** Allocation `envelopeId` updated to match real envelope ID
+
+### Key Learnings
+
+1. **Optimistic updates must be synchronous:** Both envelope and allocation need to be added to store immediately, before any async operations
+2. **Timing matters:** Small delay needed to ensure both optimistic updates complete before navigation
+3. **Cross-store updates required:** When envelope ID changes, must update references in both envelope store (transactions) and budget store (allocations)
+4. **Filter logic dependencies:** UI filters based on relationships (envelope must have allocation), so both entities must exist and be linked correctly
+
+---
+
+## Offline Write Operations - Refresh Persistence (January 12, 2026)
+
+### Problem: Envelope Disappears After Page Refresh
+
+After implementing the initial offline write solution, envelopes created offline would appear immediately and stay visible when going online, but would **disappear after page refresh**.
+
+### Root Cause Analysis
+
+The issue had three parts:
+
+#### Issue 1: `pendingSync` Flag Not Set
+**Problem:** When allocation was created offline and timed out, `pendingSync` was never set to `true` in `monthlyBudgetStore`. This meant the auto-sync mechanism didn't trigger when going back online.
+
+**Fix:** Set `pendingSync: true` when allocation is kept offline:
+
+```typescript
+// monthlyBudgetStore.ts - createEnvelopeAllocation
+} catch (err: any) {
+  const isOffline = err.message?.includes('timeout') || !navigator.onLine;
+  if (isOffline) {
+    console.log('📴 Offline - keeping allocation locally, will sync when online');
+    // Keep the temp allocation and mark for sync
+    set({ pendingSync: true });
+  }
+}
+```
+
+#### Issue 2: Envelope Not Syncing When Going Online
+**Problem:** The envelope's `createEnvelope` function timed out when created offline and finished executing. When going back online, there was no mechanism to retry syncing temp envelopes. The `syncData` function only called `fetchData`, which merges data but doesn't push local changes to Firebase.
+
+**Result:** Envelope stayed in localStorage with temp ID, never synced to Firebase.
+
+#### Issue 3: Allocation Syncing with Temp Envelope ID
+**Problem:** Even if we tried to sync the allocation, it would sync with the temp envelope ID because the envelope hadn't synced yet. When you refresh, the allocation in Firebase points to a non-existent temp envelope ID.
+
+**Result:** Envelope filtered out because allocation doesn't match.
+
+### Complete Solution
+
+Added comprehensive sync logic to `envelopeStoreSync.syncData()`:
+
+```typescript
+// envelopeStoreSync.ts - syncData function
+
+// 1. Sync temp envelopes to Firebase first
+const tempEnvelopes = state.envelopes.filter((env: Envelope) => env.id.startsWith('temp-'));
+if (tempEnvelopes.length > 0) {
+  console.log(`🔄 Syncing ${tempEnvelopes.length} temp envelopes to Firebase...`);
+  
+  for (const tempEnv of tempEnvelopes) {
+    const { id, ...envelopeData } = tempEnv;
+    // Ensure userId is present
+    if (!envelopeData.userId) {
+      envelopeData.userId = getCurrentUserId();
+    }
+    const savedEnv = await EnvelopeService.createEnvelope(envelopeData);
+    console.log(`✅ Synced temp envelope ${id} -> ${savedEnv.id}`);
+    
+    // 2. Replace temp envelope with real one in store
+    set((state: any) => ({
+      envelopes: state.envelopes.map((env: Envelope) =>
+        env.id === id ? { ...savedEnv, order: tempEnv.order } : env
+      )
+    }));
+    
+    // 3. Update transactions to point to new envelope ID
+    set((state: any) => ({
+      transactions: state.transactions.map((tx: Transaction) =>
+        tx.envelopeId === id ? { ...tx, envelopeId: savedEnv.id } : tx
+      )
+    }));
+    
+    // 4. Update allocations to point to new envelope ID
+    const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+    const budgetStore = useMonthlyBudgetStore.getState();
+    const updatedAllocations = budgetStore.envelopeAllocations.map(alloc =>
+      alloc.envelopeId === id ? { ...alloc, envelopeId: savedEnv.id } : alloc
+    );
+    useMonthlyBudgetStore.setState({ envelopeAllocations: updatedAllocations });
+    
+    // 5. Sync allocation for this envelope with correct envelope ID
+    const tempAllocsForThisEnvelope = updatedAllocations.filter(alloc =>
+      alloc.envelopeId === savedEnv.id && alloc.id?.startsWith('temp-')
+    );
+    
+    if (tempAllocsForThisEnvelope.length > 0) {
+      const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+      const service = MonthlyBudgetService.getInstance();
+      
+      for (const tempAlloc of tempAllocsForThisEnvelope) {
+        await service.createEnvelopeAllocation({
+          envelopeId: tempAlloc.envelopeId,
+          budgetedAmount: tempAlloc.budgetedAmount,
+          userId: tempAlloc.userId,
+          month: tempAlloc.month
+        });
+        console.log(`✅ Synced allocation for envelope ${savedEnv.id}`);
+      }
+      
+      // 6. Refresh allocations to get real IDs
+      const refreshedAllocations = await service.getEnvelopeAllocations(
+        tempAllocsForThisEnvelope[0].userId,
+        budgetStore.currentMonth
+      );
+      useMonthlyBudgetStore.setState({ envelopeAllocations: refreshedAllocations });
+    }
+  }
+}
+```
+
+### Files Modified
+
+1. **`src/stores/monthlyBudgetStore.ts`**
+   - Set `pendingSync: true` when allocation kept offline
+
+2. **`src/stores/envelopeStoreSync.ts`**
+   - Added temp envelope sync logic to `syncData`
+   - Sync envelopes first, then allocations with correct envelope IDs
+   - Ensure `userId` is present when syncing envelopes
+
+### Complete Test Results
+
+✅ **Create envelope offline:** Envelope appears immediately in UI  
+✅ **Navigate away and back:** Envelope persists offline  
+✅ **Go back online:** Envelope syncs to Firebase with real ID  
+✅ **Allocation syncs:** Allocation saved to Firebase with correct envelope ID  
+✅ **Refresh page:** Envelope persists in UI  
+✅ **Navigate after refresh:** Envelope remains visible  
+✅ **Check Firebase console:** Both envelope and allocation exist with correct IDs
+
+### Sync Flow Summary
+
+**Offline Creation:**
+1. User creates envelope offline
+2. Envelope added to store with temp ID (optimistic update)
+3. Allocation added to store with temp envelope ID (optimistic update)
+4. Firebase calls timeout → `pendingSync: true` set
+5. Envelope and allocation stay in localStorage
+
+**Going Back Online:**
+6. `updateOnlineStatus` detects online status
+7. Auto-sync triggered because `pendingSync: true`
+8. `syncData` runs:
+   - Syncs temp envelope → gets real Firebase ID
+   - Updates allocation's `envelopeId` to real ID in store
+   - Syncs allocation to Firebase with correct envelope ID
+   - Refreshes allocations from Firebase
+9. Both envelope and allocation now in Firebase with correct IDs
+
+**Page Refresh:**
+10. `fetchData` and `fetchMonthlyData` run
+11. Envelope fetched from Firebase
+12. Allocation fetched from Firebase (points to correct envelope ID)
+13. Envelope passes filter (has matching allocation)
+14. Envelope appears in UI ✅
+
+---
+
+**Last Updated:** January 12, 2026, 4:10 PM  
+**Status:** Offline read and write operations fully working with refresh persistence

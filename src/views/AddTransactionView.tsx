@@ -51,19 +51,23 @@ export const AddTransactionView: React.FC = () => {
       // Create a transaction for each split
       const splitEntries = Object.entries(splitAmounts).filter(([_, amt]) => amt > 0);
       
-      for (const [envelopeId, splitAmount] of splitEntries) {
-        await addTransaction({
-          amount: splitAmount,
-          description: note,
-          merchant: merchant || undefined,
-          date: transactionDate.toISOString(),
-          envelopeId,
-          type: transactionType === 'income' ? 'Income' : 'Expense',
-          reconciled: false
-        });
-      }
+      // Fire-and-forget: Create transactions in background
+      // The optimistic updates will show them immediately
+      Promise.all(
+        splitEntries.map(([envelopeId, splitAmount]) =>
+          addTransaction({
+            amount: splitAmount,
+            description: note,
+            merchant: merchant || undefined,
+            date: transactionDate.toISOString(),
+            envelopeId,
+            type: transactionType === 'income' ? 'Income' : 'Expense',
+            reconciled: false
+          }).catch(err => console.error('Failed to create transaction:', err))
+        )
+      ).catch(err => console.error('Failed to create transactions:', err));
 
-      // Navigate back to home
+      // Navigate immediately - don't wait for Firebase
       navigate('/');
     } catch (error) {
       console.error('Error saving transaction:', error);

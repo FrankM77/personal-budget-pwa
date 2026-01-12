@@ -51,14 +51,25 @@ export const AddEnvelopeView: React.FC = () => {
       };
     }
 
-    const newEnvelopeId = await addEnvelope(envelopeData);
-
-    // Automatically create an allocation for the current month so it appears
-    if (newEnvelopeId) {
-      await setEnvelopeAllocation(newEnvelopeId, 0);
-    }
+    // Start envelope creation (optimistic update happens immediately)
+    const envelopePromise = addEnvelope(envelopeData);
     
-    navigate('/');
+    // Chain allocation creation after envelope
+    envelopePromise.then((newEnvelopeId) => {
+      if (newEnvelopeId) {
+        // Start allocation creation (optimistic update happens immediately)
+        setEnvelopeAllocation(newEnvelopeId, 0).catch(err => 
+          console.error('Failed to create allocation:', err)
+        );
+      }
+    }).catch(err => {
+      console.error('Failed to create envelope:', err);
+    });
+    
+    // Small delay to ensure optimistic updates complete before navigation
+    setTimeout(() => {
+      navigate('/');
+    }, 50);
   };
 
   return (

@@ -227,27 +227,69 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
       // Income Source CRUD
       createIncomeSource: async (sourceData) => {
+        const userId = getUserId();
+        const currentMonth = get().currentMonth;
+        
+        // Generate temp ID for optimistic update
+        const tempId = `temp-${Date.now()}-${Math.random()}`;
+        const now = new Date().toISOString();
+        const tempSource: IncomeSource = {
+          ...sourceData,
+          id: tempId,
+          userId,
+          month: currentMonth,
+          createdAt: now,
+          updatedAt: now
+        };
+        
+        // Update local state immediately
+        set(state => ({
+          incomeSources: [...state.incomeSources, tempSource]
+        }));
+        
         try {
-          const userId = getUserId();
-          const currentMonth = get().currentMonth;
-
           const service = MonthlyBudgetService.getInstance();
-          await service.createIncomeSource({
+          
+          const createPromise = service.createIncomeSource({
             ...sourceData,
             userId,
             month: currentMonth,
           });
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+          );
+          
+          await Promise.race([createPromise, timeoutPromise]);
 
-          // Manually refresh income sources to ensure immediate UI update
+          // Refresh to get real ID from Firebase
           const refreshedSources = await service.getIncomeSources(userId, currentMonth);
           set({ incomeSources: refreshedSources });
-        } catch (error) {
-          console.error('Error creating income source:', error);
-          throw error;
+        } catch (error: any) {
+          const isOffline = error?.message?.includes('timeout') || !navigator.onLine;
+          
+          if (isOffline) {
+            console.log('📴 Offline detected - keeping income source locally, will sync when online');
+            // Keep the temp income source, it will sync when online
+          } else {
+            console.error('Error creating income source:', error);
+            // Remove temp source on real error
+            set(state => ({
+              incomeSources: state.incomeSources.filter(s => s.id !== tempId)
+            }));
+            throw error;
+          }
         }
       },
 
       updateIncomeSource: async (id: string, updates: Partial<IncomeSource>) => {
+        // Update local state immediately
+        const now = new Date().toISOString();
+        set(state => ({
+          incomeSources: state.incomeSources.map(source =>
+            source.id === id ? { ...source, ...updates, updatedAt: now } : source
+          )
+        }));
+        
         try {
           // Build update object with only defined values
           const updateData: any = {
@@ -260,19 +302,31 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           if (updates.category !== undefined) updateData.category = updates.category;
 
           const docRef = doc(db, 'incomeSources', id);
-          await updateDoc(docRef, updateData);
+          
+          const updatePromise = updateDoc(docRef, updateData);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+          );
+          
+          await Promise.race([updatePromise, timeoutPromise]);
 
           // Force a refresh of the income sources to ensure UI updates
-          // This will trigger the real-time sync immediately
           const service = MonthlyBudgetService.getInstance();
           const userId = getUserId();
           const currentMonth = get().currentMonth;
           const refreshedSources = await service.getIncomeSources(userId, currentMonth);
 
           set({ incomeSources: refreshedSources });
-        } catch (error) {
-          console.error('Error updating income source:', error);
-          throw error;
+        } catch (error: any) {
+          const isOffline = error?.message?.includes('timeout') || !navigator.onLine;
+          
+          if (isOffline) {
+            console.log('📴 Offline detected - keeping income source update locally, will sync when online');
+            // Keep the local update, it will sync when online
+          } else {
+            console.error('Error updating income source:', error);
+            throw error;
+          }
         }
       },
 
@@ -320,16 +374,53 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const userId = getUserId();
           const currentMonth = get().currentMonth;
 
-          const service = MonthlyBudgetService.getInstance();
-          await service.createEnvelopeAllocation({
+          // Optimistic update - add allocation immediately to local state
+          const tempId = `temp-${Date.now()}-${Math.random()}`;
+          const now = new Date().toISOString();
+          const tempAllocation: EnvelopeAllocation = {
             ...allocationData,
+            id: tempId,
             userId,
             month: currentMonth,
-          });
+            createdAt: now,
+            updatedAt: now
+          };
+          
+          set(state => ({
+            envelopeAllocations: [...state.envelopeAllocations, tempAllocation]
+          }));
 
-          // Manually refresh envelope allocations to ensure immediate UI update
-          const refreshedAllocations = await service.getEnvelopeAllocations(userId, currentMonth);
-          set({ envelopeAllocations: refreshedAllocations });
+          // Try to sync with Firebase
+          const service = MonthlyBudgetService.getInstance();
+          try {
+            const firebasePromise = service.createEnvelopeAllocation({
+              ...allocationData,
+              userId,
+              month: currentMonth,
+            });
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+            );
+            
+            await Promise.race([firebasePromise, timeoutPromise]);
+            
+            // If successful, refresh to get real ID
+            const refreshedAllocations = await service.getEnvelopeAllocations(userId, currentMonth);
+            set({ envelopeAllocations: refreshedAllocations });
+          } catch (err: any) {
+            const isOffline = err.message?.includes('timeout') || !navigator.onLine;
+            if (isOffline) {
+              console.log('📴 Offline - keeping allocation locally, will sync when online');
+              // Keep the temp allocation and mark for sync
+              set({ pendingSync: true });
+            } else {
+              console.error('❌ Real error - removing temp allocation');
+              set(state => ({
+                envelopeAllocations: state.envelopeAllocations.filter(a => a.id !== tempId)
+              }));
+              throw err;
+            }
+          }
         } catch (error) {
           console.error('Error creating envelope allocation:', error);
           throw error;
@@ -398,42 +489,30 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
       setEnvelopeAllocation: async (envelopeId: string, budgetedAmount: number) => {
         try {
-          console.log('🔧 setEnvelopeAllocation called:', { envelopeId, budgetedAmount });
-          
           // Check if allocation already exists for this envelope
           const existingAllocation = get().envelopeAllocations.find(
             alloc => alloc.envelopeId === envelopeId
           );
 
-          console.log('📋 Existing allocation:', existingAllocation);
-
           if (existingAllocation) {
             // Update existing allocation
-            console.log('🔄 Updating existing allocation...');
             await get().updateEnvelopeAllocation(existingAllocation.id!, {
               budgetedAmount,
             });
-            console.log('✅ Allocation updated');
           } else {
             // Create new allocation
-            console.log('➕ Creating new allocation...');
             await get().createEnvelopeAllocation({
               envelopeId,
               budgetedAmount,
             });
-            console.log('✅ Allocation created');
           }
 		  
           // Sync the allocation with a transaction in the envelopeStore
-          console.log('🔄 Syncing budget allocation transaction...');
           const currentMonth = get().currentMonth;
           await syncBudgetAllocationTransaction(envelopeId, budgetedAmount, currentMonth);
-          console.log('✅ Transaction synced');
 
           // After syncing, refresh the available to budget calculation
-          console.log('🔄 Refreshing available to budget...');
           await get().refreshAvailableToBudget();
-          console.log('✅ Available to budget refreshed');
 
         } catch (error) {
           console.error('❌ Error setting envelope allocation:', error);

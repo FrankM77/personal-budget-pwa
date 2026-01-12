@@ -105,8 +105,13 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           id: '', // Temporary ID, will be replaced by Firebase
           userId: userId
         };
-        const savedEnv: Envelope = await EnvelopeService.createEnvelope(envelopeForService);
-        console.log('✅ Firebase envelope creation successful:', savedEnv);
+        
+        const firebasePromise = EnvelopeService.createEnvelope(envelopeForService);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+        );
+        
+        const savedEnv: Envelope = await Promise.race([firebasePromise, timeoutPromise]);
 
         // Replace temp envelope with real one from Firebase
         // Convert Firebase envelope to store format (preserve all fields including piggybank data)
@@ -131,19 +136,54 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           pendingSync: false
         }));
 
-        // Update any transactions that reference the temp envelope ID and sync them
+        // Update any transactions and allocations that reference the temp envelope ID
+        // Update envelopeId for transactions
+        set((state: any) => ({
+          transactions: state.transactions.map((tx: Transaction) =>
+            tx.envelopeId === tempId ? { ...tx, envelopeId: savedEnv.id } : tx
+          )
+        }));
+
+        // Update envelopeId for allocations in monthlyBudgetStore
+        const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+        const budgetStore = useMonthlyBudgetStore.getState();
+        const updatedAllocations = budgetStore.envelopeAllocations.map(alloc =>
+          alloc.envelopeId === tempId ? { ...alloc, envelopeId: savedEnv.id } : alloc
+        );
+        useMonthlyBudgetStore.setState({ envelopeAllocations: updatedAllocations });
+
+        // Sync any temp allocations for this envelope to Firebase now that we have a real envelope ID
+        const tempAllocsForThisEnvelope = updatedAllocations.filter(alloc =>
+          alloc.envelopeId === savedEnv.id && alloc.id?.startsWith('temp-')
+        );
+        
+        if (tempAllocsForThisEnvelope.length > 0) {
+          const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+          const service = MonthlyBudgetService.getInstance();
+          
+          for (const tempAlloc of tempAllocsForThisEnvelope) {
+            try {
+              await service.createEnvelopeAllocation({
+                envelopeId: tempAlloc.envelopeId,
+                budgetedAmount: tempAlloc.budgetedAmount,
+                userId: tempAlloc.userId,
+                month: tempAlloc.month
+              });
+              console.log(`✅ Synced allocation for envelope ${savedEnv.id}`);
+            } catch (err) {
+              console.error(`❌ Failed to sync allocation for envelope ${savedEnv.id}:`, err);
+            }
+          }
+          
+          // Refresh allocations to get real IDs
+          const refreshedAllocations = await service.getEnvelopeAllocations(
+            tempAllocsForThisEnvelope[0].userId,
+            budgetStore.currentMonth
+          );
+          useMonthlyBudgetStore.setState({ envelopeAllocations: refreshedAllocations });
+        }
+
         if (hasInitialDeposit) {
-          console.log(`🔄 Updating transactions from temp envelope ID ${tempId} to real ID ${savedEnv.id}`);
-          console.log('📊 Transactions before update:', get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
-
-          // Update envelopeId for transactions
-          set((state: any) => ({
-            transactions: state.transactions.map((tx: Transaction) =>
-              tx.envelopeId === tempId ? { ...tx, envelopeId: savedEnv.id } : tx
-            )
-          }));
-
-          console.log('📊 Transactions after envelopeId update:', get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
 
           // Now sync any transactions that were waiting for this envelope
           const transactionsToSync = get().transactions.filter(tx =>
@@ -180,9 +220,7 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
             }
           }
 
-          console.log('📊 Final transactions after sync:', get().transactions.map(tx => ({ id: tx.id, envelopeId: tx.envelopeId, description: tx.description })));
           set({ pendingSync: false });
-          console.log(`✅ All transactions synced for envelope ${savedEnv.id}`);
         }
 
         // Return the saved envelope so we have the real ID
@@ -198,8 +236,10 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
         });
 
         // For offline/network errors, keep the local envelope and mark for later sync
-        if (isNetworkError(err)) {
-          console.log('🔄 Treating as offline scenario - keeping temp envelope and transactions');
+        const isOffline = isNetworkError(err) || err.message?.includes('timeout') || !navigator.onLine;
+        
+        if (isOffline) {
+          console.log('📴 Offline detected - keeping envelope locally, will sync when online');
           set({
             isLoading: false,
             pendingSync: true,
@@ -298,12 +338,22 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
       try {
         // Delete envelope from Firebase
         const userId = getCurrentUserId();
-        await EnvelopeService.deleteEnvelope(userId, envelopeId);
+        
+        const deleteEnvPromise = EnvelopeService.deleteEnvelope(userId, envelopeId);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+        );
+        
+        await Promise.race([deleteEnvPromise, timeoutPromise]);
 
         // Cascade delete: Delete all associated transactions from Firebase
         for (const transaction of transactionsToDelete) {
           if (transaction.id && !transaction.id.startsWith('temp-')) {
-            await TransactionService.deleteTransaction(userId, transaction.id);
+            const deleteTxPromise = TransactionService.deleteTransaction(userId, transaction.id);
+            const txTimeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+            );
+            await Promise.race([deleteTxPromise, txTimeoutPromise]);
           }
         }
 
@@ -313,8 +363,11 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
         set({ isLoading: false });
       } catch (err: any) {
         console.error('Delete Envelope Failed:', err);
-        if (isNetworkError(err)) {
+        const isOffline = isNetworkError(err) || err.message?.includes('timeout') || !navigator.onLine;
+        
+        if (isOffline) {
           // Offline: Keep the local deletion, mark for later sync
+          console.log('📴 Offline detected - keeping envelope deletion locally, will sync when online');
           set({
             isLoading: false,
             pendingSync: true,

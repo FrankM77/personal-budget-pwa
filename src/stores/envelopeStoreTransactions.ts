@@ -44,9 +44,15 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
       // (Transactions created with temp envelopeIds will sync after envelope syncs)
       if (!newTx.envelopeId.startsWith('temp-')) {
         try {
-          // Try to sync with Firebase (works offline thanks to persistence)
+          // Try to sync with Firebase with timeout for offline detection
           const transactionForService = transactionToFirestore(transactionWithId as Transaction, userId);
-          const savedTx = await TransactionService.addTransaction(transactionForService as any);
+          
+          const firebasePromise = TransactionService.addTransaction(transactionForService as any);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+          );
+          
+          const savedTx = await Promise.race([firebasePromise, timeoutPromise]);
 
           // Replace temp transaction with real one from Firebase
           console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
@@ -63,8 +69,11 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
           }));
         } catch (err: any) {
           console.error('Add Transaction Failed:', err);
-          if (isNetworkError(err)) {
+          const isOffline = isNetworkError(err) || err.message?.includes('timeout') || !navigator.onLine;
+          
+          if (isOffline) {
             // Offline: Keep the temp transaction, mark for later sync
+            console.log('📴 Offline detected - keeping transaction locally, will sync when online');
             set({
               isLoading: false,
               pendingSync: true,
@@ -72,6 +81,7 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
             });
           } else {
             // Real error: Remove temp transaction
+            console.error('❌ Real error - removing temp transaction');
             set((state: any) => ({
               transactions: state.transactions.filter((tx: Transaction) => tx.id !== tempId),
               error: err.message,
@@ -120,7 +130,13 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
 
         for (const txId of firebaseIdsToDelete) {
           console.log(`🔄 About to delete transaction ID: ${txId}`);
-          await TransactionService.deleteTransaction(userId, txId);
+          
+          const deletePromise = TransactionService.deleteTransaction(userId, txId);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+          );
+          
+          await Promise.race([deletePromise, timeoutPromise]);
           console.log(`✅ Deleted transaction ID: ${txId}`);
         }
 
@@ -128,8 +144,11 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
         set({ isLoading: false });
       } catch (err: any) {
         console.error('Delete Transaction Failed:', err);
-        if (isNetworkError(err)) {
+        const isOffline = isNetworkError(err) || err.message?.includes('timeout') || !navigator.onLine;
+        
+        if (isOffline) {
           // Offline: Keep the local deletion, mark for later sync
+          console.log('📴 Offline detected - keeping deletion locally, will sync when online');
           set({
             isLoading: false,
             pendingSync: true,
@@ -171,7 +190,7 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
           transactionUpdatesToFirestore(updatedTx)
         );
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 5000)
+          setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
         );
 
         await Promise.race([firebasePromise, timeoutPromise]);
@@ -188,14 +207,17 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
         });
 
         // For offline/network errors, keep the local changes and mark for later sync
-        if (isNetworkError(err)) {
-          console.log('🔄 Treating as offline scenario - keeping local transaction update');
+        const isOffline = isNetworkError(err) || err.message?.includes('timeout') || !navigator.onLine;
+        
+        if (isOffline) {
+          console.log('📴 Offline detected - keeping transaction update locally, will sync when online');
           set({
             isLoading: false,
             pendingSync: true,
             error: null
           });
         } else {
+          console.error('❌ Real error - reverting transaction update');
           set({ error: err.message, isLoading: false });
         }
       }
