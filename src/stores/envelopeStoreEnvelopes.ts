@@ -357,6 +357,39 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           }
         }
 
+        // Delete associated envelope allocations from Firebase
+        const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+        const budgetStore = useMonthlyBudgetStore.getState();
+        const allocationsToDelete = budgetStore.envelopeAllocations.filter(
+          alloc => alloc.envelopeId === envelopeId
+        );
+        
+        if (allocationsToDelete.length > 0) {
+          const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+          const service = MonthlyBudgetService.getInstance();
+          
+          for (const allocation of allocationsToDelete) {
+            if (allocation.id && !allocation.id.startsWith('temp-')) {
+              try {
+                await service.deleteEnvelopeAllocation(userId, allocation.id);
+                console.log(`✅ Deleted allocation ${allocation.id} for envelope ${envelopeId}`);
+              } catch (err) {
+                console.error(`❌ Failed to delete allocation ${allocation.id}:`, err);
+              }
+            }
+          }
+          
+          // Remove allocations from local state
+          useMonthlyBudgetStore.setState({
+            envelopeAllocations: budgetStore.envelopeAllocations.filter(
+              alloc => alloc.envelopeId !== envelopeId
+            )
+          });
+          
+          // Refresh monthly budget to update availableToBudget
+          await useMonthlyBudgetStore.getState().refreshAvailableToBudget();
+        }
+
         // Clean up templates that reference the deleted envelope
         await get().removeEnvelopeFromTemplates(envelopeId);
 

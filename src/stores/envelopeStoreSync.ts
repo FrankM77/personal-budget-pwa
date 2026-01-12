@@ -306,9 +306,10 @@ export const createSyncSlice = ({
         const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
         const service = MonthlyBudgetService.getInstance();
         
+        const userId = getCurrentUserId();
         for (const incomeSourceId of budgetStore.pendingDeletedIncomeSources) {
           try {
-            await service.deleteIncomeSource(incomeSourceId);
+            await service.deleteIncomeSource(userId, incomeSourceId);
             console.log(`✅ Deleted income source ${incomeSourceId} from Firebase`);
           } catch (err) {
             console.error(`❌ Failed to delete income source ${incomeSourceId}:`, err);

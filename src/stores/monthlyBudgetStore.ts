@@ -250,6 +250,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         }));
         
         try {
+          console.log('🔄 Creating income source in Firebase...', sourceData);
           const service = MonthlyBudgetService.getInstance();
           
           const createPromise = service.createIncomeSource({
@@ -262,18 +263,24 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           );
           
           await Promise.race([createPromise, timeoutPromise]);
+          console.log('✅ Income source created in Firebase successfully');
 
           // Refresh to get real ID from Firebase
           const refreshedSources = await service.getIncomeSources(userId, currentMonth);
+          console.log('✅ Refreshed income sources:', refreshedSources);
           set({ incomeSources: refreshedSources });
+          
+          // Update monthly budget with new totalIncome
+          await get().refreshAvailableToBudget();
         } catch (error: any) {
           const isOffline = error?.message?.includes('timeout') || !navigator.onLine;
           
           if (isOffline) {
             console.log('📴 Offline detected - keeping income source locally, will sync when online');
+            console.log('📴 Error details:', error);
             // Keep the temp income source, it will sync when online
           } else {
-            console.error('Error creating income source:', error);
+            console.error('❌ Error creating income source:', error);
             // Remove temp source on real error
             set(state => ({
               incomeSources: state.incomeSources.filter(s => s.id !== tempId)
@@ -303,7 +310,8 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           if (updates.frequency !== undefined) updateData.frequency = updates.frequency;
           if (updates.category !== undefined) updateData.category = updates.category;
 
-          const docRef = doc(db, 'incomeSources', id);
+          const userId = getUserId();
+          const docRef = doc(db, 'users', userId, 'incomeSources', id);
           
           const updatePromise = updateDoc(docRef, updateData);
           const timeoutPromise = new Promise<never>((_, reject) =>
@@ -314,7 +322,6 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
           // Force a refresh of the income sources to ensure UI updates
           const service = MonthlyBudgetService.getInstance();
-          const userId = getUserId();
           const currentMonth = get().currentMonth;
           const refreshedSources = await service.getIncomeSources(userId, currentMonth);
 
@@ -341,12 +348,16 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         try {
           // Delete from Firebase with timeout
           const service = MonthlyBudgetService.getInstance();
-          const deletePromise = service.deleteIncomeSource(id);
+          const userId = getUserId();
+          const deletePromise = service.deleteIncomeSource(userId, id);
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
           );
           
           await Promise.race([deletePromise, timeoutPromise]);
+          
+          // Recalculate and update monthly budget after deletion
+          await get().refreshAvailableToBudget();
         } catch (err: any) {
           const isOffline = err.message?.includes('timeout') || !navigator.onLine;
           
@@ -361,6 +372,9 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             console.error('Error deleting income source from Firebase:', err);
             // Note: Local state is already updated, so UI remains consistent
           }
+          
+          // Recalculate budget even if offline
+          await get().refreshAvailableToBudget();
         }
       },
 
@@ -457,7 +471,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           if (updates.envelopeId !== undefined) updateData.envelopeId = updates.envelopeId;
           if (updates.budgetedAmount !== undefined) updateData.budgetedAmount = updates.budgetedAmount.toString();
           
-          await service.updateEnvelopeAllocation(id, updateData);
+          await service.updateEnvelopeAllocation(userId, id, updateData);
 
           // Manually refresh envelope allocations to ensure immediate UI update
           const refreshedAllocations = await service.getEnvelopeAllocations(userId, currentMonth);
@@ -477,7 +491,8 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         // Fire-and-forget: Delete from Firebase in background
         // Firebase will queue this if offline and sync when back online
         const service = MonthlyBudgetService.getInstance();
-        service.deleteEnvelopeAllocation(id).catch((error) => {
+        const userId = getUserId();
+        service.deleteEnvelopeAllocation(userId, id).catch((error) => {
           console.error('Error deleting envelope allocation from Firebase:', error);
           // Note: Local state is already updated, so UI remains consistent
         });
@@ -697,20 +712,31 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const userId = getUserId();
           const currentMonth = state.currentMonth;
 
+          console.log('💰 Refreshing monthly budget...');
+          console.log('💰 Income sources in state:', state.incomeSources);
+          console.log('💰 Allocations in state:', state.envelopeAllocations);
+
           // Calculate available to budget using local state to avoid re-fetching
           const totalIncome = state.incomeSources.reduce((sum, source) => sum + source.amount, 0);
           const totalAllocations = state.envelopeAllocations.reduce((sum, alloc) => sum + alloc.budgetedAmount, 0);
           const availableToBudget = totalIncome - totalAllocations;
+
+          console.log('💰 Calculated totalIncome:', totalIncome);
+          console.log('💰 Calculated totalAllocations:', totalAllocations);
+          console.log('💰 Calculated availableToBudget:', availableToBudget);
 
           const service = MonthlyBudgetService.getInstance();
 
           // Update or create monthly budget document in Firestore
           const currentBudget = state.monthlyBudget;
           if (currentBudget) {
+            console.log('💰 Updating existing budget:', currentBudget);
             const updatedBudget = { ...currentBudget, availableToBudget, totalIncome };
             await service.createOrUpdateMonthlyBudget(updatedBudget);
             set({ monthlyBudget: updatedBudget });
+            console.log('✅ Monthly budget updated in Firebase');
           } else {
+            console.log('💰 Creating new budget');
             const newBudget = await service.createOrUpdateMonthlyBudget({
               userId,
               month: currentMonth,
@@ -718,9 +744,10 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
               availableToBudget,
             });
             set({ monthlyBudget: newBudget });
+            console.log('✅ Monthly budget created in Firebase:', newBudget);
           }
         } catch (error) {
-          console.error('Error refreshing available to budget:', error);
+          console.error('❌ Error refreshing available to budget:', error);
         }
       },
 

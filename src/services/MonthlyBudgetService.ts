@@ -21,7 +21,7 @@ export class MonthlyBudgetService {
   // Monthly Budget CRUD
   async getMonthlyBudget(userId: string, month: string): Promise<MonthlyBudget | null> {
     try {
-      const docRef = doc(db, 'monthlyBudgets', `${userId}_${month}`);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -58,7 +58,7 @@ export class MonthlyBudgetService {
         updatedAt: now,
       };
 
-      await setDoc(doc(db, 'monthlyBudgets', id), firestoreData);
+      await setDoc(doc(db, 'users', budget.userId, 'monthlyBudgets', budget.month), firestoreData);
 
       return {
         ...budget,
@@ -76,8 +76,7 @@ export class MonthlyBudgetService {
   async getIncomeSources(userId: string, month: string): Promise<IncomeSource[]> {
     try {
       const q = query(
-        collection(db, 'incomeSources'),
-        where('userId', '==', userId),
+        collection(db, 'users', userId, 'incomeSources'),
         where('month', '==', month)
       );
       const querySnapshot = await getDocs(q);
@@ -105,7 +104,7 @@ export class MonthlyBudgetService {
   async createIncomeSource(source: Omit<IncomeSource, 'id' | 'createdAt' | 'updatedAt'>): Promise<IncomeSource> {
     try {
       const now = Timestamp.now();
-      const docRef = doc(collection(db, 'incomeSources'));
+      const docRef = doc(collection(db, 'users', source.userId, 'incomeSources'));
 
       const firestoreData: FirestoreIncomeSource = {
         id: docRef.id,
@@ -138,8 +137,7 @@ export class MonthlyBudgetService {
   async getEnvelopeAllocations(userId: string, month: string): Promise<EnvelopeAllocation[]> {
     try {
       const q = query(
-        collection(db, 'envelopeAllocations'),
-        where('userId', '==', userId),
+        collection(db, 'users', userId, 'envelopeAllocations'),
         where('month', '==', month)
       );
       const querySnapshot = await getDocs(q);
@@ -165,7 +163,7 @@ export class MonthlyBudgetService {
   async createEnvelopeAllocation(allocation: Omit<EnvelopeAllocation, 'id' | 'createdAt' | 'updatedAt'>): Promise<EnvelopeAllocation> {
     try {
       const now = Timestamp.now();
-      const docRef = doc(collection(db, 'envelopeAllocations'));
+      const docRef = doc(collection(db, 'users', allocation.userId, 'envelopeAllocations'));
 
       const firestoreData: FirestoreEnvelopeAllocation = {
         id: docRef.id,
@@ -235,9 +233,9 @@ export class MonthlyBudgetService {
   }
 
   // Delete methods
-  async deleteIncomeSource(sourceId: string): Promise<void> {
+  async deleteIncomeSource(userId: string, sourceId: string): Promise<void> {
     try {
-      const docRef = doc(db, 'incomeSources', sourceId);
+      const docRef = doc(db, 'users', userId, 'incomeSources', sourceId);
       await deleteDoc(docRef);
     } catch (error) {
       console.error('Error deleting income source:', error);
@@ -245,9 +243,9 @@ export class MonthlyBudgetService {
     }
   }
 
-  async updateIncomeSource(sourceId: string, updates: Partial<Omit<FirestoreIncomeSource, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
+  async updateIncomeSource(userId: string, sourceId: string, updates: Partial<Omit<FirestoreIncomeSource, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
     try {
-      const docRef = doc(db, 'incomeSources', sourceId);
+      const docRef = doc(db, 'users', userId, 'incomeSources', sourceId);
       const updateData = {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -259,9 +257,9 @@ export class MonthlyBudgetService {
     }
   }
 
-  async deleteEnvelopeAllocation(allocationId: string): Promise<void> {
+  async deleteEnvelopeAllocation(userId: string, allocationId: string): Promise<void> {
     try {
-      const docRef = doc(db, 'envelopeAllocations', allocationId);
+      const docRef = doc(db, 'users', userId, 'envelopeAllocations', allocationId);
       await deleteDoc(docRef);
     } catch (error) {
       console.error('Error deleting envelope allocation:', error);
@@ -269,9 +267,9 @@ export class MonthlyBudgetService {
     }
   }
 
-  async updateEnvelopeAllocation(allocationId: string, updates: Partial<Omit<FirestoreEnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
+  async updateEnvelopeAllocation(userId: string, allocationId: string, updates: Partial<Omit<FirestoreEnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
     try {
-      const docRef = doc(db, 'envelopeAllocations', allocationId);
+      const docRef = doc(db, 'users', userId, 'envelopeAllocations', allocationId);
       const updateData = {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -294,12 +292,12 @@ export class MonthlyBudgetService {
 
       // Delete all income sources
       const incomeDeletePromises = incomeSources.map(source =>
-        this.deleteIncomeSource(source.id)
+        this.deleteIncomeSource(userId, source.id)
       );
 
       // Delete all envelope allocations
       const allocationDeletePromises = allocations.map(allocation =>
-        this.deleteEnvelopeAllocation(allocation.id)
+        this.deleteEnvelopeAllocation(userId, allocation.id)
       );
 
       // Execute all deletions
@@ -350,8 +348,7 @@ export class MonthlyBudgetService {
 
   subscribeToIncomeSources(userId: string, month: string, callback: (sources: any[]) => void): Unsubscribe {
     const q = query(
-      collection(db, 'incomeSources'),
-      where('userId', '==', userId),
+      collection(db, 'users', userId, 'incomeSources'),
       where('month', '==', month)
     );
     return onSnapshot(q, (querySnapshot) => {
@@ -369,8 +366,7 @@ export class MonthlyBudgetService {
 
   subscribeToEnvelopeAllocations(userId: string, month: string, callback: (allocations: any[]) => void): Unsubscribe {
     const q = query(
-      collection(db, 'envelopeAllocations'),
-      where('userId', '==', userId),
+      collection(db, 'users', userId, 'envelopeAllocations'),
       where('month', '==', month)
     );
     return onSnapshot(q, (querySnapshot) => {
