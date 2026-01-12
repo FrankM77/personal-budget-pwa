@@ -153,9 +153,21 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const userId = getUserId();
           const currentMonth = get().currentMonth;
 
+          // Check if we have cached data for this month
+          const cachedData = get();
+          const hasCachedData = cachedData.incomeSources.length > 0 || 
+                                cachedData.envelopeAllocations.length > 0;
+
+          // If offline and have cached data, use it immediately
+          if (!navigator.onLine && hasCachedData) {
+            console.log('📦 Using cached data (offline mode)');
+            set({ isLoading: false });
+            return;
+          }
+
           const service = MonthlyBudgetService.getInstance();
 
-          // Fetch all data in parallel
+          // Fetch all data in parallel (will use Firebase cache if offline persistence enabled)
           const [monthlyBudget, incomeSources, envelopeAllocations] = await Promise.all([
             service.getMonthlyBudget(userId, currentMonth),
             service.getIncomeSources(userId, currentMonth),
@@ -173,10 +185,17 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           await get().processMonthlyPiggybankContributions(currentMonth);
         } catch (error) {
           console.error('Error fetching monthly data:', error);
-          set({
-            error: error instanceof Error ? error.message : 'Failed to fetch monthly data',
-            isLoading: false,
-          });
+          
+          // If offline, use cached data instead of showing error
+          if (!navigator.onLine) {
+            console.log('📦 Falling back to cached data due to offline error');
+            set({ isLoading: false });
+          } else {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to fetch monthly data',
+              isLoading: false,
+            });
+          }
         }
       },
 
@@ -662,8 +681,13 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
     {
       name: 'monthly-budget-store',
       version: 1,
-      // We don't persist currentMonth so the app always starts on the actual current month
-      partialize: (_state) => ({}),
+      partialize: (state) => ({
+        // Persist the data so it's available offline
+        incomeSources: state.incomeSources,
+        envelopeAllocations: state.envelopeAllocations,
+        monthlyBudget: state.monthlyBudget,
+        // Don't persist currentMonth - always start on actual current month
+      }),
     }
   )
 );
