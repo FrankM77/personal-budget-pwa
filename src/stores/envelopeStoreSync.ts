@@ -232,7 +232,6 @@ export const createSyncSlice = ({
           set({ error: err.message, isLoading: false });
         }
       }
-      
       // Always resolve successfully - never let this function reject
     } catch (outerError: any) {
       console.error('❌ Critical error in fetchData:', outerError);

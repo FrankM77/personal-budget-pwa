@@ -1,16 +1,22 @@
 # Offline Capability Troubleshooting
 
 **Date:** January 11-12, 2026  
-**Status:** 🔴 **UNRESOLVED** - Navigation to main view fails when offline
+**Status:** ✅ **RESOLVED** - Offline functionality fully restored
 
 ---
 
 ## Problem Statement
 
-The app does not work properly offline. Specifically:
-- ✅ Initial load works (data appears from cache)
-- ❌ **Navigation back to main view gets stuck on "Loading your budget" spinner**
-- User reports: "when navigating away from main view and back it gets stuck on loading main"
+The app did not work properly offline. Specifically:
+- ✅ Initial load worked (data appeared from cache)
+- ❌ **Navigation back to main view got stuck on "Loading your budget" spinner**
+- User reported: "when navigating away from main view and back it gets stuck on loading main"
+
+## Solution Summary
+
+**Root Cause:** Component loading state (`hasInitialLoadStarted`) was never set to `true` when navigating back because `Promise.all` was waiting for the 5-second Firebase timeout to complete, even though stores had already loaded data from cache and set `isLoading: false`.
+
+**Fix:** Changed loading state to be derived purely from store states without waiting for Promise completion. Set `initialFetchTriggered` immediately when component mounts, allowing `isInitialLoading` to become `false` as soon as both stores finish loading from cache.
 
 ### Expected Behavior
 - App should load instantly from cached data when offline
@@ -418,5 +424,53 @@ npm run preview          # Preview production build (port 4000)
 
 ---
 
-**Last Updated:** January 12, 2026, 12:24 AM  
-**Next Session:** Continue investigation with detailed console logging
+## Final Solution (January 12, 2026)
+
+### The Fix
+
+**File:** `src/views/EnvelopeListView.tsx`
+
+**Before:**
+```typescript
+const [hasInitialLoadStarted, setHasInitialLoadStarted] = useState(false);
+const isInitialLoading = !hasInitialLoadStarted || isLoading || isBudgetLoading;
+
+// In useEffect:
+Promise.all([fetchData(), fetchMonthlyData()])
+  .then(() => setHasInitialLoadStarted(true))  // ❌ Never reached when offline
+```
+
+**After:**
+```typescript
+const [initialFetchTriggered, setInitialFetchTriggered] = useState(false);
+const isInitialLoading = !initialFetchTriggered || isLoading || isBudgetLoading;
+
+// In useEffect:
+fetchData();
+fetchMonthlyData();
+setInitialFetchTriggered(true);  // ✅ Set immediately
+```
+
+### Why It Works
+
+1. **Before:** Component waited for `Promise.all` to resolve before setting `hasInitialLoadStarted=true`. When offline, Firebase queries timeout after 5 seconds, so `Promise.all` took 5+ seconds to resolve, keeping the loading screen visible even though stores had already loaded from cache.
+
+2. **After:** `initialFetchTriggered` is set to `true` immediately when component mounts. The loading state derives from:
+   - `!initialFetchTriggered` → becomes `false` immediately
+   - `isLoading` → becomes `false` when envelope store loads from cache
+   - `isBudgetLoading` → becomes `false` when budget store loads from cache
+   
+   Result: `isInitialLoading` becomes `false` instantly when both stores finish loading from cache, showing main content immediately.
+
+### Test Results
+
+✅ **Initial load offline:** Works - data loads from cache instantly  
+✅ **Navigation away:** Works  
+✅ **Navigation back to main view:** Works - data loads from cache instantly  
+✅ **Page refresh offline (production):** Works - service worker serves cached page  
+✅ **All data persists:** Income sources, envelopes, transactions, allocations
+
+---
+
+**Last Updated:** January 12, 2026, 10:40 AM  
+**Status:** Offline functionality fully restored and tested

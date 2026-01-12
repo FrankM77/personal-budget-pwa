@@ -217,7 +217,6 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
               });
             }
           }
-          
           // Always resolve successfully - never let this function reject
         } catch (outerError) {
           console.error('❌ Critical error in fetchMonthlyData:', outerError);

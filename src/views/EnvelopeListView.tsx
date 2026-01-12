@@ -385,10 +385,11 @@ export const EnvelopeListView: React.FC = () => {
   // Compute loading state from stores - no local state needed
   const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [hasInitialLoadStarted, setHasInitialLoadStarted] = useState(false);
+  const [initialFetchTriggered, setInitialFetchTriggered] = useState(false);
   
-  // Derive loading state from both stores
-  const isInitialLoading = !hasInitialLoadStarted || isLoading || isBudgetLoading;
+  // Derive loading state purely from stores - show loading only if stores are loading
+  // Once fetch is triggered and stores are not loading, we're done
+  const isInitialLoading = !initialFetchTriggered || isLoading || isBudgetLoading;
 
   // State for inline budget editing
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
@@ -426,28 +427,17 @@ export const EnvelopeListView: React.FC = () => {
 
   // Load data from Firebase on mount
   useEffect(() => {
-    console.log('🚀 Starting initial data load');
-    
     // Set timeout message after 8 seconds
     loadingTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ Loading timeout reached, showing timeout message');
       setShowTimeoutMessage(true);
     }, 8000);
 
     // Trigger both fetches in parallel - they handle their own loading states
-    console.log('📡 Fetching data in parallel...');
-    Promise.all([
-      fetchData().then(() => console.log('✅ Envelope data fetched')),
-      fetchMonthlyData().then(() => console.log('✅ Monthly budget data fetched'))
-    ]).then(() => {
-      console.log('🎉 Data load complete');
-      setHasInitialLoadStarted(true);
-      setShowTimeoutMessage(false);
-    }).catch((error) => {
-      console.error('❌ Error loading initial data:', error);
-      setHasInitialLoadStarted(true);
-      setShowTimeoutMessage(false);
-    });
+    fetchData();
+    fetchMonthlyData();
+    
+    // Mark that we've triggered the initial fetch
+    setInitialFetchTriggered(true);
 
     // Cleanup
     return () => {
@@ -456,6 +446,16 @@ export const EnvelopeListView: React.FC = () => {
       }
     };
   }, []); // Empty dependency array - only run once on mount
+  
+  // Watch store loading states and hide timeout message when both are done
+  useEffect(() => {
+    if (initialFetchTriggered && !isLoading && !isBudgetLoading) {
+      setShowTimeoutMessage(false);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    }
+  }, [initialFetchTriggered, isLoading, isBudgetLoading]);
 
   // Effect to handle Copy Previous Month Prompt visibility
   useEffect(() => {
@@ -846,9 +846,7 @@ export const EnvelopeListView: React.FC = () => {
   const availableToBudget = calculateAvailableToBudget();
 
   // Show loading screen during initial data fetch
-  console.log('🔍 Checking loading screen condition, isInitialLoading:', isInitialLoading);
   if (isInitialLoading) {
-    console.log('📺 Showing loading screen');
     return (
       <LoadingScreen 
         message={showTimeoutMessage ? "Still loading... This is normal on slow connections" : "Loading your budget..."}
@@ -856,8 +854,6 @@ export const EnvelopeListView: React.FC = () => {
       />
     );
   }
-
-  console.log('📱 Showing main content');
 
   return (
     <>
