@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => {
           navigateFallbackDenylist: [/^\/api\//, /^\/_/, /\/[^/?]+\.[^/]+$/],
         },
         devOptions: {
-          enabled: true // Allows testing SW in dev mode
+          enabled: false // Disable SW in dev mode - it conflicts with Vite's module resolution
         }
       })
     ],

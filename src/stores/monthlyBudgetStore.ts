@@ -148,6 +148,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
       // Fetch all monthly data for current month
       fetchMonthlyData: async () => {
+        // Wrap everything in try-catch to ensure this function NEVER rejects
         try {
           const userId = getUserId();
           const currentMonth = get().currentMonth;
@@ -159,60 +160,69 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
           // If we have cached data, use it immediately and fetch in background
           if (hasCachedData) {
-            console.log('📦 Using cached data, fetching updates in background...');
+            console.log('📦 Using cached monthly budget data, fetching updates in background...');
             // Don't set isLoading to true - use cached data immediately
           } else {
+            console.log('⏳ No cached monthly budget data, fetching from Firebase...');
             set({ isLoading: true, error: null });
           }
 
-          const service = MonthlyBudgetService.getInstance();
+          try {
+            const service = MonthlyBudgetService.getInstance();
 
-          // Create a timeout promise (5 seconds)
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Firebase query timeout')), 5000);
-          });
+            // Create a timeout promise (5 seconds)
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Firebase query timeout')), 5000);
+            });
 
-          // Race between Firebase queries and timeout
-          const fetchPromise = Promise.all([
-            service.getMonthlyBudget(userId, currentMonth),
-            service.getIncomeSources(userId, currentMonth),
-            service.getEnvelopeAllocations(userId, currentMonth),
-          ]);
+            // Race between Firebase queries and timeout
+            const fetchPromise = Promise.all([
+              service.getMonthlyBudget(userId, currentMonth),
+              service.getIncomeSources(userId, currentMonth),
+              service.getEnvelopeAllocations(userId, currentMonth),
+            ]);
 
-          const [monthlyBudget, incomeSources, envelopeAllocations] = await Promise.race([
-            fetchPromise,
-            timeoutPromise
-          ]) as [any, any[], any[]];
+            const [monthlyBudget, incomeSources, envelopeAllocations] = await Promise.race([
+              fetchPromise,
+              timeoutPromise
+            ]) as [any, any[], any[]];
 
-          set({
-            monthlyBudget,
-            incomeSources,
-            envelopeAllocations,
-            isLoading: false,
-          });
-
-          console.log('✅ Monthly budget data fetched from Firebase');
-
-          // Process piggybank auto-contributions for this month
-          await get().processMonthlyPiggybankContributions(currentMonth);
-        } catch (error) {
-          console.error('Error fetching monthly data:', error);
-          
-          // Check if we have cached data to fall back to
-          const cachedData = get();
-          const hasCachedData = cachedData.incomeSources.length > 0 || 
-                                cachedData.envelopeAllocations.length > 0;
-
-          if (hasCachedData) {
-            console.log('📦 Using cached data due to fetch error (likely offline)');
-            set({ isLoading: false, error: null });
-          } else {
-            console.error('❌ No cached data available');
             set({
-              error: error instanceof Error ? error.message : 'Failed to fetch monthly data',
+              monthlyBudget,
+              incomeSources,
+              envelopeAllocations,
               isLoading: false,
             });
+
+            console.log('✅ Monthly budget data fetched from Firebase');
+
+            // Process piggybank auto-contributions for this month
+            await get().processMonthlyPiggybankContributions(currentMonth);
+          } catch (error) {
+            console.error('⚠️ Firebase fetch failed:', error);
+            
+            // Check if we have cached data to fall back to
+            const cachedData = get();
+            const hasCachedData = cachedData.incomeSources.length > 0 || 
+                                  cachedData.envelopeAllocations.length > 0;
+
+            if (hasCachedData) {
+              console.log('📦 Using cached monthly budget data due to fetch error (likely offline)');
+              set({ isLoading: false, error: null });
+            } else {
+              console.error('❌ No cached monthly budget data available');
+              set({
+                error: error instanceof Error ? error.message : 'Failed to fetch monthly data',
+                isLoading: false,
+              });
+            }
           }
+          
+          // Always resolve successfully - never let this function reject
+        } catch (outerError) {
+          console.error('❌ Critical error in fetchMonthlyData:', outerError);
+          set({ isLoading: false, error: 'Failed to load budget data' });
+          // Still don't reject - just log and set error state
         }
       },
 

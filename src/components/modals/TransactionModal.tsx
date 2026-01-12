@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Trash } from 'lucide-react';
+import { Trash, AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../../stores/envelopeStore';
+import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
 import type { Transaction, Envelope } from '../../models/types';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 
 const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction }) => {
   const { addTransaction, updateTransaction, deleteTransaction } = useEnvelopeStore();
+  const { currentMonth } = useMonthlyBudgetStore();
   
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -65,6 +67,17 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
     console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: currentEnvelope.id });
 
     try {
+      // Validate date against current budget month
+      const selectedDate = new Date(date);
+      const selectedMonthStr = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      if (selectedMonthStr !== currentMonth) {
+        const confirmMsg = `This transaction date (${selectedMonthStr}) does not match the current budget month (${currentMonth}). Are you sure you want to save it?`;
+        if (!window.confirm(confirmMsg)) {
+          return;
+        }
+      }
+
       if (mode === 'add') {
         console.log('➕ Adding income transaction');
         await addTransaction({
@@ -192,7 +205,22 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
           {/* Date Input */}
           <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Date</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs text-gray-500 dark:text-zinc-400">Date</label>
+              {(() => {
+                const selectedDate = new Date(date);
+                const selectedMonthStr = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                if (selectedMonthStr !== currentMonth) {
+                  return (
+                    <div className="flex items-center text-amber-500 gap-1" title="Date is outside current budget month">
+                      <AlertTriangle size={14} />
+                      <span className="text-[10px] font-bold uppercase">Budget Mismatch</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
             <input
               type="date"
               value={date}

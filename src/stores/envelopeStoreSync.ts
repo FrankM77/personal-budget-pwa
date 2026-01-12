@@ -25,29 +25,32 @@ export const createSyncSlice = ({
   clearUserData,
 }: SyncSliceParams) => {
   const fetchData = async () => {
-    const state = get();
-    const userId = getCurrentUserId();
-
-    if (state.resetPending) {
-      console.log('🔄 fetchData: Reset pending detected, performing Firebase reset instead...');
-      await get().performFirebaseReset();
-      return;
-    }
-
-    console.log('🔄 fetchData: Starting data fetch for user:', userId);
-    
-    // Check if we have cached data (from Zustand persist hydration)
-    const hasCachedData = state.envelopes.length > 0 || state.transactions.length > 0;
-    
-    // If we have cached data, use it immediately and fetch in background
-    if (hasCachedData) {
-      console.log('📦 Using cached envelope data, fetching updates in background...');
-      // Don't set isLoading to true - use cached data immediately
-    } else {
-      set({ isLoading: true, error: null });
-    }
-    
+    // Wrap everything to ensure this function NEVER rejects
     try {
+      const state = get();
+      const userId = getCurrentUserId();
+
+      if (state.resetPending) {
+        console.log('🔄 fetchData: Reset pending detected, performing Firebase reset instead...');
+        await get().performFirebaseReset();
+        return;
+      }
+
+      console.log('🔄 fetchData: Starting data fetch for user:', userId);
+      
+      // Check if we have cached data (from Zustand persist hydration)
+      const hasCachedData = state.envelopes.length > 0 || state.transactions.length > 0;
+      
+      // If we have cached data, use it immediately and fetch in background
+      if (hasCachedData) {
+        console.log('📦 Using cached envelope data, fetching updates in background...');
+        // Don't set isLoading to true - use cached data immediately
+      } else {
+        console.log('⏳ No cached envelope data, fetching from Firebase...');
+        set({ isLoading: true, error: null });
+      }
+      
+      try {
       // Create a timeout promise (5 seconds)
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Firebase query timeout')), 5000);
@@ -210,24 +213,31 @@ export const createSyncSlice = ({
           pendingSync: false
         };
       });
-    } catch (err: any) {
-      console.error('Sync Failed:', err);
-      
-      // Check if we have cached data to fall back to
-      const currentState = get();
-      const hasCachedData = currentState.envelopes.length > 0 || currentState.transactions.length > 0;
-      
-      if (err.message === 'Firebase query timeout' || isNetworkError(err)) {
-        if (hasCachedData) {
-          console.log('📦 Using cached envelope data due to timeout/network error (likely offline)');
-          set({ isLoading: false, pendingSync: true });
+      } catch (err: any) {
+        console.error('⚠️ Firebase fetch failed:', err);
+        
+        // Check if we have cached data to fall back to
+        const currentState = get();
+        const hasCachedData = currentState.envelopes.length > 0 || currentState.transactions.length > 0;
+        
+        if (err.message === 'Firebase query timeout' || isNetworkError(err)) {
+          if (hasCachedData) {
+            console.log('📦 Using cached envelope data due to timeout/network error (likely offline)');
+            set({ isLoading: false, pendingSync: true });
+          } else {
+            console.error('❌ No cached envelope data available');
+            set({ isLoading: false, pendingSync: true, error: 'Unable to load data. Please check your connection.' });
+          }
         } else {
-          console.error('❌ No cached envelope data available');
-          set({ isLoading: false, pendingSync: true, error: 'Unable to load data. Please check your connection.' });
+          set({ error: err.message, isLoading: false });
         }
-      } else {
-        set({ error: err.message, isLoading: false });
       }
+      
+      // Always resolve successfully - never let this function reject
+    } catch (outerError: any) {
+      console.error('❌ Critical error in fetchData:', outerError);
+      set({ isLoading: false, error: 'Failed to load envelope data' });
+      // Still don't reject - just log and set error state
     }
   };
 

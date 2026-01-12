@@ -382,10 +382,13 @@ export const EnvelopeListView: React.FC = () => {
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Loading state for initial data fetch
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  // Compute loading state from stores - no local state needed
   const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hasInitialLoadStarted, setHasInitialLoadStarted] = useState(false);
+  
+  // Derive loading state from both stores
+  const isInitialLoading = !hasInitialLoadStarted || isLoading || isBudgetLoading;
 
   // State for inline budget editing
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
@@ -423,40 +426,28 @@ export const EnvelopeListView: React.FC = () => {
 
   // Load data from Firebase on mount
   useEffect(() => {
-    console.log('🚀 Starting initial data load, isInitialLoading:', isInitialLoading);
+    console.log('🚀 Starting initial data load');
     
-    const loadData = async () => {
-      console.log('⏳ Setting timeout for loading message');
-      // Set timeout message after 8 seconds (improved from 30s)
-      loadingTimeoutRef.current = setTimeout(() => {
-        console.log('⏰ Loading timeout reached, showing timeout message');
-        setShowTimeoutMessage(true);
-      }, 8000);
+    // Set timeout message after 8 seconds
+    loadingTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ Loading timeout reached, showing timeout message');
+      setShowTimeoutMessage(true);
+    }, 8000);
 
-      try {
-        console.log('📡 Fetching data in parallel...');
-        // Fetch both datasets in parallel for faster loading
-        await Promise.all([
-          fetchData().then(() => console.log('✅ Envelope data fetched')),
-          fetchMonthlyData().then(() => console.log('✅ Monthly budget data fetched'))
-        ]);
-        
-        // Clear timeout and hide loading screen
-        if (loadingTimeoutRef.current) {
-          clearTimeout(loadingTimeoutRef.current);
-        }
-        console.log('🎉 Data load complete, hiding loading screen');
-        setIsInitialLoading(false);
-        setShowTimeoutMessage(false);
-      } catch (error) {
-        console.error('❌ Error loading initial data:', error);
-        // Still hide loading screen on error so user isn't stuck
-        setIsInitialLoading(false);
-        setShowTimeoutMessage(false);
-      }
-    };
-
-    loadData();
+    // Trigger both fetches in parallel - they handle their own loading states
+    console.log('📡 Fetching data in parallel...');
+    Promise.all([
+      fetchData().then(() => console.log('✅ Envelope data fetched')),
+      fetchMonthlyData().then(() => console.log('✅ Monthly budget data fetched'))
+    ]).then(() => {
+      console.log('🎉 Data load complete');
+      setHasInitialLoadStarted(true);
+      setShowTimeoutMessage(false);
+    }).catch((error) => {
+      console.error('❌ Error loading initial data:', error);
+      setHasInitialLoadStarted(true);
+      setShowTimeoutMessage(false);
+    });
 
     // Cleanup
     return () => {

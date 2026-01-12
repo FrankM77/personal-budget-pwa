@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
+import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 
 export const AddTransactionView: React.FC = () => {
   const navigate = useNavigate();
   const { envelopes, addTransaction } = useEnvelopeStore();
+  const { currentMonth } = useMonthlyBudgetStore();
 
   // Form state
   const [amount, setAmount] = useState('');
@@ -34,6 +37,17 @@ export const AddTransactionView: React.FC = () => {
     console.log('📅 Parsed date:', transactionDate.toISOString());
 
     try {
+      // Validate date against current budget month
+      const [y, m] = date.split('-').map(Number);
+      const selectedMonthStr = `${y}-${m.toString().padStart(2, '0')}`;
+      
+      if (selectedMonthStr !== currentMonth) {
+        const confirmMsg = `This transaction date (${selectedMonthStr}) does not match the current budget month (${currentMonth}). Are you sure you want to save it?`;
+        if (!window.confirm(confirmMsg)) {
+          return;
+        }
+      }
+
       // Create a transaction for each split
       const splitEntries = Object.entries(splitAmounts).filter(([_, amt]) => amt > 0);
       
@@ -72,7 +86,7 @@ export const AddTransactionView: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
-      <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-10 flex items-center justify-between">
+      <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+6px)] pb-2 sticky top-0 z-10 flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
           className="text-blue-600 dark:text-blue-400 font-medium"
@@ -174,12 +188,27 @@ export const AddTransactionView: React.FC = () => {
 
           {/* Date Input */}
           <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Date</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs text-gray-500 dark:text-zinc-400">Date</label>
+              {(() => {
+                const [y, m] = date.split('-').map(Number);
+                const selectedMonthStr = `${y}-${m.toString().padStart(2, '0')}`;
+                if (selectedMonthStr !== currentMonth) {
+                  return (
+                    <div className="flex items-center text-amber-500 gap-1" title="Date is outside current budget month">
+                      <AlertTriangle size={14} />
+                      <span className="text-[10px] font-bold uppercase">Budget Mismatch</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
             />
           </div>
 
