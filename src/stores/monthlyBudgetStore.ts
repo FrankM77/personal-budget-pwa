@@ -27,6 +27,7 @@ interface MonthlyBudgetStore {
   pendingSync: boolean;
   resetPending: boolean;
   testingConnectivity: boolean;
+  pendingDeletedIncomeSources: string[]; // Income source IDs pending deletion from Firebase
 
   // Actions
   setCurrentMonth: (month: string) => void;
@@ -138,6 +139,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
       pendingSync: false,
       resetPending: false,
       testingConnectivity: false,
+      pendingDeletedIncomeSources: [],
 
       // Set current month and fetch data
       setCurrentMonth: (month: string) => {
@@ -336,13 +338,30 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           incomeSources: state.incomeSources.filter(source => source.id !== id),
         }));
 
-        // Fire-and-forget: Delete from Firebase in background
-        // Firebase will queue this if offline and sync when back online
-        const service = MonthlyBudgetService.getInstance();
-        service.deleteIncomeSource(id).catch((error) => {
-          console.error('Error deleting income source from Firebase:', error);
-          // Note: Local state is already updated, so UI remains consistent
-        });
+        try {
+          // Delete from Firebase with timeout
+          const service = MonthlyBudgetService.getInstance();
+          const deletePromise = service.deleteIncomeSource(id);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
+          );
+          
+          await Promise.race([deletePromise, timeoutPromise]);
+        } catch (err: any) {
+          const isOffline = err.message?.includes('timeout') || !navigator.onLine;
+          
+          if (isOffline) {
+            // Offline: Keep the local deletion, mark for later sync
+            console.log('📴 Offline detected - keeping income source deletion locally, will sync when online');
+            set((state: any) => ({
+              pendingSync: true,
+              pendingDeletedIncomeSources: [...state.pendingDeletedIncomeSources, id]
+            }));
+          } else {
+            console.error('Error deleting income source from Firebase:', err);
+            // Note: Local state is already updated, so UI remains consistent
+          }
+        }
       },
 
       restoreIncomeSource: async (source: IncomeSource, originalIndex?: number) => {

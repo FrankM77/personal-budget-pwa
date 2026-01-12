@@ -260,7 +260,69 @@ export const createSyncSlice = ({
 
     set({ pendingSync: true });
     
-    // Sync temp envelopes to Firebase first
+    // Sync pending envelope deletions first
+    if (state.pendingDeletes && state.pendingDeletes.length > 0) {
+      console.log(`🗑️ Syncing ${state.pendingDeletes.length} pending envelope deletions to Firebase...`);
+      const userId = getCurrentUserId();
+      
+      for (const envelopeId of state.pendingDeletes) {
+        try {
+          await EnvelopeService.deleteEnvelope(userId, envelopeId);
+          console.log(`✅ Deleted envelope ${envelopeId} from Firebase`);
+        } catch (err) {
+          console.error(`❌ Failed to delete envelope ${envelopeId}:`, err);
+        }
+      }
+      
+      // Clear pending deletes after sync attempt
+      set({ pendingDeletes: [] });
+    }
+    
+    // Sync pending transaction deletions
+    if (state.pendingDeletedTransactions && state.pendingDeletedTransactions.length > 0) {
+      console.log(`🗑️ Syncing ${state.pendingDeletedTransactions.length} pending transaction deletions to Firebase...`);
+      const userId = getCurrentUserId();
+      
+      for (const transactionId of state.pendingDeletedTransactions) {
+        try {
+          await TransactionService.deleteTransaction(userId, transactionId);
+          console.log(`✅ Deleted transaction ${transactionId} from Firebase`);
+        } catch (err) {
+          console.error(`❌ Failed to delete transaction ${transactionId}:`, err);
+        }
+      }
+      
+      // Clear pending transaction deletes after sync attempt
+      set({ pendingDeletedTransactions: [] });
+    }
+    
+    // Sync pending income source deletions from monthlyBudgetStore
+    try {
+      const { useMonthlyBudgetStore } = await import('./monthlyBudgetStore');
+      const budgetStore = useMonthlyBudgetStore.getState();
+      
+      if (budgetStore.pendingDeletedIncomeSources && budgetStore.pendingDeletedIncomeSources.length > 0) {
+        console.log(`🗑️ Syncing ${budgetStore.pendingDeletedIncomeSources.length} pending income source deletions to Firebase...`);
+        const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+        const service = MonthlyBudgetService.getInstance();
+        
+        for (const incomeSourceId of budgetStore.pendingDeletedIncomeSources) {
+          try {
+            await service.deleteIncomeSource(incomeSourceId);
+            console.log(`✅ Deleted income source ${incomeSourceId} from Firebase`);
+          } catch (err) {
+            console.error(`❌ Failed to delete income source ${incomeSourceId}:`, err);
+          }
+        }
+        
+        // Clear pending income source deletes after sync attempt
+        useMonthlyBudgetStore.setState({ pendingDeletedIncomeSources: [] });
+      }
+    } catch (err) {
+      console.error('Failed to sync income source deletions:', err);
+    }
+    
+    // Sync temp envelopes to Firebase
     const tempEnvelopes = state.envelopes.filter((env: Envelope) => env.id.startsWith('temp-'));
     if (tempEnvelopes.length > 0) {
       console.log(`🔄 Syncing ${tempEnvelopes.length} temp envelopes to Firebase...`);

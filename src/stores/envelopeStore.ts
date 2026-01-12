@@ -43,6 +43,8 @@ interface EnvelopeStore {
   pendingSync: boolean;
   resetPending: boolean;
   testingConnectivity: boolean;
+  pendingDeletes: string[]; // Envelope IDs pending deletion from Firebase
+  pendingDeletedTransactions: string[]; // Transaction IDs pending deletion from Firebase
 
   // Actions
   fetchData: () => Promise<void>;
@@ -94,7 +96,9 @@ const clearUserData = () => {
     error: null,
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     pendingSync: false,
-    resetPending: false
+    resetPending: false,
+    pendingDeletes: [],
+    pendingDeletedTransactions: []
   });
 };
 
@@ -256,6 +260,8 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
         pendingSync: false,
         resetPending: false,
         testingConnectivity: false,
+        pendingDeletes: [],
+        pendingDeletedTransactions: [],
 
         // Delegated Actions from slices
         addEnvelope: async (newEnv: Omit<Envelope, 'id'>): Promise<string> => {

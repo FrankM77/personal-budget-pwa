@@ -368,11 +368,12 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
         if (isOffline) {
           // Offline: Keep the local deletion, mark for later sync
           console.log('📴 Offline detected - keeping envelope deletion locally, will sync when online');
-          set({
+          set((state: any) => ({
             isLoading: false,
             pendingSync: true,
-            error: null
-          });
+            error: null,
+            pendingDeletes: [...state.pendingDeletes, envelopeId]
+          }));
         } else {
           // Real error: Restore the envelope and transactions locally
           const restoredEnvelope = get().envelopes.find(env => env.id === envelopeId);

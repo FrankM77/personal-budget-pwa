@@ -123,10 +123,11 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
         isLoading: true
       }));
 
+      // Delete from Firebase (skip temp IDs that haven't been synced yet)
+      const userId = getCurrentUserId();
+      const firebaseIdsToDelete = allTransactionsToDelete.filter(txId => !txId.startsWith('temp-'));
+
       try {
-        // Delete from Firebase (skip temp IDs that haven't been synced yet)
-        const userId = getCurrentUserId();
-        const firebaseIdsToDelete = allTransactionsToDelete.filter(txId => !txId.startsWith('temp-'));
 
         for (const txId of firebaseIdsToDelete) {
           console.log(`🔄 About to delete transaction ID: ${txId}`);
@@ -148,12 +149,13 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
         
         if (isOffline) {
           // Offline: Keep the local deletion, mark for later sync
-          console.log('📴 Offline detected - keeping deletion locally, will sync when online');
-          set({
+          console.log('📴 Offline detected - keeping transaction deletion locally, will sync when online');
+          set((state: any) => ({
             isLoading: false,
             pendingSync: true,
-            error: null
-          });
+            error: null,
+            pendingDeletedTransactions: [...state.pendingDeletedTransactions, ...firebaseIdsToDelete]
+          }));
         } else {
           // Real error: Restore the transactions locally
           const restoredTransactions = allTransactionsToDelete.map(txId => {
