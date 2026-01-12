@@ -956,7 +956,7 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
 
-    <div className="pt-24 p-4 max-w-md mx-auto space-y-6">
+    <div className="pt-40 p-4 max-w-md mx-auto space-y-6">
       {/* Copy Previous Month Prompt */}
       {showCopyPrompt && (
         <CopyPreviousMonthPrompt
