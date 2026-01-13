@@ -71,18 +71,23 @@ const getUserId = (): string => {
 export const getCurrentUserId = getUserId;
 
 const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmount: number, month: string) => {
-	const { transactions, addTransaction, deleteTransaction } = useEnvelopeStore.getState();
+	const { transactions, addTransaction, deleteTransaction, updateTransaction } = useEnvelopeStore.getState();
   
 	const allocationDescription = "Monthly Budget Allocation";
 	const [year, monthNum] = month.split('-').map(Number);
   
 	console.log('🔍 Syncing budget allocation transaction:', { envelopeId, budgetedAmount, month, totalTransactions: transactions.length });
   
-	// Find ALL existing allocation transactions for this envelope and month (in case of duplicates)
+	// Find ALL existing allocation transactions for this envelope and month
 	const existingTxs = transactions.filter(tx => {
-		if (tx.envelopeId !== envelopeId || tx.description !== allocationDescription) {
-		  return false;
-		}
+		if (tx.envelopeId !== envelopeId) return false;
+        
+        // Match both the new standard description AND the legacy description
+        const isAllocation = tx.description === allocationDescription;
+        const isLegacyContribution = tx.description.startsWith('Monthly contribution to');
+        
+        if (!isAllocation && !isLegacyContribution) return false;
+
 		try {
 		  let txDate;
 		  if (typeof tx.date === 'string') {
@@ -99,30 +104,50 @@ const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmoun
 	});
   
 	console.log('📋 Found existing transactions:', existingTxs.length);
-  
-	// Delete ALL existing allocation transactions for this envelope/month to avoid duplicates
-	for (const tx of existingTxs) {
-		console.log('🗑️ Deleting old allocation transaction:', tx.id, 'amount:', tx.amount);
-		await deleteTransaction(tx.id);
-	}
-  
-	const newAmount = new Decimal(budgetedAmount.toString() || '0');
-  
-	// Create new transaction if amount > 0
-	if (newAmount.gt(0)) {
-	  console.log('➕ Creating new allocation transaction with amount', newAmount.toNumber());
-	  const transactionDate = new Date(year, monthNum - 1, 2).toISOString();
-	  await addTransaction({
-		description: allocationDescription,
-		amount: newAmount.toNumber(),
-		envelopeId: envelopeId,
-		date: transactionDate,
-		type: 'Income',
-		reconciled: true
-	  });
-	} else {
-	  console.log('✅ No new transaction needed (amount is 0)');
-	}
+
+    const newAmount = new Decimal(budgetedAmount.toString() || '0');
+
+    if (existingTxs.length > 0) {
+        // UPSERT LOGIC: Update the first one, delete the rest
+        const [txToUpdate, ...txsToDelete] = existingTxs;
+
+        // Delete duplicates
+        for (const tx of txsToDelete) {
+            console.log('🗑️ Deleting duplicate allocation transaction:', tx.id);
+            await deleteTransaction(tx.id);
+        }
+
+        // Update the primary transaction if amount or description changed
+        if (txToUpdate.amount !== newAmount.toNumber() || txToUpdate.description !== allocationDescription) {
+            console.log('🔄 Updating existing allocation transaction:', txToUpdate.id, 'to amount:', newAmount.toNumber());
+            await updateTransaction({
+                ...txToUpdate,
+                amount: newAmount.toNumber(),
+                description: allocationDescription, // Standardize description
+                type: 'Income',
+                reconciled: true
+            });
+        } else {
+            console.log('✅ Transaction already correct:', txToUpdate.id);
+        }
+
+    } else {
+        // CREATE LOGIC: Only if no transaction exists
+        if (newAmount.gt(0)) {
+            console.log('➕ Creating new allocation transaction with amount', newAmount.toNumber());
+            const transactionDate = new Date(year, monthNum - 1, 2).toISOString();
+            await addTransaction({
+                description: allocationDescription,
+                amount: newAmount.toNumber(),
+                envelopeId: envelopeId,
+                date: transactionDate,
+                type: 'Income',
+                reconciled: true
+            });
+        } else {
+            console.log('✅ No new transaction needed (amount is 0)');
+        }
+    }
   };
 
 export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
@@ -611,7 +636,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
       processMonthlyPiggybankContributions: async (month: string) => {
         try {
           console.log('🐷 Processing piggybank contributions for month:', month);
-          const { envelopes, transactions, addTransaction } = useEnvelopeStore.getState();
+          const { envelopes, transactions, deleteTransaction } = useEnvelopeStore.getState();
 
           // Don't create contributions for months beyond the real current month
           const now = new Date();
@@ -629,9 +654,6 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             console.log('No piggybanks to process');
             return;
           }
-          
-          // Check if contributions already exist for this month
-          const [year, monthNum] = month.split('-').map(Number);
           
           for (const piggybank of piggybanks) {
             const contribution = piggybank.piggybankConfig?.monthlyContribution || 0;
@@ -657,35 +679,58 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
                 continue;
               }
             }
-            
-            // Check if auto-contribution already exists for this piggybank this month
-            const existingContribution = transactions.find(tx => 
+
+            // 1. Clean up legacy "Monthly contribution to..." transactions if they exist
+            const legacyTransactions = transactions.filter(tx => 
               tx.envelopeId === piggybank.id &&
               tx.isAutomatic === true &&
               tx.month === month &&
-              tx.type === 'Income'
+              tx.description.startsWith('Monthly contribution to')
             );
             
-            if (existingContribution) {
-              console.log(`Auto-contribution already exists for ${piggybank.name} in ${month}`);
-              continue;
+            if (legacyTransactions.length > 0) {
+              console.log(`Found ${legacyTransactions.length} legacy auto-contributions for ${piggybank.name}. Deleting all...`);
+              for (const tx of legacyTransactions) {
+                console.log(`Deleting legacy transaction ${tx.id}`);
+                await deleteTransaction(tx.id);
+              }
             }
-            
-            // Create auto-contribution transaction
-            console.log(`Creating auto-contribution for ${piggybank.name}: $${contribution}`);
-            const transactionDate = new Date(year, monthNum - 1, 1, 12, 0, 0);
-            
-            await addTransaction({
-              amount: contribution,
-              description: `Monthly contribution to ${piggybank.name}`,
-              date: transactionDate.toISOString(),
-              envelopeId: piggybank.id,
-              type: 'Income',
-              reconciled: false,
-              isAutomatic: true
-            });
-            
-            console.log(`✅ Created auto-contribution for ${piggybank.name}`);
+
+            // 2. Check current allocations and deduplicate if necessary
+            const matchingAllocations = get().envelopeAllocations.filter(
+              a => a.envelopeId === piggybank.id
+            );
+
+            if (matchingAllocations.length > 1) {
+              console.warn(`Found ${matchingAllocations.length} duplicate allocations for ${piggybank.name}. Cleaning up...`);
+              // Keep the first one, delete the rest
+              const [keep, ...remove] = matchingAllocations;
+              for (const alloc of remove) {
+                if (alloc.id) {
+                  console.log(`Deleting duplicate allocation ${alloc.id}`);
+                  await get().deleteEnvelopeAllocation(alloc.id);
+                }
+              }
+              
+              // Update the kept one if needed
+              if (keep.budgetedAmount !== contribution) {
+                console.log(`Updating allocation for ${piggybank.name} to $${contribution}`);
+                await get().setEnvelopeAllocation(piggybank.id, contribution);
+              }
+            } else if (matchingAllocations.length === 1) {
+              // Update if needed
+              const currentAmount = matchingAllocations[0].budgetedAmount;
+              if (currentAmount !== contribution) {
+                console.log(`Updating allocation for ${piggybank.name} to $${contribution}`);
+                await get().setEnvelopeAllocation(piggybank.id, contribution);
+              } else {
+                console.log(`Allocation for ${piggybank.name} already correct ($${contribution})`);
+              }
+            } else {
+              // Create new allocation
+              console.log(`Creating initial allocation for ${piggybank.name} ($${contribution})`);
+              await get().setEnvelopeAllocation(piggybank.id, contribution);
+            }
           }
           
           // Refresh available to budget after contributions

@@ -58,7 +58,8 @@ export const AddEnvelopeView: React.FC = () => {
     envelopePromise.then((newEnvelopeId) => {
       if (newEnvelopeId) {
         // Start allocation creation (optimistic update happens immediately)
-        setEnvelopeAllocation(newEnvelopeId, 0).catch(err => 
+        const allocationAmount = isPiggybank ? parseFloat(monthlyContribution || '0') : 0;
+        setEnvelopeAllocation(newEnvelopeId, allocationAmount).catch(err => 
           console.error('Failed to create allocation:', err)
         );
       }

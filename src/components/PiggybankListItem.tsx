@@ -19,11 +19,9 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 }) => {
   const updateEnvelope = useEnvelopeStore(state => state.updateEnvelope);
   const transactions = useEnvelopeStore(state => state.transactions);
-  const updateTransaction = useEnvelopeStore(state => state.updateTransaction);
+  const deleteTransaction = useEnvelopeStore(state => state.deleteTransaction);
   const currentMonth = useMonthlyBudgetStore(state => state.currentMonth);
-  const processMonthlyPiggybankContributions = useMonthlyBudgetStore(
-    state => state.processMonthlyPiggybankContributions
-  );
+  const setEnvelopeAllocation = useMonthlyBudgetStore(state => state.setEnvelopeAllocation);
   const showToast = useToastStore(state => state.showToast);
 
   const targetAmount = piggybank.piggybankConfig?.targetAmount;
@@ -107,23 +105,22 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 
       await updateEnvelope(updatedEnvelope);
 
-      const currentMonthAutoTx = transactions.find(
+      // Clean up legacy "Monthly contribution to..." transactions if they exist
+      const legacyTx = transactions.find(
         tx =>
           tx.envelopeId === piggybank.id &&
           tx.isAutomatic === true &&
           tx.month === currentMonth &&
-          tx.type === 'Income'
+          tx.description.startsWith('Monthly contribution to')
       );
 
-      if (currentMonthAutoTx && currentMonthAutoTx.id) {
-        if (currentMonthAutoTx.amount !== parsedValue) {
-          await updateTransaction({
-            ...currentMonthAutoTx,
-            amount: parsedValue,
-          });
-        }
-      } else if (parsedValue > 0 && !isPaused) {
-        await processMonthlyPiggybankContributions(currentMonth);
+      if (legacyTx) {
+        await deleteTransaction(legacyTx.id);
+      }
+
+      // Update envelope allocation (this will create/update the "Monthly Budget Allocation" transaction)
+      if (!isPaused) {
+        await setEnvelopeAllocation(piggybank.id, parsedValue);
       }
 
       showToast('Monthly contribution updated', 'success');
