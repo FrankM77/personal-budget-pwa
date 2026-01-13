@@ -106,7 +106,9 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           userId: userId
         };
         
-        const firebasePromise = EnvelopeService.createEnvelope(envelopeForService);
+        const sanitizedEnvelope = sanitizeEnvelopeForSave(envelopeForService as Envelope);
+        
+        const firebasePromise = EnvelopeService.createEnvelope(sanitizedEnvelope);
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)
         );
