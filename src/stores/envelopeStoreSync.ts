@@ -3,6 +3,7 @@ import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
+import { useMonthlyBudgetStore } from './monthlyBudgetStore';
 import type { Transaction, Envelope, DistributionTemplate, AppSettings } from '../models/types';
 
 export type SyncSliceParams = {
@@ -156,10 +157,24 @@ export const createSyncSlice = ({
         const localOnlyEnvelopes = currentState.envelopes.filter((env: Envelope) =>
           env.id && !(fetchedEnvelopes as Envelope[]).some((fetched: Envelope) => fetched.id === env.id)
         );
-        const localOnlyTransactions = currentState.transactions.filter((tx: Transaction) =>
-          tx.id && !(fetchedTransactions as Transaction[]).some((fetched: Transaction) => fetched.id === tx.id) &&
-          (!tx.id.startsWith('temp-') || mergedEnvelopeIds.has(tx.envelopeId))
-        );
+        
+        // Only keep local-only transactions if:
+        // 1. They're not in Firebase (pending sync)
+        // 2. They're either temp transactions OR their envelope still exists in the merged set
+        const localOnlyTransactions = currentState.transactions.filter((tx: Transaction) => {
+          const notInFirebase = tx.id && !(fetchedTransactions as Transaction[]).some((fetched: Transaction) => fetched.id === tx.id);
+          const isTempTransaction = tx.id && tx.id.startsWith('temp-');
+          const envelopeExists = mergedEnvelopeIds.has(tx.envelopeId);
+          
+          const shouldKeep = notInFirebase && ((isTempTransaction && envelopeExists) || (!isTempTransaction && envelopeExists));
+          
+          if (notInFirebase && !shouldKeep) {
+            console.log(`🗑️ Filtering out orphaned transaction: ${tx.id} (envelope: ${tx.envelopeId}, exists: ${envelopeExists})`);
+          }
+          
+          // Keep if: not in Firebase AND (is temp with valid envelope OR is non-temp with valid envelope)
+          return shouldKeep;
+        });
 
         let mergedTemplates: DistributionTemplate[];
         let localOnlyTemplates: DistributionTemplate[] = [];
@@ -460,6 +475,7 @@ export const createSyncSlice = ({
   };
 
   const importData = async (data: any) => {
+    set({ isImporting: true });
     try {
       if (!data.envelopes || !data.transactions) {
         return { success: false, message: 'Invalid backup format: Missing core data.' };
@@ -467,6 +483,7 @@ export const createSyncSlice = ({
 
       const userId = getCurrentUserId();
       console.log(`📥 Importing data for user: ${userId}`);
+      console.log(`🔒 isImporting flag set to TRUE - real-time sync paused`);
 
       // Clear Firebase data first (like resetData does)
       console.log('🗑️ Clearing existing Firebase data before import...');
@@ -484,16 +501,28 @@ export const createSyncSlice = ({
       });
       console.log('✅ Local state cleared before import');
 
-      const newEnvelopes = data.envelopes.map((env: any) => ({
-        id: env.id || `imported-${Date.now()}-${Math.random()}`,
-        name: env.name,
-        currentBalance: env.currentBalance || env.budget || 0,
-        lastUpdated: new Date().toISOString(),
-        isActive: env.isActive ?? true,
-        orderIndex: env.orderIndex ?? 0,
-        userId,
-      }));
+      // Also clear monthly budget store
+      const { clearMonthlyBudget } = useMonthlyBudgetStore.getState();
+      await clearMonthlyBudget();
+      console.log('✅ Monthly budget store cleared');
 
+      // Process envelopes from backup
+      const newEnvelopes = data.envelopes.map((env: any) => {
+        console.log(`🔍 Raw envelope from backup:`, JSON.stringify(env, null, 2));
+        const processedEnv = {
+          ...env,
+          id: env.id || `imported-${Date.now()}-${Math.random()}`,
+          userId,
+        };
+        console.log(`📦 Processing envelope: ${processedEnv.name}`, {
+          isPiggybank: processedEnv.isPiggybank,
+          hasPiggybankConfig: !!processedEnv.piggybankConfig,
+          piggybankConfig: processedEnv.piggybankConfig
+        });
+        return processedEnv;
+      });
+
+      // Process transactions from backup
       const newTransactions = data.transactions.map((tx: any) => ({
         ...tx,
         id: tx.id || `imported-${Date.now()}-${Math.random()}`,
@@ -504,9 +533,31 @@ export const createSyncSlice = ({
         reconciled: tx.reconciled ?? false,
       }));
 
-      const newTemplates = (data.distributionTemplates || []).map((template: any) => ({
-        ...template,
-        id: template.id || `imported-${Date.now()}-${Math.random()}`,
+      // Process envelope allocations and income sources from backup
+      const newEnvelopeAllocations = (data.envelopeAllocations || []).map((alloc: any) => ({
+        ...alloc,
+        id: alloc.id || `imported-${Date.now()}-${Math.random()}`,
+        userId,
+      }));
+
+      // Deduplicate allocations by envelopeId - keep the last one for each envelope
+      const deduplicatedAllocations = newEnvelopeAllocations.reduce((acc: any[], alloc: any) => {
+        const existingIndex = acc.findIndex(a => a.envelopeId === alloc.envelopeId);
+        if (existingIndex >= 0) {
+          // Replace with the newer allocation
+          acc[existingIndex] = alloc;
+          console.log(`🔄 Deduplicating allocation for envelope ${alloc.envelopeId} - keeping newer one`);
+        } else {
+          acc.push(alloc);
+        }
+        return acc;
+      }, []);
+
+      console.log(`📊 After deduplication: ${deduplicatedAllocations.length} allocations (was ${newEnvelopeAllocations.length})`);
+
+      const newIncomeSources = (data.incomeSources || []).map((source: any) => ({
+        ...source,
+        id: source.id || `imported-${Date.now()}-${Math.random()}`,
         userId,
       }));
 
@@ -518,12 +569,12 @@ export const createSyncSlice = ({
           }
         : null;
 
-      console.log(`📊 Importing: ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions, ${newTemplates.length} templates`);
+      console.log(`📊 Importing: ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions, ${deduplicatedAllocations.length} allocations, ${newIncomeSources.length} income sources`);
 
       set({
         envelopes: newEnvelopes,
         transactions: newTransactions,
-        distributionTemplates: newTemplates,
+        distributionTemplates: [],
         appSettings: newSettings,
         error: null,
         pendingSync: true,
@@ -556,12 +607,24 @@ export const createSyncSlice = ({
           }
         }
 
-        for (const template of newTemplates) {
+        // Import monthly budget data
+        const MonthlyBudgetService = (await import('../services/MonthlyBudgetService')).MonthlyBudgetService.getInstance();
+        
+        for (const allocation of deduplicatedAllocations) {
           try {
-            await DistributionTemplateService.createDistributionTemplate(template);
-            console.log(`✅ Synced template: ${template.name}`);
+            await MonthlyBudgetService.createEnvelopeAllocation(allocation);
+            console.log(`✅ Synced allocation for envelope: ${allocation.envelopeId}`);
           } catch (error) {
-            console.error(`❌ Failed to sync template ${template.name}:`, error);
+            console.error(`❌ Failed to sync allocation:`, error);
+          }
+        }
+
+        for (const source of newIncomeSources) {
+          try {
+            await MonthlyBudgetService.createIncomeSource(source);
+            console.log(`✅ Synced income source: ${source.name}`);
+          } catch (error) {
+            console.error(`❌ Failed to sync income source ${source.name}:`, error);
           }
         }
 
@@ -575,24 +638,52 @@ export const createSyncSlice = ({
         }
 
         console.log('✅ All imported data synced to Firebase');
-        set({ pendingSync: false, isLoading: false });
+        
+        // Clear local state to force a fresh fetch from Firebase with correct IDs
+        // This prevents duplicate transactions caused by local IDs not matching Firebase IDs
+        console.log('🧹 Clearing local state to fetch fresh data with Firebase IDs...');
+        set({
+          envelopes: [],
+          transactions: [],
+          distributionTemplates: [],
+          pendingSync: false,
+          isLoading: false
+        });
+        
+        // Fetch fresh data from Firebase to get correct IDs
+        console.log('📥 Fetching fresh data from Firebase after import...');
+        await get().fetchData();
+        console.log('✅ Fresh data loaded from Firebase');
+        
       } catch (syncError) {
         console.error('❌ Error syncing to Firebase:', syncError);
         set({ pendingSync: true });
       }
 
-      const templateCount = newTemplates.length;
       const settingsImported = newSettings ? 'Settings imported.' : '';
+
+      // Refresh available to budget after import (skip fetchMonthlyData to avoid duplicate piggybank processing)
+      const { refreshAvailableToBudget, envelopeAllocations } = useMonthlyBudgetStore.getState();
+      console.log('🔍 Checking allocations after import:');
+      envelopeAllocations.forEach(alloc => {
+        console.log(`  - ${alloc.envelopeId}: $${alloc.budgetedAmount}`);
+      });
+      const totalAllocated = envelopeAllocations.reduce((sum, alloc) => sum + alloc.budgetedAmount, 0);
+      console.log(`💰 Total allocated after import: $${totalAllocated}`);
+      
+      await refreshAvailableToBudget();
+      console.log('✅ Monthly budget available to budget refreshed');
 
       return {
         success: true,
-        message: `Imported and synced ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions${
-          templateCount > 0 ? `, ${templateCount} templates` : ''
-        } to Firebase.${settingsImported ? ` ${settingsImported}` : ''}`,
+        message: `Imported and synced ${newEnvelopes.length} envelopes, ${newTransactions.length} transactions, ${deduplicatedAllocations.length} allocations, ${newIncomeSources.length} income sources to Firebase.${settingsImported ? ` ${settingsImported}` : ''}`,
       };
     } catch (error) {
       console.error('Import failed:', error);
       return { success: false, message: 'Failed to import data. Check file format.' };
+    } finally {
+      console.log(`🔓 isImporting flag set to FALSE - real-time sync resumed`);
+      set({ isImporting: false });
     }
   };
 

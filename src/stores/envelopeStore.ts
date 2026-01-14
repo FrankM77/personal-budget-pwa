@@ -38,6 +38,7 @@ interface EnvelopeStore {
   distributionTemplates: DistributionTemplate[];
   appSettings: AppSettings | null;
   isLoading: boolean;
+  isImporting: boolean;
   error: string | null;
   isOnline: boolean;
   pendingSync: boolean;
@@ -93,6 +94,7 @@ const clearUserData = () => {
     distributionTemplates: [],
     appSettings: null,
     isLoading: false,
+    isImporting: false,
     error: null,
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     pendingSync: false,
@@ -255,6 +257,7 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
         distributionTemplates: [],
         appSettings: null,
         isLoading: false,
+        isImporting: false,
         error: null,
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         pendingSync: false,
@@ -330,6 +333,7 @@ export const useEnvelopeStore = create<EnvelopeStore>()(
             distributionTemplates: [],
             appSettings: null,
             isLoading: false,
+            isImporting: false,
             error: null,
             isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
             pendingSync: false,

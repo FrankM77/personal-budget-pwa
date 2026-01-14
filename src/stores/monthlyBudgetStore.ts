@@ -47,18 +47,16 @@ interface MonthlyBudgetStore {
   refreshAvailableToBudget: () => Promise<void>;
   loadDemoData: (incomeSources: IncomeSource[], envelopeAllocations: EnvelopeAllocation[]) => void;
   clearMonthData: () => Promise<void>;
+  clearMonthlyBudget: () => void;
+
+  // Maintenance actions
+  cleanupInvalidAllocations: () => void;
 
   // Network and sync actions
   updateOnlineStatus: () => Promise<void>;
   syncData: () => Promise<void>;
   handleUserLogout: () => void;
 }
-
-// Helper function to get current month in YYYY-MM format
-const getCurrentMonth = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-};
 
 // Helper function to get user ID
 const getUserId = (): string => {
@@ -69,6 +67,12 @@ const getUserId = (): string => {
 
 // Export getCurrentUserId for use in realtime setup
 export const getCurrentUserId = getUserId;
+
+// Helper function to get current month in YYYY-MM format
+const getCurrentMonth = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+};
 
 const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmount: number, month: string) => {
 	const { transactions, addTransaction, deleteTransaction, updateTransaction } = useEnvelopeStore.getState();
@@ -796,6 +800,69 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         }
       },
 
+      clearMonthData: async () => {
+        try {
+          const userId = getUserId();
+          const currentMonth = get().currentMonth;
+
+          const service = MonthlyBudgetService.getInstance();
+
+          // ---- NEW LOGIC ----
+          // Delete the corresponding allocation transactions
+          const { transactions, deleteTransaction } = useEnvelopeStore.getState();
+          const allocationDescription = "Monthly Budget Allocation";
+          const [year, monthNum] = currentMonth.split('-').map(Number);
+
+          const transactionsToDelete = transactions.filter(tx => {
+            if (tx.description !== allocationDescription) return false;
+            try {
+              const txDate = new Date(tx.date);
+              return txDate.getFullYear() === year && txDate.getMonth() + 1 === monthNum;
+            } catch(e) { return false; }
+          });
+
+          for (const tx of transactionsToDelete) {
+            await deleteTransaction(tx.id);
+          }
+          // ---- END NEW LOGIC ----
+
+          // Clear all data for this month in Firebase
+          await service.clearMonthData(userId, currentMonth);
+
+          // Update local state
+          set({
+            incomeSources: [],
+            envelopeAllocations: [],
+          });
+
+          // Recalculate available to budget (should be 0 now)
+          await get().refreshAvailableToBudget();
+
+        } catch (error) {
+          console.error('Error clearing month data:', error);
+          throw error;
+        }
+      },
+
+      clearMonthlyBudget: async () => {
+        console.log('🧹 Clearing monthly budget data (local and Firebase)...');
+        
+        // Clear local state
+        set({
+          monthlyBudget: null,
+          incomeSources: [],
+          envelopeAllocations: [],
+        });
+
+        // Also clear Firebase data for current month
+        try {
+          await get().clearMonthData();
+          console.log('✅ Firebase monthly budget data cleared');
+        } catch (error) {
+          console.error('❌ Failed to clear Firebase monthly budget data:', error);
+        }
+      },
+
       // Load demo data for demonstration purposes
       loadDemoData: (demoIncomeSources: IncomeSource[], demoEnvelopeAllocations: EnvelopeAllocation[]) => {
         set({
@@ -805,47 +872,14 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         });
       },
 
-      clearMonthData: async () => {
-        try {
-			const userId = getUserId();
-			const currentMonth = get().currentMonth;
-	
-			const service = MonthlyBudgetService.getInstance();
-	
-			// ---- NEW LOGIC ----
-			// Delete the corresponding allocation transactions
-			const { transactions, deleteTransaction } = useEnvelopeStore.getState();
-			const allocationDescription = "Monthly Budget Allocation";
-			const [year, monthNum] = currentMonth.split('-').map(Number);
-	
-			const transactionsToDelete = transactions.filter(tx => {
-				if (tx.description !== allocationDescription) return false;
-				try {
-					const txDate = new Date(tx.date);
-					return txDate.getFullYear() === year && txDate.getMonth() + 1 === monthNum;
-				} catch(e) { return false; }
-			});
-	
-			for (const tx of transactionsToDelete) {
-				await deleteTransaction(tx.id);
-			}
-			// ---- END NEW LOGIC ----
-	
-			// Clear all data for this month in Firebase
-			await service.clearMonthData(userId, currentMonth);
-	
-			// Update local state
-			set({
-				incomeSources: [],
-				envelopeAllocations: [],
-			});
-	
-			// Recalculate available to budget (should be 0 now)
-			await get().refreshAvailableToBudget();
-
-        } catch (error) {
-          console.error('Error clearing month data:', error);
-          throw error;
+      cleanupInvalidAllocations: () => {
+        const current = get().envelopeAllocations;
+        const valid = current.filter(a => 
+          a.budgetedAmount > 0 && !a.envelopeId.startsWith('temp-')
+        );
+        if (current.length !== valid.length) {
+          set({ envelopeAllocations: valid });
+          console.log(`Cleaned ${current.length - valid.length} invalid allocations`);
         }
       },
 
@@ -882,6 +916,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         incomeSources: state.incomeSources,
         envelopeAllocations: state.envelopeAllocations,
         monthlyBudget: state.monthlyBudget,
+        currentMonth: state.currentMonth,
         // Don't persist currentMonth - always start on actual current month
       }),
     }

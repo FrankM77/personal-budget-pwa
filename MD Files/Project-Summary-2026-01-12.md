@@ -21,6 +21,8 @@
   - Dynamic version management from package.json
   - Improved login error feedback and user experience
   - Password strength validation with real-time feedback and 12-character minimum requirement
+  - **Backup/restore transaction duplication fix** with real-time sync management
+  - **Orphaned transaction cleanup** for proper envelope deletion
 
 ## 2. Architecture & Tech Stack
 
@@ -236,6 +238,33 @@ Monthly budget (`totalIncome` and `availableToBudget`) was not automatically upd
 - **User Experience**: No manual refresh needed to see updated budget
 - **Data Integrity**: Firebase Console shows correct budget values
 - **Real-time Updates**: Budget updates immediately after any change
+
+### Backup/Restore Transaction Duplication Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+Backup and restore operations were duplicating transactions and leaving orphaned transactions with "Unknown envelope" after envelope deletion. Two root causes were identified:
+
+1. **Race Condition**: Real-time Firebase listeners were syncing old data during import, causing duplicates
+2. **ID Mismatch**: Imported transactions kept backup IDs locally but got new Firebase IDs, causing merge logic to treat them as separate transactions
+
+**✅ Solution Implemented:**
+- Added `isImporting` flag to `EnvelopeStore` to pause real-time sync during import
+- Modified all real-time subscriptions to check `!currentState.isImporting` before syncing
+- Fixed `fetchData` merge logic to filter out orphaned transactions whose envelopes no longer exist
+- Added local state clearing after Firebase sync to force fresh fetch with correct IDs
+- Added comprehensive debug logging to track import process
+
+**🔧 Files Modified:**
+- `src/stores/envelopeStore.ts` - Added `isImporting` flag to interface and state
+- `src/stores/envelopeStoreRealtime.ts` - Updated all subscriptions to respect `isImporting` flag
+- `src/stores/envelopeStoreSync.ts` - Added import flag management and local state clearing
+- Debug logging added throughout the import process
+
+**🎯 Impact:**
+- **Data Integrity**: No duplicate transactions after restore
+- **Clean Deletion**: Orphaned transactions properly removed when envelopes are deleted
+- **Reliable Restore**: Backup/restore now works consistently without data duplication
+- **Better Debugging**: Comprehensive logging for troubleshooting import issues
 
 ### Envelope Deletion Cascade Fix (2026-01-12)
 

@@ -10,6 +10,7 @@ type EnvelopeStoreLike = {
     isOnline: boolean;
     pendingSync: boolean;
     resetPending: boolean;
+    isImporting: boolean;
     testingConnectivity: boolean;
     updateOnlineStatus: () => Promise<void>;
     syncData: () => Promise<void>;
@@ -62,30 +63,45 @@ const setupRealtimeSubscriptions = (useEnvelopeStore: EnvelopeStoreLike, userId:
   // Subscribe to envelopes
   const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(userId, (firebaseEnvelopes) => {
     const currentState = useEnvelopeStore.getState();
-    // Only sync if we're online and don't have pending local changes
-    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+    // Only sync if we're online and don't have pending local changes or importing
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending && !currentState.isImporting) {
       console.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
       const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope);
       useEnvelopeStore.setState({ envelopes });
+    } else {
+      console.log('⏸️ Real-time sync: BLOCKED envelope update', {
+        isOnline: currentState.isOnline,
+        pendingSync: currentState.pendingSync,
+        resetPending: currentState.resetPending,
+        isImporting: currentState.isImporting
+      });
     }
   });
 
   // Subscribe to transactions
   const unsubscribeTransactions = TransactionService.subscribeToTransactions(userId, (firebaseTransactions) => {
     const currentState = useEnvelopeStore.getState();
-    // Only sync if we're online and don't have pending local changes
-    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+    // Only sync if we're online and don't have pending local changes or importing
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending && !currentState.isImporting) {
       console.log('🔄 Real-time sync: Transactions updated', firebaseTransactions.length);
       const transactions = firebaseTransactions.map(convertFirebaseTransaction);
       useEnvelopeStore.setState({ transactions });
+    } else {
+      console.log('⏸️ Real-time sync: BLOCKED transaction update', {
+        isOnline: currentState.isOnline,
+        pendingSync: currentState.pendingSync,
+        resetPending: currentState.resetPending,
+        isImporting: currentState.isImporting,
+        transactionCount: firebaseTransactions.length
+      });
     }
   });
 
   // Subscribe to distribution templates
   const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(userId, (firebaseTemplates) => {
     const currentState = useEnvelopeStore.getState();
-    // Only sync if we're online and don't have pending local changes
-    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+    // Only sync if we're online and don't have pending local changes or importing
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending && !currentState.isImporting) {
       console.log('🔄 Real-time sync: Templates updated from Firebase', firebaseTemplates.length);
       console.log('📋 Firebase templates:', firebaseTemplates.map((t: any) => ({id: t.id, name: t.name})));
       // Note: Can't access current distributionTemplates from this context
@@ -100,8 +116,8 @@ const setupRealtimeSubscriptions = (useEnvelopeStore: EnvelopeStoreLike, userId:
   // Subscribe to app settings
   const unsubscribeSettings = AppSettingsService.subscribeToAppSettings(userId, (firebaseSettings: AppSettings | null) => {
     const currentState = useEnvelopeStore.getState();
-    // Only sync if we're online and don't have pending local changes
-    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending) {
+    // Only sync if we're online and don't have pending local changes or importing
+    if (currentState.isOnline && !currentState.pendingSync && !currentState.resetPending && !currentState.isImporting) {
       console.log('🔄 Real-time sync: Settings updated', firebaseSettings ? 'found' : 'null');
       useEnvelopeStore.setState({ appSettings: firebaseSettings });
     }
