@@ -501,7 +501,31 @@ export const EnvelopeListView: React.FC = () => {
   const localOrderRef = useRef<typeof envelopes>([]);
 
   // Separate piggybanks from regular envelopes
-  const piggybanks = envelopes.filter(env => env.isPiggybank === true && env.isActive);
+  // Only show piggybanks from their creation month forward
+  const piggybanks = envelopes.filter(env => {
+    if (!env.isPiggybank || !env.isActive) return false;
+    
+    // If piggybank has a creation date, only show it from that month forward
+    if (env.createdAt) {
+      const createdDate = new Date(env.createdAt);
+      // Use UTC methods to avoid timezone conversion issues
+      const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
+      
+      console.log(`🐷 Piggybank filter: ${env.name}`, {
+        createdAt: env.createdAt,
+        createdMonth,
+        currentMonth,
+        shouldShow: currentMonth >= createdMonth
+      });
+      
+      // Only show if current viewing month is >= creation month
+      return currentMonth >= createdMonth;
+    }
+    
+    // If no creation date, show it (legacy piggybanks)
+    console.log(`🐷 Piggybank ${env.name} has no createdAt - showing by default`);
+    return true;
+  });
 
   useEffect(() => {
     if (!isReordering) {

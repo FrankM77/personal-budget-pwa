@@ -6,7 +6,7 @@ import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 
 export const AddEnvelopeView: React.FC = () => {
   const { addEnvelope } = useEnvelopeStore();
-  const { setEnvelopeAllocation } = useMonthlyBudgetStore();
+  const { setEnvelopeAllocation, currentMonth } = useMonthlyBudgetStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -31,12 +31,18 @@ export const AddEnvelopeView: React.FC = () => {
     const maxOrderIndex = envelopes.length > 0 ? Math.max(...envelopes.map(e => e.orderIndex ?? 0)) : -1;
     const nextOrderIndex = maxOrderIndex + 1;
 
+    // For piggybanks, use the current viewing month as the creation date
+    // This ensures piggybanks only appear from their creation month forward
+    const creationDate = isPiggybank 
+      ? new Date(`${currentMonth}-01T00:00:00.000Z`)
+      : new Date();
+
     // Create the envelope or piggybank
     const envelopeData: any = {
       name,
       currentBalance: finalBalance,
       lastUpdated: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      createdAt: creationDate.toISOString(),
       isActive: true,
       orderIndex: nextOrderIndex
     };

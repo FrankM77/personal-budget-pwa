@@ -809,7 +809,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
           // ---- NEW LOGIC ----
           // Delete the corresponding allocation transactions
-          const { transactions, deleteTransaction } = useEnvelopeStore.getState();
+          const { transactions, deleteTransaction, envelopes, updateEnvelope } = useEnvelopeStore.getState();
           const allocationDescription = "Monthly Budget Allocation";
           const [year, monthNum] = currentMonth.split('-').map(Number);
 
@@ -823,6 +823,18 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
           for (const tx of transactionsToDelete) {
             await deleteTransaction(tx.id);
+          }
+
+          // Deactivate all piggybanks (they should be removed when starting fresh)
+          const piggybanks = envelopes.filter(env => env.isPiggybank && env.isActive);
+          console.log(`🐷 Deactivating ${piggybanks.length} piggybanks for START FRESH`);
+          
+          for (const piggybank of piggybanks) {
+            await updateEnvelope({
+              ...piggybank,
+              isActive: false,
+              lastUpdated: new Date().toISOString()
+            });
           }
           // ---- END NEW LOGIC ----
 

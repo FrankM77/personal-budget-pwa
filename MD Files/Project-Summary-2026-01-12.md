@@ -23,6 +23,8 @@
   - Password strength validation with real-time feedback and 12-character minimum requirement
   - **Backup/restore transaction duplication fix** with real-time sync management
   - **Orphaned transaction cleanup** for proper envelope deletion
+  - **Piggybank month filtering fix** - piggybanks now only appear from creation month forward
+  - **START FRESH piggybank cleanup** - piggybanks are now properly deactivated
 
 ## 2. Architecture & Tech Stack
 
@@ -265,6 +267,31 @@ Backup and restore operations were duplicating transactions and leaving orphaned
 - **Clean Deletion**: Orphaned transactions properly removed when envelopes are deleted
 - **Reliable Restore**: Backup/restore now works consistently without data duplication
 - **Better Debugging**: Comprehensive logging for troubleshooting import issues
+
+### Piggybank Display and Cleanup Fix (2026-01-14)
+
+**🎯 Problems Solved:**
+Two bugs were identified and fixed related to piggybank functionality:
+
+1. **Piggybanks appearing in months before creation**: Piggybanks were showing in all months regardless of when they were created, instead of only appearing from their creation month forward
+2. **START FRESH not clearing piggybanks**: The "START FRESH" feature was clearing income sources and allocations but leaving piggybanks active
+
+**✅ Solution Implemented:**
+- **Month Filtering**: Added date-based filtering in `EnvelopeListView.tsx` to check piggybank `createdAt` against current viewing month
+- **UTC Date Handling**: Fixed timezone conversion bug by using `getUTCMonth()` and `getUTCFullYear()` instead of local time methods
+- **Creation Date Logic**: Modified `AddEnvelopeView.tsx` to set piggybank `createdAt` to the current viewing month (not real current date)
+- **START FRESH Enhancement**: Updated `clearMonthData()` in `monthlyBudgetStore.ts` to deactivate all piggybanks when clearing month data
+
+**🔧 Files Modified:**
+- `src/views/EnvelopeListView.tsx` - Added piggybank filtering logic with UTC date handling
+- `src/views/AddEnvelopeView.tsx` - Set piggybank creation date to current viewing month
+- `src/stores/monthlyBudgetStore.ts` - Added piggybank deactivation to START FRESH
+
+**🎯 Impact:**
+- **Correct Display**: Piggybanks only appear from their creation month forward, not in past months
+- **Clean Reset**: START FRESH now properly removes piggybanks along with other month data
+- **Timezone Safety**: UTC date handling prevents timezone conversion issues across different locales
+- **User Experience**: Piggybank behavior now matches expected monthly budgeting workflow
 
 ### Envelope Deletion Cascade Fix (2026-01-12)
 
