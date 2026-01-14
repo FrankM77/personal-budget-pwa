@@ -60,15 +60,21 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
     }
   }, [monthlyContribution, isEditingContribution]);
 
+  useEffect(() => {
+    if (isEditingContribution && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingContribution]);
+
   const beginContributionEdit = (event: React.MouseEvent | React.TouchEvent) => {
     event.stopPropagation();
+    if ('touches' in event || event.type.startsWith('touch')) {
+      event.preventDefault();
+    }
     if (isSavingContribution) return;
     setContributionInput(monthlyContribution ? monthlyContribution.toFixed(2) : '0.00');
     setIsEditingContribution(true);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    });
   };
 
   const cancelContributionEdit = () => {
@@ -246,19 +252,20 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
                     onBlur={handleContributionSave}
                     onKeyDown={handleContributionKeyDown}
                     disabled={isSavingContribution}
+                    autoFocus
                     className="w-28 pl-6 pr-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
                 {isSavingContribution && <Loader2 size={16} className="animate-spin text-gray-400" />}
               </form>
             ) : (
-              <button
-                type="button"
+              <div
                 onClick={beginContributionEdit}
-                className="font-medium text-gray-900 dark:text-white hover:underline focus:outline-none"
+                onTouchEnd={beginContributionEdit}
+                className="font-medium text-gray-900 dark:text-white hover:underline cursor-pointer"
               >
                 ${monthlyContribution.toFixed(2)}/month
-              </button>
+              </div>
             )}
           </div>
         )}
