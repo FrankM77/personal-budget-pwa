@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useToastStore } from '../stores/toastStore';
+import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import type { Transaction } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
@@ -26,6 +27,7 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
     const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance } = useEnvelopeStore();
     const { showToast } = useToastStore();
+    const { currentMonth } = useMonthlyBudgetStore();
 
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
     const navigate = useNavigate();
@@ -63,8 +65,31 @@ const EnvelopeDetail: React.FC = () => {
         }
     }
 
+    // Debug: Check piggybank and transactions
+    if (currentEnvelope.isPiggybank) {
+        const piggybankTransactions = transactions.filter(t => t.envelopeId === currentEnvelope.id);
+        console.log('🐷 Piggybank:', currentEnvelope.name);
+        console.log('🐷 Created at:', currentEnvelope.createdAt);
+        console.log('🐷 Transactions:', piggybankTransactions.map(t => ({
+            date: t.date,
+            description: t.description,
+            amount: t.amount
+        })));
+    }
+
     const envelopeTransactions = transactions
         .filter(t => t.envelopeId === currentEnvelope.id)
+        .filter(t => {
+            // If it's a piggybank, filter by creation date
+            if (currentEnvelope.isPiggybank) {
+                if (!currentEnvelope.createdAt) return true; // Legacy piggybanks with no creation date
+                const createdDate = new Date(currentEnvelope.createdAt);
+                const transactionDate = new Date(t.date);
+                return transactionDate >= createdDate;
+            }
+            // For regular envelopes, filter by current month
+            return t.month === currentMonth || !t.month;
+        })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // Rule #2: @Environment(\.dismiss) maps to navigate(-1)

@@ -25,6 +25,10 @@
   - **Orphaned transaction cleanup** for proper envelope deletion
   - **Piggybank month filtering fix** - piggybanks now only appear from creation month forward
   - **START FRESH piggybank cleanup** - piggybanks are now properly deactivated
+  - **Orphaned allocation cleanup** - deleted envelopes no longer leave ghost allocations in budget
+  - **Piggybank transaction filtering fix** - transactions only show from piggybank creation date
+  - **Piggybank balance consistency fix** - main page and details view now show same balance
+  - **Piggybank contribution timing fix** - contributions only created when real calendar month matches budget month
 
 ## 2. Architecture & Tech Stack
 
@@ -292,6 +296,84 @@ Two bugs were identified and fixed related to piggybank functionality:
 - **Clean Reset**: START FRESH now properly removes piggybanks along with other month data
 - **Timezone Safety**: UTC date handling prevents timezone conversion issues across different locales
 - **User Experience**: Piggybank behavior now matches expected monthly budgeting workflow
+
+### Orphaned Allocation Cleanup Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+When envelopes (especially piggybanks) were deleted, their associated allocations remained in Firebase and continued to appear in the "Assigned" budget calculation, creating ghost allocations that couldn't be removed by the user.
+
+**✅ Solution Implemented:**
+- **UI Filtering**: Modified `EnvelopeListView.tsx` to filter out allocations for deleted envelopes when calculating "Assigned"
+- **Automatic Cleanup**: Added `cleanupOrphanedAllocations()` function that detects and removes orphaned allocations from Firebase
+- **Integration**: Cleanup runs automatically when fetching monthly data to prevent accumulation
+- **Real-time Safety**: Filtering prevents orphaned allocations from affecting budget calculations even if they temporarily exist
+
+**🔧 Files Modified:**
+- `src/views/EnvelopeListView.tsx` - Filter orphaned allocations in UI calculations
+- `src/stores/monthlyBudgetStore.ts` - Add cleanup function and automatic execution
+
+**🎯 Impact:**
+- **Accurate Budgets**: "Assigned" amount now correctly reflects only existing envelopes
+- **Clean Deletion**: Deleting envelopes no longer leaves ghost allocations
+- **Automatic Maintenance**: Orphaned allocations are automatically detected and cleaned up
+- **Data Integrity**: Firebase stays clean by removing orphaned data automatically
+
+### Piggybank Transaction Filtering Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+Piggybank details view was showing transactions from before the piggybank was created, causing confusion when seeing transactions that shouldn't exist for a recently created piggybank.
+
+**✅ Solution Implemented:**
+- **Creation Date Filtering**: Modified `EnvelopeDetail.tsx` to filter transactions by piggybank creation date
+- **UTC Consistency**: Used UTC date methods to prevent timezone issues
+- **Legacy Support**: Piggybanks without creation dates still show all transactions for backward compatibility
+
+**🔧 Files Modified:**
+- `src/views/EnvelopeDetail.tsx` - Added creation date filtering for piggybank transactions
+
+**🎯 Impact:**
+- **Correct History**: Piggybank transactions only show from creation date forward
+- **No Ghost Transactions**: Pre-creation transactions are properly hidden
+- **Consistent Logic**: Matches piggybank month filtering behavior in main view
+- **User Clarity**: Transaction history makes chronological sense
+
+### Piggybank Balance Consistency Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+Main page and piggybank details view showed different balances because they calculated balances differently - main page used monthly balance while details used cumulative balance.
+
+**✅ Solution Implemented:**
+- **Unified Calculation**: Modified `EnvelopeListView.tsx` to use store's cumulative balance for piggybanks
+- **Selective Logic**: Regular envelopes still use monthly balance, piggybanks use cumulative
+- **Consistent Display**: Both views now show the same cumulative balance for piggybanks
+
+**🔧 Files Modified:**
+- `src/views/EnvelopeListView.tsx` - Updated balance calculation logic for piggybanks
+
+**🎯 Impact:**
+- **Consistent UI**: Main page and details view show identical piggybank balances
+- **Correct Behavior**: Piggybanks show cumulative balance (all-time) as expected
+- **No Confusion**: Users see same balance regardless of view
+- **Logical Separation**: Regular envelopes show monthly, piggybanks show cumulative
+
+### Piggybank Contribution Timing Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+Piggybank contributions were created immediately when navigating to any month, rather than waiting for the actual calendar date to arrive, leading to unrealistic budgeting behavior.
+
+**✅ Solution Implemented:**
+- **Calendar Month Matching**: Modified `monthlyBudgetStore.ts` to only process contributions when real calendar month matches budget month
+- **Retroactive Creation**: Contributions created on any day within the matching month (not just the 1st)
+- **Duplicate Prevention**: Enhanced deduplication to filter by month and prevent cross-month conflicts
+
+**🔧 Files Modified:**
+- `src/stores/monthlyBudgetStore.ts` - Updated contribution timing logic and month filtering
+
+**🎯 Impact:**
+- **Realistic Timing**: Contributions only created when actually in that calendar month
+- **Retroactive Support**: Can create March contribution on March 12th, dated March 1st
+- **No Premature Contributions**: Future months don't get contributions until they arrive
+- **Clean Logic**: One contribution per month per piggybank with proper deduplication
 
 ### Envelope Deletion Cascade Fix (2026-01-12)
 

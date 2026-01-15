@@ -51,6 +51,7 @@ interface MonthlyBudgetStore {
 
   // Maintenance actions
   cleanupInvalidAllocations: () => void;
+  cleanupOrphanedAllocations: () => Promise<void>;
 
   // Network and sync actions
   updateOnlineStatus: () => Promise<void>;
@@ -227,8 +228,18 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
             console.log('✅ Monthly budget data fetched from Firebase');
 
-            // Process piggybank auto-contributions for this month
-            await get().processMonthlyPiggybankContributions(currentMonth);
+            // Clean up any orphaned allocations (allocations for deleted envelopes)
+            await get().cleanupOrphanedAllocations();
+
+            // Process monthly piggybank auto-contributions if real calendar month matches budget month
+            const now = new Date();
+            const realMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            if (realMonth === currentMonth) {
+              console.log(`📅 Real month ${realMonth} matches budget month ${currentMonth} - processing piggybank contributions`);
+              await get().processMonthlyPiggybankContributions(currentMonth);
+            } else {
+              console.log(`📅 Real month ${realMonth} doesn't match budget month ${currentMonth} - skipping piggybank contributions`);
+            }
           } catch (error) {
             console.error('⚠️ Firebase fetch failed:', error);
             
@@ -676,7 +687,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             // Check if piggybank was created after this month (don't add contributions to past months)
             if (piggybank.createdAt) {
               const createdDate = new Date(piggybank.createdAt);
-              const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
+              const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
               
               if (month < createdMonth) {
                 console.log(`Skipping ${piggybank.name} - month ${month} is before creation month ${createdMonth}`);
@@ -702,7 +713,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
             // 2. Check current allocations and deduplicate if necessary
             const matchingAllocations = get().envelopeAllocations.filter(
-              a => a.envelopeId === piggybank.id
+              a => a.envelopeId === piggybank.id && a.month === month
             );
 
             if (matchingAllocations.length > 1) {
@@ -835,6 +846,13 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
               isActive: false,
               lastUpdated: new Date().toISOString()
             });
+            
+            // Also delete the piggybank's allocation
+            const allocation = get().envelopeAllocations.find(a => a.envelopeId === piggybank.id);
+            if (allocation) {
+              console.log(`🗑️ Deleting allocation ${allocation.id} for piggybank ${piggybank.name}`);
+              await get().deleteEnvelopeAllocation(allocation.id!);
+            }
           }
           // ---- END NEW LOGIC ----
 
@@ -892,6 +910,38 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
         if (current.length !== valid.length) {
           set({ envelopeAllocations: valid });
           console.log(`Cleaned ${current.length - valid.length} invalid allocations`);
+        }
+      },
+
+      cleanupOrphanedAllocations: async () => {
+        const { envelopes } = await import('./envelopeStore').then(m => m.useEnvelopeStore.getState());
+        const allocations = get().envelopeAllocations;
+        const orphaned = allocations.filter(a => !envelopes.some(env => env.id === a.envelopeId));
+        
+        if (orphaned.length > 0) {
+          console.log(`🧹 Found ${orphaned.length} orphaned allocations, cleaning up...`);
+          
+          // Delete from Firebase
+          const userId = getUserId();
+          const service = MonthlyBudgetService.getInstance();
+          for (const allocation of orphaned) {
+            if (allocation.id && !allocation.id.startsWith('temp-')) {
+              try {
+                await service.deleteEnvelopeAllocation(userId, allocation.id);
+                console.log(`✅ Deleted orphaned allocation ${allocation.id}`);
+              } catch (err) {
+                console.error(`❌ Failed to delete orphaned allocation ${allocation.id}:`, err);
+              }
+            }
+          }
+          
+          // Remove from local state
+          set({
+            envelopeAllocations: allocations.filter(a => envelopes.some(env => env.id === a.envelopeId))
+          });
+          
+          // Refresh budget
+          await get().refreshAvailableToBudget();
         }
       },
 

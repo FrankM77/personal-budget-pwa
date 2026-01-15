@@ -407,9 +407,16 @@ export const EnvelopeListView: React.FC = () => {
     localStorage.setItem('envelopeReorderUnlocked', isReorderUnlocked.toString());
   }, [isReorderUnlocked]);
 
-  // Function to get envelope balance for current month (matches store calculation)
+  // Function to get envelope balance 
   const getEnvelopeBalance = (envelopeId: string) => {
-    // Calculate transactions for this envelope in the current month using reactive transactions
+    // Check if this is a piggybank
+    const envelope = envelopes.find(e => e.id === envelopeId);
+    if (envelope?.isPiggybank) {
+      // For piggybanks, use store's cumulative balance (all transactions)
+      return useEnvelopeStore.getState().getEnvelopeBalance(envelopeId);
+    }
+    
+    // For regular envelopes, calculate monthly balance
     const envelopeTransactions = transactions.filter(t => 
       t.envelopeId === envelopeId && t.month === currentMonth
     );
@@ -951,7 +958,9 @@ export const EnvelopeListView: React.FC = () => {
         <AvailableToBudget
           amount={availableToBudget}
           totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
-          totalAllocated={envelopeAllocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
+          totalAllocated={envelopeAllocations
+            .filter(allocation => envelopes.some(env => env.id === allocation.envelopeId))
+            .reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
           isLoading={isLoading}
           variant="header"
         />
@@ -1129,7 +1138,7 @@ export const EnvelopeListView: React.FC = () => {
       {/* This modal is no longer used for editing, but we'll leave it for now in case it's needed elsewhere. */}
       {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => envelopes.find(e => e.id === envelopeId)?.name || ''} /> */}
 
-        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.length} totalAllocated={envelopeAllocations.reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.filter(a => envelopes.some(env => env.id === a.envelopeId)).length} totalAllocated={envelopeAllocations.filter(a => envelopes.some(env => env.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)} />
       </div>
     </div>
     </>
