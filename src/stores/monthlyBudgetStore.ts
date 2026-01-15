@@ -137,10 +137,20 @@ const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmoun
         }
 
     } else {
-        // CREATE LOGIC: Only if no transaction exists
+        // CREATE LOGIC: Only if no transaction exists and not future month
         if (newAmount.gt(0)) {
+            // Check if this is a future month
+            const now = new Date();
+            const currentRealMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const targetMonth = `${year}-${String(monthNum).padStart(2, '0')}`;
+            
+            if (targetMonth > currentRealMonth) {
+                console.log(`🚫 Skipping allocation transaction for ${targetMonth} - future month beyond ${currentRealMonth}`);
+                return;
+            }
+            
             console.log('➕ Creating new allocation transaction with amount', newAmount.toNumber());
-            const transactionDate = new Date(year, monthNum - 1, 2).toISOString();
+            const transactionDate = new Date(year, monthNum - 1, 1).toISOString(); // Use 1st of month
             await addTransaction({
                 description: allocationDescription,
                 amount: newAmount.toNumber(),
@@ -653,11 +663,15 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           console.log('🐷 Processing piggybank contributions for month:', month);
           const { envelopes, transactions, deleteTransaction } = useEnvelopeStore.getState();
 
-          // Don't create contributions for months beyond the real current month
+          // Only create contributions for the current real calendar month
           const now = new Date();
           const currentRealMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-          if (month > currentRealMonth) {
-            console.log(`Skipping piggybank contributions for ${month} - future month beyond ${currentRealMonth}`);
+          if (month !== currentRealMonth) {
+            if (month > currentRealMonth) {
+              console.log(`Skipping piggybank contributions for ${month} - future month beyond ${currentRealMonth}`);
+            } else {
+              console.log(`Skipping piggybank contributions for ${month} - past month, current is ${currentRealMonth}`);
+            }
             return;
           }
 
@@ -739,7 +753,20 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
                 console.log(`Updating allocation for ${piggybank.name} to $${contribution}`);
                 await get().setEnvelopeAllocation(piggybank.id, contribution);
               } else {
-                console.log(`Allocation for ${piggybank.name} already correct ($${contribution})`);
+                // Check if the corresponding transaction exists
+                const allocationTransaction = transactions.find(tx => 
+                  tx.envelopeId === piggybank.id && 
+                  tx.month === month && 
+                  tx.description === "Monthly Budget Allocation"
+                );
+                
+                if (!allocationTransaction) {
+                  console.log(`🔧 Missing transaction for ${piggybank.name} allocation - creating transaction`);
+                  // Call syncBudgetAllocationTransaction to create the missing transaction
+                  await syncBudgetAllocationTransaction(piggybank.id, currentAmount, month);
+                } else {
+                  console.log(`Allocation for ${piggybank.name} already correct ($${contribution})`);
+                }
               }
             } else {
               // Create new allocation
@@ -820,7 +847,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 
           // ---- NEW LOGIC ----
           // Delete the corresponding allocation transactions
-          const { transactions, deleteTransaction, envelopes, updateEnvelope } = useEnvelopeStore.getState();
+          const { transactions, deleteTransaction, envelopes } = useEnvelopeStore.getState();
           const allocationDescription = "Monthly Budget Allocation";
           const [year, monthNum] = currentMonth.split('-').map(Number);
 
@@ -836,23 +863,46 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             await deleteTransaction(tx.id);
           }
 
-          // Deactivate all piggybanks (they should be removed when starting fresh)
-          const piggybanks = envelopes.filter(env => env.isPiggybank && env.isActive);
-          console.log(`🐷 Deactivating ${piggybanks.length} piggybanks for START FRESH`);
-          
-          for (const piggybank of piggybanks) {
-            await updateEnvelope({
-              ...piggybank,
-              isActive: false,
-              lastUpdated: new Date().toISOString()
-            });
+          // Delete piggybanks created in current month and their current month data only
+          const currentMonthPiggybanks = envelopes.filter(env => {
+            if (!env.isPiggybank) return false;
             
-            // Also delete the piggybank's allocation
-            const allocation = get().envelopeAllocations.find(a => a.envelopeId === piggybank.id);
+            // Check if piggybank was created in current month
+            if (env.createdAt) {
+              const createdDate = new Date(env.createdAt);
+              const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
+              return createdMonth === currentMonth;
+            }
+            
+            return false; // Legacy piggybanks without createdAt - don't delete
+          });
+          
+          console.log(`🐷 Deleting ${currentMonthPiggybanks.length} piggybanks created in ${currentMonth}`);
+          
+          for (const piggybank of currentMonthPiggybanks) {
+            // Delete piggybank's transactions from current month only
+            const piggybankTransactions = transactions.filter(tx => 
+              tx.envelopeId === piggybank.id && tx.month === currentMonth
+            );
+            
+            for (const tx of piggybankTransactions) {
+              console.log(`🗑️ Deleting transaction ${tx.id} for ${piggybank.name} from ${currentMonth}`);
+              await deleteTransaction(tx.id);
+            }
+            
+            // Delete piggybank's allocation from current month only
+            const allocation = get().envelopeAllocations.find(a => 
+              a.envelopeId === piggybank.id && a.month === currentMonth
+            );
             if (allocation) {
-              console.log(`🗑️ Deleting allocation ${allocation.id} for piggybank ${piggybank.name}`);
+              console.log(`🗑️ Deleting allocation ${allocation.id} for ${piggybank.name} from ${currentMonth}`);
               await get().deleteEnvelopeAllocation(allocation.id!);
             }
+            
+            // Delete the piggybank itself
+            console.log(`🗑️ Deleting piggybank ${piggybank.name} (created in ${currentMonth})`);
+            const { deleteEnvelope } = useEnvelopeStore.getState();
+            await deleteEnvelope(piggybank.id);
           }
           // ---- END NEW LOGIC ----
 

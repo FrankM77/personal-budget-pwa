@@ -29,6 +29,9 @@
   - **Piggybank transaction filtering fix** - transactions only show from piggybank creation date
   - **Piggybank balance consistency fix** - main page and details view now show same balance
   - **Piggybank contribution timing fix** - contributions only created when real calendar month matches budget month
+  - **START FRESH piggybank deletion fix** - only deletes piggybanks created in current month, not all piggybanks
+  - **Piggybank future month contribution fix** - prevents creating contributions for future months
+  - **Piggybank missing transaction fix** - creates missing transactions when date changes to current month
 
 ## 2. Architecture & Tech Stack
 
@@ -374,6 +377,66 @@ Piggybank contributions were created immediately when navigating to any month, r
 - **Retroactive Support**: Can create March contribution on March 12th, dated March 1st
 - **No Premature Contributions**: Future months don't get contributions until they arrive
 - **Clean Logic**: One contribution per month per piggybank with proper deduplication
+
+### START FRESH Piggybank Deletion Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+START FRESH was incorrectly deleting piggybanks from all months instead of only the current month, causing piggybanks created in previous months to be unexpectedly removed.
+
+**✅ Solution Implemented:**
+- **Month-Specific Deletion**: Modified `clearMonthData()` to only delete piggybanks created in the current month
+- **Creation Date Filtering**: Used `createdAt` field to determine piggybank creation month
+- **Selective Cleanup**: Only deletes current month transactions and allocations for those piggybanks
+- **Legacy Protection**: Piggybanks without creation dates are preserved
+
+**🔧 Files Modified:**
+- `src/stores/monthlyBudgetStore.ts` - Updated START FRESH logic for month-specific piggybank deletion
+
+**🎯 Impact:**
+- **Correct Scope**: START FRESH only affects current month piggybanks
+- **Data Preservation**: Previous/future month piggybanks remain intact
+- **Clean Logic**: Only deletes piggybanks created in the target month
+- **User Safety**: Prevents accidental deletion of long-term piggybanks
+
+### Piggybank Future Month Contribution Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+Creating piggybanks in future months immediately created contributions, even though those months hadn't arrived yet, leading to unrealistic budgeting.
+
+**✅ Solution Implemented:**
+- **Date Validation**: Added date check in `syncBudgetAllocationTransaction` to prevent future month transactions
+- **1st of Month Date**: Changed transaction date from 2nd to 1st of month for consistency
+- **String Comparison Fix**: Used exact month matching instead of string comparison
+- **Future Month Blocking**: Clear logging when future month contributions are blocked
+
+**🔧 Files Modified:**
+- `src/stores/monthlyBudgetStore.ts` - Added date validation and fixed transaction date logic
+
+**🎯 Impact:**
+- **Realistic Budgeting**: No contributions until actual calendar month arrives
+- **Consistent Dates**: All contributions dated the 1st of the month
+- **Clear Behavior**: Future month piggybanks don't get immediate contributions
+- **Proper Timing**: Contributions only created when appropriate
+
+### Piggybank Missing Transaction Fix (2026-01-14)
+
+**🎯 Problem Solved:**
+Piggybanks created in future months had allocations but no transactions (blocked by date check), and there was no mechanism to create the missing transactions when the date changed.
+
+**✅ Solution Implemented:**
+- **Transaction Detection**: Added check in `processMonthlyPiggybankContributions` for missing transactions
+- **Automatic Creation**: Creates missing transactions when allocation exists but transaction doesn't
+- **Date-Aware Processing**: Only creates transactions when current real calendar month matches
+- **Retry Logic**: Handles piggybanks that were blocked initially but should now have transactions
+
+**🔧 Files Modified:**
+- `src/stores/monthlyBudgetStore.ts` - Added missing transaction detection and creation logic
+
+**🎯 Impact:**
+- **Complete Data**: Piggybanks always have both allocations and transactions when appropriate
+- **Automatic Recovery**: Missing transactions are created when date conditions are met
+- **Consistent State**: No more piggybanks with allocations but no transactions
+- **Reliable Behavior**: Simulated date changes work correctly for testing
 
 ### Envelope Deletion Cascade Fix (2026-01-12)
 
