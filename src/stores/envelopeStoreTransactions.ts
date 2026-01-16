@@ -1,6 +1,6 @@
 import { TransactionService } from '../services/TransactionService';
 import type { Transaction } from '../models/types';
-import { transactionFromFirestore, transactionToFirestore, transactionUpdatesToFirestore } from '../mappers/transaction';
+import { fromFirestore, toFirestore } from '../mappers/transaction';
 import { useMonthlyBudgetStore } from './monthlyBudgetStore';
 import { toMonthKey } from '../utils/dateUtils';
 
@@ -44,7 +44,7 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
       if (!newTx.envelopeId.startsWith('temp-')) {
         try {
           // Try to sync with Firebase with timeout for offline detection
-          const transactionForService = transactionToFirestore(transactionWithId as Transaction, userId);
+          const transactionForService = toFirestore(transactionWithId as Transaction, userId);
           
           const firebasePromise = TransactionService.addTransaction(transactionForService as any);
           const timeoutPromise = new Promise<never>((_, reject) =>
@@ -57,7 +57,7 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
           console.log(`🔄 Replacing temp transaction ${tempId} with Firebase transaction:`, savedTx);
 
           // Convert Timestamp back to string for store compatibility
-          const convertedTx = transactionFromFirestore(savedTx as any);
+          const convertedTx = fromFirestore(savedTx as any);
 
           set((state: any) => ({
             transactions: state.transactions.map((tx: Transaction) =>
@@ -188,7 +188,7 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
         const firebasePromise = TransactionService.updateTransaction(
           userId,
           updatedTx.id!,
-          transactionUpdatesToFirestore(updatedTx)
+          toFirestore(updatedTx)
         );
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 3000)

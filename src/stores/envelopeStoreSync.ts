@@ -1,11 +1,10 @@
-import { Timestamp } from 'firebase/firestore';
 import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
 import { useMonthlyBudgetStore } from './monthlyBudgetStore';
 import type { Transaction, Envelope, DistributionTemplate, AppSettings } from '../models/types';
-import { toISOString } from '../utils/dateUtils';
+import { fromFirestore } from '../mappers/transaction';
 
 export type SyncSliceParams = {
   set: (partial: any) => void;
@@ -114,14 +113,7 @@ export const createSyncSlice = ({
 
       set((currentState: any) => {
         const convertTimestamps = (transactions: any[]): Transaction[] => {
-          return transactions.map(tx => ({
-            ...tx,
-            date: tx.date && typeof tx.date === 'object' && tx.date.toDate
-              ? toISOString(tx.date)
-              : tx.date,
-            type: tx.type === 'income' ? 'Income' : tx.type === 'expense' ? 'Expense' : tx.type === 'transfer' ? 'Transfer' : tx.type,
-            amount: typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount
-          }));
+          return transactions.map(tx => fromFirestore(tx));
         };
 
         const convertEnvelope = (firebaseEnv: any): Envelope => ({
@@ -524,15 +516,14 @@ export const createSyncSlice = ({
       });
 
       // Process transactions from backup
-      const newTransactions = data.transactions.map((tx: any) => ({
-        ...tx,
-        id: tx.id || `imported-${Date.now()}-${Math.random()}`,
-        userId,
-        date: tx.date,
-        amount: typeof tx.amount === 'number' ? tx.amount : parseFloat(tx.amount) || 0,
-        type: tx.type,
-        reconciled: tx.reconciled ?? false,
-      }));
+      const newTransactions = data.transactions.map((tx: any) => {
+        const convertedTx = fromFirestore(tx);
+        return {
+          ...convertedTx,
+          id: tx.id || `imported-${Date.now()}-${Math.random()}`,
+          userId
+        };
+      });
 
       // Process envelope allocations and income sources from backup
       const newEnvelopeAllocations = (data.envelopeAllocations || []).map((alloc: any) => ({
@@ -595,13 +586,7 @@ export const createSyncSlice = ({
 
         for (const transaction of newTransactions) {
           try {
-            const firebaseTx = {
-              ...transaction,
-              amount: transaction.amount.toString(),
-              type: transaction.type.toLowerCase(),
-              date: Timestamp.fromDate(new Date(transaction.date)),
-            };
-            await TransactionService.addTransaction(firebaseTx);
+            await TransactionService.addTransaction(transaction);
             console.log(`✅ Synced transaction: ${transaction.description}`);
           } catch (error) {
             console.error(`❌ Failed to sync transaction ${transaction.description}:`, error);

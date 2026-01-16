@@ -3,7 +3,7 @@ import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
 import type { DistributionTemplate, Transaction, Envelope, AppSettings } from '../models/types';
-import { transactionFromFirestore } from '../mappers/transaction';
+import { fromFirestore } from '../mappers/transaction';
 
 type EnvelopeStoreLike = {
   getState: () => {
@@ -26,7 +26,7 @@ type AuthStoreLike = {
 };
 
 // Helper functions for real-time sync data conversion
-const convertFirebaseTransaction = (firebaseTx: any): Transaction => transactionFromFirestore(firebaseTx);
+const convertFirebaseTransaction = (firebaseTx: any): Transaction => fromFirestore(firebaseTx);
 
 const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   id: firebaseEnv.id,

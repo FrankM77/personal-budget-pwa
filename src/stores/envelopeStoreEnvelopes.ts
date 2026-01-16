@@ -1,7 +1,7 @@
-import { Timestamp } from 'firebase/firestore';
 import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
 import type { Transaction, Envelope } from '../models/types';
+import { fromFirestore, toFirestore } from '../mappers/transaction';
 
 type SliceParams = {
   set: (partial: any) => void;
@@ -42,18 +42,6 @@ const sanitizeEnvelopeForSave = (envelope: Envelope): Envelope => {
 };
 
 export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError }: SliceParams) => {
-  const convertFirebaseTransaction = (firebaseTx: any): Transaction => ({
-    id: firebaseTx.id,
-    date: firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : firebaseTx.date,
-    amount: parseFloat(firebaseTx.amount) || 0,
-    description: firebaseTx.description || '',
-    envelopeId: firebaseTx.envelopeId || '',
-    reconciled: firebaseTx.reconciled || false,
-    type: firebaseTx.type === 'income' ? 'Income' : firebaseTx.type === 'expense' ? 'Expense' : 'Transfer',
-    transferId: firebaseTx.transferId || undefined,
-    userId: firebaseTx.userId || undefined
-  });
-
   return {
     createEnvelope: async (newEnv: Omit<Envelope, 'id'>): Promise<Envelope> => {
       // For initial deposits, use transaction system instead of initialBalance field
@@ -197,18 +185,12 @@ export const createEnvelopeSlice = ({ set, get, getCurrentUserId, isNetworkError
           for (const tx of transactionsToSync) {
             try {
               console.log('📤 Syncing transaction:', tx);
-              const transactionForService = {
-                ...tx,
-                amount: tx.amount.toString(), // Convert to string for Firebase
-                type: tx.type.toLowerCase() as 'income' | 'expense' | 'transfer', // Convert to lowercase for Firebase
-                date: Timestamp.fromDate(new Date(tx.date))
-              };
-              const savedTx = await TransactionService.addTransaction(transactionForService as any);
-
-              console.log('✅ Transaction synced:', savedTx);
+              const firestoreTx = toFirestore(tx);
+              const savedTx = await TransactionService.addTransaction(firestoreTx as any);
+              console.log('✅ Synced transaction:', tx.id);
 
               // Replace temp transaction with real one
-              const convertedTx = convertFirebaseTransaction(savedTx);
+              const convertedTx = fromFirestore(savedTx);
 
               console.log(`🔄 Replacing temp transaction ${tx.id} with Firebase transaction ${savedTx.id}`);
               set((state: any) => ({
