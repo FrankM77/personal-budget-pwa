@@ -1,6 +1,7 @@
 # House Budget PWA: Project Summary - 2026-01-15
 
 ## Changelog (Highlights)
+- **2026-01-15**: Fixed TypeScript build errors in EnvelopeListView (missing closing brace, undefined variable).
 - **2026-01-15**: Consolidated MD Files into this project summary (full merge, no trimming).
 - **2026-01-15**: Apple Wallet-style Card Stack demo implemented with swipe-to-delete functionality.
 - **2026-01-14**: Piggybank fixes (month filtering, balance consistency, timing, missing transactions), orphaned allocation cleanup.
@@ -20,6 +21,7 @@
 - **Complete Authentication System**: Email verification, account deletion, enhanced login security.
 - Enhanced user experience with streamlined navigation, account management, and connectivity troubleshooting.
 - **🏆 Recent Achievements**:
+  - Fixed TypeScript build errors in EnvelopeListView (missing closing brace, undefined variable)
   - Apple Wallet-style Card Stack demo with swipe-to-delete functionality
   - Firebase data structure reorganization for improved security and consistency
   - Monthly budget auto-calculation on income source and allocation changes

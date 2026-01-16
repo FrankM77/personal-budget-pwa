@@ -1014,38 +1014,8 @@ export const EnvelopeListView: React.FC = () => {
               ))}
             </AnimatePresence>
           </div>
-        )}
-      </section>
-
-      {/* Piggybanks Section */}
-      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
-            Piggybanks
-          </h2>
-          <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
-            <PlusCircle size={20} />
-          </button>
-        </div>
-         {piggybanks.length > 0 ? (
-           <div className="space-y-3">
-             {piggybanks.map((piggybank) => (
-               <PiggybankListItem
-                 key={piggybank.id}
-                 piggybank={piggybank}
-                 balance={getEnvelopeBalance(piggybank.id)}
-                 onNavigate={(id) => navigate(`/envelope/${id}`)}
-               />
-             ))}
-           </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
-              <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No piggybanks yet</p>
-              <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
-            </div>
-          )}
+        )
+      }
       </section>
 
       {/* Spending Envelopes Section */}
@@ -1124,6 +1094,37 @@ export const EnvelopeListView: React.FC = () => {
              </AnimatePresence>
            </div>
          )}
+      </section>
+
+      {/* Piggybanks Section */}
+      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
+            Piggybanks
+          </h2>
+          <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
+            <PlusCircle size={20} />
+          </button>
+        </div>
+         {piggybanks.length > 0 ? (
+           <div className="space-y-3">
+             {piggybanks.map((piggybank) => (
+               <PiggybankListItem
+                 key={piggybank.id}
+                 piggybank={piggybank}
+                 balance={getEnvelopeBalance(piggybank.id)}
+                 onNavigate={(id) => navigate(`/envelope/${id}`)}
+               />
+             ))}
+           </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
+              <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No piggybanks yet</p>
+              <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
+            </div>
+          )}
       </section>
 
       <button
