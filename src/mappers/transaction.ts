@@ -33,6 +33,7 @@ export const transactionFromFirestore = (firebaseTx: FirestoreTransaction): Tran
     userId: firebaseTx.userId,
     month,
     isAutomatic: firebaseTx.isAutomatic ?? undefined,
+    paymentMethod: firebaseTx.paymentMethod ?? undefined,
   };
 };
 
@@ -58,6 +59,11 @@ export const transactionToFirestore = (
     firestoreTx.isAutomatic = true;
   }
   
+  // Include paymentMethod if it exists
+  if (tx.paymentMethod) {
+    firestoreTx.paymentMethod = tx.paymentMethod;
+  }
+  
   return firestoreTx as FirestoreTransaction;
 };
 
@@ -76,6 +82,11 @@ export const transactionUpdatesToFirestore = (tx: Transaction): Omit<FirestoreTr
   // Only include isAutomatic if it's explicitly true
   if (tx.isAutomatic === true) {
     updates.isAutomatic = true;
+  }
+  
+  // Include paymentMethod if it exists
+  if (tx.paymentMethod) {
+    updates.paymentMethod = tx.paymentMethod;
   }
   
   return updates as Omit<FirestoreTransaction, 'id' | 'userId'>;

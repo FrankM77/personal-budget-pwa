@@ -1,73 +1,78 @@
-# React + TypeScript + Vite
+# House Budget PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+House Budget PWA is a zero-based budgeting app inspired by the envelope method and EveryDollar-style allocation. It’s an offline-first PWA with optimistic UI updates, Firebase persistence, and monthly budgeting workflows (income sources, allocations, and piggybanks).
 
-Currently, two official plugins are available:
+## Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Zero-based budgeting** with an “Available to Budget” pool.
+- **Monthly budgets** with income sources and envelope allocations.
+- **Piggybanks** (savings goals) with auto-contributions and progress tracking.
+- **Offline-first** experience with automatic sync when back online.
+- **PWA installable** with service worker caching.
+- **Firebase sync** for cross-device data updates.
+- **Authentication** with email verification and account deletion.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React + TypeScript + Vite**
+- **Tailwind CSS**
+- **Zustand** state management
+- **Firebase (Firestore + Auth)**
+- **Vite PWA**
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- Node.js 18+
+- Firebase project with Firestore and Auth enabled
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Setup
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create a local env file:
+   ```bash
+   copy .env.example .env
+   ```
+3. Update `.env` with your Firebase project configuration.
+4. Run the dev server:
+   ```bash
+   npm run dev
+   ```
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Scripts
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev      # start dev server
+npm run build    # type-check + production build
+npm run preview  # preview production build
+npm run lint     # run eslint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Offline + PWA Behavior
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- The app caches the shell and uses Firebase offline persistence.
+- You can create/edit data offline; it syncs automatically when online.
+- The PWA install prompt depends on browser and platform rules.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Deployment (GitHub Pages)
+
+```bash
+npm run build
+npm run deploy
 ```
+
+Ensure:
+- `package.json` has the correct `homepage`.
+- `vite.config.ts` uses the repo name in `base`.
+
+## Project Docs
+
+- `MD Files/Personal-Budget-PWA-Vision.md`
+- `MD Files/Project-Summary-2026-01-15.md`
+- `MD Files/OFFLINE_TROUBLESHOOTING.md`
+
+## License
+
+Private project. All rights reserved.

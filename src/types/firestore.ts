@@ -22,6 +22,13 @@ export interface FirestoreTransaction {
   userId?: string;
   month?: string; // Format: "2025-01" for monthly budgeting
   isAutomatic?: boolean; // True for auto-generated transactions (e.g., piggybank contributions)
+  paymentMethod?: {
+    id: string;
+    name: string;
+    network: 'Visa' | 'Mastercard' | 'Amex';
+    last4: string;
+    color: string;
+  };
 }
 
 export interface FirestoreDistributionTemplate {

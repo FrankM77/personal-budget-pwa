@@ -25,6 +25,7 @@ export const TransactionHistoryView: React.FC = () => {
   const [showReconciledOnly, setShowReconciledOnly] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>('all'); 
   const [showAllTime, setShowAllTime] = useState(false);
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('all');
   // Default Dates: Start = 1 month ago, End = Today
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -96,7 +97,12 @@ export const TransactionHistoryView: React.FC = () => {
           return false;
         }
 
-        // 4. Date Range (Inclusive)
+        // 4. Payment Method Filter
+        if (selectedPaymentMethodId !== 'all' && (!t.paymentMethod || t.paymentMethod.id !== selectedPaymentMethodId)) {
+          return false;
+        }
+
+        // 5. Date Range (Inclusive)
         if (!t.date || typeof t.date !== 'string') {
           return false; // Skip transactions with invalid dates
         }
@@ -112,7 +118,7 @@ export const TransactionHistoryView: React.FC = () => {
           }
         }
 
-        // 5. Month Filter
+        // 6. Month Filter
         if (selectedMonth !== 'all') {
           const month = new Date(tDate).getMonth();
           if (month !== parseInt(selectedMonth)) return false;
@@ -122,7 +128,7 @@ export const TransactionHistoryView: React.FC = () => {
         // 1. currentMonth filtering is already handled in the 'filteredByMonth' pre-filter step.
         // 2. The logic 'parseInt(currentMonth)' was flawed (parsed Year instead of Month index).
 
-        // 6. Reconciled Filter
+        // 7. Reconciled Filter
         if (showReconciledOnly && !t.reconciled) {
           return false;
         }
@@ -130,7 +136,7 @@ export const TransactionHistoryView: React.FC = () => {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, startDate, endDate, showReconciledOnly, showAllTime, currentMonth]);
+  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth]);
 
   console.log('✅ Final filtered transactions:', {
     count: filteredTransactions.length,
@@ -191,6 +197,29 @@ export const TransactionHistoryView: React.FC = () => {
         >
           {showAllTime ? 'Current Month Only' : 'All Time'}
         </button>
+      </div>
+
+      {/* --- Payment Method Filter (Top of List) --- */}
+      <div className="px-4 py-3 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800">
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-gray-500 uppercase">Payment Method</label>
+          <select
+            value={selectedPaymentMethodId}
+            onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
+            className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
+          >
+            <option value="all">All Payment Methods</option>
+            {[
+              { id: '1', name: 'Amazon Prime', network: 'Visa' as const, last4: '7474', color: '#232f3e' },
+              { id: '2', name: 'Apple Card', network: 'Mastercard' as const, last4: '0274', color: '#e3e3e3' },
+              { id: '3', name: 'AA Credit Union', network: 'Visa' as const, last4: '3386', color: '#5494DA' }
+            ].map(card => (
+              <option key={card.id} value={card.id}>
+                {card.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* --- Collapsible Filter Panel --- */}

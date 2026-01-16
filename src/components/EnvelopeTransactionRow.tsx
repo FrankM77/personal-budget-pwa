@@ -77,6 +77,8 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
   // 1. Defensive Check: If transaction is missing, return nothing (don't crash)
   if (!transaction) return null;
 
+  console.log('🔍 Transaction payment method:', transaction.paymentMethod);
+
   const isIncome = transaction.type === 'Income';
   const isExpense = transaction.type === 'Expense';
 
@@ -110,7 +112,7 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
         )}
 
         {/* Date & Envelope Name */}
-        <div className="text-xs text-gray-500 dark:text-zinc-500 flex items-center gap-1">
+        <div className="text-xs text-gray-500 dark:text-zinc-500 flex items-center gap-1 flex-wrap">
             {/* CALLING SAFE FORMATTER */}
             <span>{formatDateSafe(transaction.date)}</span>
             {envelopeName && (
@@ -118,6 +120,20 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
                     <span>•</span>
                     <span className="text-blue-500 dark:text-blue-400 truncate max-w-[150px]">
                         {envelopeName}
+                    </span>
+                </>
+            )}
+            {transaction.paymentMethod && (
+                <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                        <span 
+                            className="w-[12px] h-[8px] rounded-[2px] flex-shrink-0"
+                            style={{ backgroundColor: transaction.paymentMethod.color }}
+                        />
+                        <span className="truncate max-w-[80px]">
+                            {transaction.paymentMethod.name}
+                        </span>
                     </span>
                 </>
             )}

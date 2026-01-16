@@ -4,6 +4,9 @@ import { AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
+import CardStack from '../components/ui/CardStack';
+import type { PaymentSource } from '../components/ui/CardStack';
+import '../styles/CardStack.css';
 
 export const AddTransactionView: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +20,16 @@ export const AddTransactionView: React.FC = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
+  const [hasUserSelectedPayment, setHasUserSelectedPayment] = useState(false);
+
+  const handlePaymentMethodSelect = (card: PaymentSource) => {
+    setSelectedPaymentMethod(card);
+    // Only mark as user selected if we already have a payment method (meaning this is a manual change)
+    if (selectedPaymentMethod) {
+      setHasUserSelectedPayment(true);
+    }
+  };
 
   // Form validation
   const hasSplits = Object.keys(splitAmounts).length > 0;
@@ -62,7 +75,8 @@ export const AddTransactionView: React.FC = () => {
             date: transactionDate.toISOString(),
             envelopeId,
             type: transactionType === 'income' ? 'Income' : 'Expense',
-            reconciled: false
+            reconciled: false,
+            paymentMethod: selectedPaymentMethod || undefined
           }).catch(err => console.error('Failed to create transaction:', err))
         )
       ).catch(err => console.error('Failed to create transactions:', err));
@@ -107,7 +121,7 @@ export const AddTransactionView: React.FC = () => {
         </button>
       </header>
 
-      <div className="p-4 max-w-md mx-auto">
+      <div className="p-4 max-w-md mx-auto pb-24">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Transaction Type Toggle */}
           <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
@@ -177,6 +191,13 @@ export const AddTransactionView: React.FC = () => {
               className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
             />
           </div>
+
+          {/* Payment Method */}
+          <CardStack
+            selectedCard={selectedPaymentMethod}
+            onCardSelect={handlePaymentMethodSelect}
+            isUserSelected={hasUserSelectedPayment}
+          />
 
           {/* Note Input */}
           <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">

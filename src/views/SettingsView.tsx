@@ -5,6 +5,7 @@ import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, 
 import { useEnvelopeStore } from '../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import { useAuthStore } from '../stores/authStore';
+import packageJson from '../../package.json';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export const SettingsView: React.FC = () => {
   console.log(operationResult);
 
   const APPLE_EPOCH_OFFSET = 978307200;
+  const appVersion = packageJson.version;
 
   // Use appSettings theme, fallback to system
   const currentTheme = appSettings?.theme ?? 'system';
@@ -315,7 +317,8 @@ export const SettingsView: React.FC = () => {
         </div>
       </header>
 
-      <div className="p-4 space-y-6 max-w-2xl mx-auto">
+      <div className="p-4 space-y-6 max-w-2xl mx-auto pb-24">
+
         {statusMessage && (
           <div
             className={`px-4 py-3 rounded-2xl text-sm font-medium flex items-center gap-2 ${
@@ -506,6 +509,10 @@ export const SettingsView: React.FC = () => {
             <div>Deleting your account permanently removes all data and cannot be undone.</div>
           </div>
         </section>
+
+        <div className="px-1 text-xs text-gray-500 dark:text-zinc-500 flex items-center justify-center">
+          <span>App Version {appVersion}</span>
+        </div>
 
         {/* Delete Account Confirmation Modal */}
         {showDeleteDialog && (

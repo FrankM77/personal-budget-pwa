@@ -1128,7 +1128,7 @@ export const EnvelopeListView: React.FC = () => {
 
       <button
         onClick={() => navigate('/add-transaction')}
-        className="fixed bottom-24 right-6 md:bottom-10 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform z-40 pointer-events-auto"
+        className="fixed bottom-32 right-6 md:bottom-20 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform z-40 pointer-events-auto"
       >
         <PlusCircle size={28} />
       </button>

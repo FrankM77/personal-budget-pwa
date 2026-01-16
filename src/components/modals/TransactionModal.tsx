@@ -3,6 +3,9 @@ import { Trash, AlertTriangle } from 'lucide-react';
 import { useEnvelopeStore } from '../../stores/envelopeStore';
 import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
 import type { Transaction, Envelope } from '../../models/types';
+import CardStack from '../ui/CardStack';
+import type { PaymentSource } from '../ui/CardStack';
+import '../../styles/CardStack.css';
 
 interface Props {
   isVisible: boolean;
@@ -20,6 +23,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD for input
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
 
   // Reset or Populate when opening (deferred to avoid synchronous setState in effect)
   useEffect(() => {
@@ -30,6 +34,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         setAmount(initialTransaction.amount.toString()); // Convert number to string
         setMerchant(initialTransaction.merchant || '');
         setNote(initialTransaction.description);
+        setSelectedPaymentMethod(initialTransaction.paymentMethod || null);
         try {
           const d = new Date(initialTransaction.date);
           if (!isNaN(d.getTime())) {
@@ -47,6 +52,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         setMerchant('');
         setNote('');
         setDate(new Date().toISOString().split('T')[0]);
+        setSelectedPaymentMethod(null);
       }
     }, 0);
 
@@ -64,7 +70,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       return;
     }
 
-    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: currentEnvelope.id });
+    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: currentEnvelope.id, paymentMethod: selectedPaymentMethod });
 
     try {
       // Validate date against current budget month
@@ -87,7 +93,8 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           date: new Date(date).toISOString(),
           envelopeId: currentEnvelope.id!,
           type: 'Income',
-          reconciled: false
+          reconciled: false,
+          paymentMethod: selectedPaymentMethod || undefined
         });
       } else if (mode === 'spend') {
         console.log('➖ Adding expense transaction');
@@ -98,7 +105,8 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           date: new Date(date).toISOString(),
           envelopeId: currentEnvelope.id!,
           type: 'Expense',
-          reconciled: false
+          reconciled: false,
+          paymentMethod: selectedPaymentMethod || undefined
         });
       } else if (mode === 'edit' && initialTransaction) {
         console.log('✏️ Updating transaction');
@@ -108,6 +116,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           description: note,
           merchant: merchant || undefined,
           date: new Date(date).toISOString(),
+          paymentMethod: selectedPaymentMethod || undefined
         });
       }
       console.log('✅ Transaction saved successfully');
@@ -190,6 +199,12 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
               className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
             />
           </div>
+
+          {/* Payment Method */}
+          <CardStack
+            selectedCard={selectedPaymentMethod}
+            onCardSelect={setSelectedPaymentMethod}
+          />
 
           {/* Note Input */}
           <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
