@@ -1,7 +1,7 @@
 {
   "name": "house-budget-pwa",
   "private": true,
-  "version": "1.1.8",
+  "version": "1.2.0",
   "type": "module",
   "homepage": "https://FrankM77.github.io/personal-budget-pwa",
   "scripts": {
