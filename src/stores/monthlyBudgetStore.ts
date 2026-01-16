@@ -8,6 +8,7 @@ import { useAuthStore } from './authStore';
 import { useEnvelopeStore } from './envelopeStore';
 import { setupMonthlyBudgetStoreRealtime } from './monthlyBudgetStoreRealtime';
 import type { MonthlyBudget, IncomeSource, EnvelopeAllocation } from '../models/types';
+import { toMonthKey, toDate } from '../utils/dateUtils';
 
 interface MonthlyBudgetStore {
   // Current month context
@@ -71,8 +72,7 @@ export const getCurrentUserId = getUserId;
 
 // Helper function to get current month in YYYY-MM format
 const getCurrentMonth = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  return toMonthKey(new Date());
 };
 
 const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmount: number, month: string) => {
@@ -94,14 +94,7 @@ const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmoun
         if (!isAllocation && !isLegacyContribution) return false;
 
 		try {
-		  let txDate;
-		  if (typeof tx.date === 'string') {
-			  txDate = new Date(tx.date);
-		  } else if ((tx.date as any)?.toDate && typeof (tx.date as any).toDate === 'function') {
-			  txDate = (tx.date as any).toDate();
-		  } else {
-			  return false;
-		  }
+		  const txDate = toDate(tx.date);
 		  return txDate.getFullYear() === year && txDate.getMonth() + 1 === monthNum;
 		} catch (e) {
 		  return false;
@@ -140,8 +133,7 @@ const syncBudgetAllocationTransaction = async (envelopeId: string, budgetedAmoun
         // CREATE LOGIC: Only if no transaction exists and not future month
         if (newAmount.gt(0)) {
             // Check if this is a future month
-            const now = new Date();
-            const currentRealMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const currentRealMonth = toMonthKey(new Date());
             const targetMonth = `${year}-${String(monthNum).padStart(2, '0')}`;
             
             if (targetMonth > currentRealMonth) {
@@ -242,8 +234,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             await get().cleanupOrphanedAllocations();
 
             // Process monthly piggybank auto-contributions if real calendar month matches budget month
-            const now = new Date();
-            const realMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const realMonth = toMonthKey(new Date());
             if (realMonth === currentMonth) {
               console.log(`📅 Real month ${realMonth} matches budget month ${currentMonth} - processing piggybank contributions`);
               await get().processMonthlyPiggybankContributions(currentMonth);
@@ -620,7 +611,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
 				prevYear = year - 1;
 				prevMonth = 12;
 			}
-			const prevMonthString = `${prevYear}-${prevMonth.toString().padStart(2, '0')}`;
+			const prevMonthString = toMonthKey(new Date(prevYear, prevMonth - 1, 1));
 	
 			const service = MonthlyBudgetService.getInstance();
 			
@@ -664,8 +655,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const { envelopes, transactions, deleteTransaction } = useEnvelopeStore.getState();
 
           // Only create contributions for the current real calendar month
-          const now = new Date();
-          const currentRealMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          const currentRealMonth = toMonthKey(new Date());
           if (month !== currentRealMonth) {
             if (month > currentRealMonth) {
               console.log(`Skipping piggybank contributions for ${month} - future month beyond ${currentRealMonth}`);
@@ -700,8 +690,8 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             
             // Check if piggybank was created after this month (don't add contributions to past months)
             if (piggybank.createdAt) {
-              const createdDate = new Date(piggybank.createdAt);
-              const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
+              const createdDate = toDate(piggybank.createdAt);
+              const createdMonth = toMonthKey(createdDate);
               
               if (month < createdMonth) {
                 console.log(`Skipping ${piggybank.name} - month ${month} is before creation month ${createdMonth}`);
@@ -854,7 +844,7 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
           const transactionsToDelete = transactions.filter(tx => {
             if (tx.description !== allocationDescription) return false;
             try {
-              const txDate = new Date(tx.date);
+              const txDate = toDate(tx.date);
               return txDate.getFullYear() === year && txDate.getMonth() + 1 === monthNum;
             } catch(e) { return false; }
           });
@@ -869,8 +859,8 @@ export const useMonthlyBudgetStore = create<MonthlyBudgetStore>()(
             
             // Check if piggybank was created in current month
             if (env.createdAt) {
-              const createdDate = new Date(env.createdAt);
-              const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
+              const createdDate = toDate(env.createdAt);
+              const createdMonth = toMonthKey(createdDate);
               return createdMonth === currentMonth;
             }
             

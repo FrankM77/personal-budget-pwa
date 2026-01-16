@@ -5,6 +5,7 @@ import { DistributionTemplateService } from '../services/DistributionTemplateSer
 import { AppSettingsService } from '../services/AppSettingsService';
 import { useMonthlyBudgetStore } from './monthlyBudgetStore';
 import type { Transaction, Envelope, DistributionTemplate, AppSettings } from '../models/types';
+import { toISOString } from '../utils/dateUtils';
 
 export type SyncSliceParams = {
   set: (partial: any) => void;
@@ -116,7 +117,7 @@ export const createSyncSlice = ({
           return transactions.map(tx => ({
             ...tx,
             date: tx.date && typeof tx.date === 'object' && tx.date.toDate
-              ? tx.date.toDate().toISOString()
+              ? toISOString(tx.date)
               : tx.date,
             type: tx.type === 'income' ? 'Income' : tx.type === 'expense' ? 'Expense' : tx.type === 'transfer' ? 'Transfer' : tx.type,
             amount: typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount

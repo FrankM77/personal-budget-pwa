@@ -2,6 +2,7 @@ import { TransactionService } from '../services/TransactionService';
 import type { Transaction } from '../models/types';
 import { transactionFromFirestore, transactionToFirestore, transactionUpdatesToFirestore } from '../mappers/transaction';
 import { useMonthlyBudgetStore } from './monthlyBudgetStore';
+import { toMonthKey } from '../utils/dateUtils';
 
 type SliceParams = {
   set: (partial: any) => void;
@@ -17,12 +18,10 @@ export const createTransactionSlice = ({ set, get, getCurrentUserId, isNetworkEr
       const tempId = `temp-${Date.now()}-${Math.random()}`;
       const userId = getCurrentUserId();
       // Extract month from date in YYYY-MM format
-      const date = new Date(newTx.date);
-      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const month = toMonthKey(newTx.date);
       
       console.log('🗓️ Month calculation in addTransaction:', {
         originalDate: newTx.date,
-        dateObj: date,
         calculatedMonth: month,
         currentMonth: useMonthlyBudgetStore.getState().currentMonth
       });

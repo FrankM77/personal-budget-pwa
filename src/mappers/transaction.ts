@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import type { Transaction } from '../models/types';
 import type { FirestoreTransaction, FirestoreTransactionType } from '../types/firestore';
+import { toISOString, toMonthKey, toDate } from '../utils/dateUtils';
 
 const toTitleCaseType = (type: FirestoreTransactionType | string): Transaction['type'] => {
   if (type === 'income') return 'Income';
@@ -16,9 +17,8 @@ const toLowerCaseType = (type: Transaction['type'] | string): FirestoreTransacti
 };
 
 export const transactionFromFirestore = (firebaseTx: FirestoreTransaction): Transaction => {
-  const date = firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : (firebaseTx.date as unknown as string);
-  const dateObj = new Date(date);
-  const month = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+  const date = firebaseTx.date?.toDate?.() ? toISOString(firebaseTx.date) : (firebaseTx.date as unknown as string);
+  const month = toMonthKey(date);
   
   return {
     id: firebaseTx.id,
@@ -46,7 +46,7 @@ export const transactionToFirestore = (
     userId,
     envelopeId: tx.envelopeId,
     amount: tx.amount.toString(),
-    date: Timestamp.fromDate(new Date(tx.date)),
+    date: Timestamp.fromDate(toDate(tx.date)),
     description: tx.description,
     merchant: tx.merchant || null,
     reconciled: tx.reconciled ?? false,
@@ -71,7 +71,7 @@ export const transactionUpdatesToFirestore = (tx: Transaction): Omit<FirestoreTr
   const updates: any = {
     envelopeId: tx.envelopeId,
     amount: tx.amount.toString(),
-    date: Timestamp.fromDate(new Date(tx.date)),
+    date: Timestamp.fromDate(toDate(tx.date)),
     description: tx.description,
     merchant: tx.merchant || null,
     reconciled: tx.reconciled ?? false,

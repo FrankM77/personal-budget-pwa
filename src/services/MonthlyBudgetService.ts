@@ -7,6 +7,7 @@ import type {
   FirestoreEnvelopeAllocation
 } from '../types/firestore';
 import type { MonthlyBudget, IncomeSource, EnvelopeAllocation } from '../models/types';
+import { toISOString } from '../utils/dateUtils';
 
 export class MonthlyBudgetService {
   private static instance: MonthlyBudgetService;
@@ -32,8 +33,8 @@ export class MonthlyBudgetService {
           month: data.month,
           totalIncome: parseFloat(data.totalIncome),
           availableToBudget: parseFloat(data.availableToBudget),
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          createdAt: toISOString(data.createdAt),
+          updatedAt: toISOString(data.updatedAt),
         };
       }
       return null;
@@ -63,8 +64,8 @@ export class MonthlyBudgetService {
       return {
         ...budget,
         id,
-        createdAt: now.toDate().toISOString(),
-        updatedAt: now.toDate().toISOString(),
+        createdAt: toISOString(now),
+        updatedAt: toISOString(now),
       };
     } catch (error) {
       console.error('Error creating/updating monthly budget:', error);
@@ -91,8 +92,8 @@ export class MonthlyBudgetService {
           amount: parseFloat(data.amount),
           frequency: data.frequency,
           category: data.category,
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          createdAt: toISOString(data.createdAt),
+          updatedAt: toISOString(data.updatedAt),
         };
       }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     } catch (error) {
@@ -124,8 +125,8 @@ export class MonthlyBudgetService {
         ...source,
         frequency: source.frequency || 'monthly',
         id: docRef.id,
-        createdAt: now.toDate().toISOString(),
-        updatedAt: now.toDate().toISOString(),
+        createdAt: toISOString(now),
+        updatedAt: toISOString(now),
       };
     } catch (error) {
       console.error('Error creating income source:', error);
@@ -150,8 +151,8 @@ export class MonthlyBudgetService {
           envelopeId: data.envelopeId,
           month: data.month,
           budgetedAmount: parseFloat(data.budgetedAmount),
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          createdAt: toISOString(data.createdAt),
+          updatedAt: toISOString(data.updatedAt),
         };
       }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     } catch (error) {
@@ -180,8 +181,8 @@ export class MonthlyBudgetService {
       return {
         ...allocation,
         id: docRef.id,
-        createdAt: now.toDate().toISOString(),
-        updatedAt: now.toDate().toISOString(),
+        createdAt: toISOString(now),
+        updatedAt: toISOString(now),
       };
     } catch (error) {
       console.error('Error creating envelope allocation:', error);
