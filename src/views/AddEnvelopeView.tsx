@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FolderPlus, PiggyBank } from 'lucide-react';
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../stores/budgetStore';
 
 export const AddEnvelopeView: React.FC = () => {
-  const { addEnvelope } = useEnvelopeStore();
-  const { setEnvelopeAllocation, currentMonth } = useMonthlyBudgetStore();
+  const { addEnvelope, setEnvelopeAllocation, currentMonth } = useBudgetStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -26,7 +24,7 @@ export const AddEnvelopeView: React.FC = () => {
     const finalBalance = isNaN(balanceValue) ? 0 : balanceValue;
 
     // Get next orderIndex (after last envelope)
-    const envelopes = useEnvelopeStore.getState().envelopes;
+    const envelopes = useBudgetStore.getState().envelopes;
     // Find the highest orderIndex and add 1
     const maxOrderIndex = envelopes.length > 0 ? Math.max(...envelopes.map(e => e.orderIndex ?? 0)) : -1;
     const nextOrderIndex = maxOrderIndex + 1;
@@ -34,7 +32,7 @@ export const AddEnvelopeView: React.FC = () => {
     // For piggybanks, use the current viewing month as the creation date
     // This ensures piggybanks only appear from their creation month forward
     const creationDate = isPiggybank 
-      ? new Date(`${currentMonth}-01T00:00:00.000Z`)
+      ? new Date(`${currentMonth}-01T00:00:00`)  // Local time, not UTC
       : new Date();
 
     // Create the envelope or piggybank

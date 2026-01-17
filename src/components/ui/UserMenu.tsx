@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import { useEnvelopeStore } from '../../stores/envelopeStore';
+import { useBudgetStore } from '../../stores/budgetStore';
 import { useNavigate } from 'react-router-dom';
 
 export const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { currentUser, logout } = useAuthStore();
-  const { handleUserLogout } = useEnvelopeStore();
+  const { handleUserLogout } = useBudgetStore();
   const navigate = useNavigate();
 
   // Close menu when clicking outside

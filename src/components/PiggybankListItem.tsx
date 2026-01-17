@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { PiggyBank, TrendingUp, Pause, Loader2 } from 'lucide-react';
 import type { Envelope } from '../models/types';
 import { Decimal } from 'decimal.js';
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 
 interface PiggybankListItemProps {
@@ -17,18 +16,24 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   balance,
   onNavigate
 }) => {
-  const updateEnvelope = useEnvelopeStore(state => state.updateEnvelope);
-  const transactions = useEnvelopeStore(state => state.transactions);
-  const deleteTransaction = useEnvelopeStore(state => state.deleteTransaction);
-  const currentMonth = useMonthlyBudgetStore(state => state.currentMonth);
-  const setEnvelopeAllocation = useMonthlyBudgetStore(state => state.setEnvelopeAllocation);
+  const updatePiggybankContribution = useBudgetStore(state => state.updatePiggybankContribution);
   const showToast = useToastStore(state => state.showToast);
 
   const targetAmount = piggybank.piggybankConfig?.targetAmount;
-  const monthlyContribution = piggybank.piggybankConfig?.monthlyContribution || 0;
+  const monthlyContribution = piggybank.piggybankConfig?.monthlyContribution ?? 0;
   const color = piggybank.piggybankConfig?.color || '#3B82F6';
   const isPaused = piggybank.piggybankConfig?.paused || false;
-  const balanceNum = balance.toNumber();
+  
+  // Debug logging to help diagnose issues
+  console.log('🐷 PiggybankListItem data:', {
+    piggybankId: piggybank.id,
+    piggybankName: piggybank.name,
+    monthlyContribution,
+    targetAmount,
+    isPaused,
+    piggybankConfig: piggybank.piggybankConfig
+  });
+  const balanceNum = typeof balance === 'number' ? balance : balance.toNumber();
   const hexToRgba = (hex: string, alpha = 1) => {
     const normalizedHex = hex.replace('#', '');
     const bigint = parseInt(normalizedHex, 16);
@@ -97,41 +102,20 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 
     setIsSavingContribution(true);
     try {
-      const updatedEnvelope: Envelope = {
-        ...piggybank,
-        lastUpdated: new Date().toISOString(),
-        piggybankConfig: {
-          monthlyContribution: parsedValue,
-          targetAmount: piggybank.piggybankConfig?.targetAmount,
-          color: piggybank.piggybankConfig?.color,
-          icon: piggybank.piggybankConfig?.icon,
-          paused: piggybank.piggybankConfig?.paused,
-        },
-      };
+      console.log('🔧 Calling updatePiggybankContribution:', {
+        piggybankId: piggybank.id,
+        oldContribution: monthlyContribution,
+        newContribution: parsedValue
+      });
 
-      await updateEnvelope(updatedEnvelope);
-
-      // Clean up legacy "Monthly contribution to..." transactions if they exist
-      const legacyTx = transactions.find(
-        tx =>
-          tx.envelopeId === piggybank.id &&
-          tx.isAutomatic === true &&
-          tx.month === currentMonth &&
-          tx.description.startsWith('Monthly contribution to')
-      );
-
-      if (legacyTx) {
-        await deleteTransaction(legacyTx.id);
-      }
-
-      // Update envelope allocation (this will create/update the "Monthly Budget Allocation" transaction)
-      if (!isPaused) {
-        await setEnvelopeAllocation(piggybank.id, parsedValue);
-      }
-
+      // Use the new dedicated store action
+      await updatePiggybankContribution(piggybank.id, parsedValue);
+      
+      console.log('✅ updatePiggybankContribution completed successfully');
       showToast('Monthly contribution updated', 'success');
       setContributionInput(parsedValue.toFixed(2));
       setIsEditingContribution(false);
+      
     } catch (error) {
       console.error('Failed to update piggybank contribution', error);
       showToast('Failed to update contribution', 'error');

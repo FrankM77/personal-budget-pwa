@@ -2,9 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter, Search, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion'; 
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useToastStore } from '../stores/toastStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore'; 
+import { useBudgetStore } from '../stores/budgetStore';
+import { useToastStore } from '../stores/toastStore'; 
 import { SwipeableRow } from '../components/ui/SwipeableRow'; 
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import TransactionModal from '../components/modals/TransactionModal';
@@ -13,9 +12,8 @@ import type { Transaction } from '../models/types';
 export const TransactionHistoryView: React.FC = () => {
   const navigate = useNavigate();
   // Added deleteTransaction to the destructuring
-  const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction } = useEnvelopeStore();
-  const { showToast } = useToastStore();
-  const { currentMonth } = useMonthlyBudgetStore(); 
+  const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction, currentMonth } = useBudgetStore(); 
+  const { showToast } = useToastStore(); 
   
   // --- 1. Filter State (Matching Swift @State) ---
   const [showFilters, setShowFilters] = useState(false);
@@ -43,14 +41,23 @@ export const TransactionHistoryView: React.FC = () => {
       totalTransactions: transactions.length,
       showAllTime,
       currentMonth,
-      transactionMonths: transactions.map(t => ({ id: t.id, month: t.month, date: t.date }))
+      transactionMonths: transactions.map(t => ({ id: t.id, month: t.month, date: t.date, description: t.description }))
     });
     
     // First filter by month if not showing all time
     let filteredByMonth = transactions;
     if (!showAllTime) {
       filteredByMonth = transactions.filter(t => t.month === currentMonth || !t.month);
-      console.log('📅 After month filter:', filteredByMonth.length, 'transactions remain');
+      console.log('📅 After month filter:', {
+        remaining: filteredByMonth.length,
+        currentMonth,
+        filteredTransactions: filteredByMonth.map(t => ({
+          id: t.id,
+          description: t.description,
+          month: t.month,
+          matchesCurrentMonth: t.month === currentMonth
+        }))
+      });
     }
     
     // Sanitize transactions - ensure dates are valid strings, convert if needed

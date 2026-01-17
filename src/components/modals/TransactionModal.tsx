@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash, AlertTriangle } from 'lucide-react';
-import { useEnvelopeStore } from '../../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../../stores/budgetStore';
 import type { Transaction, Envelope } from '../../models/types';
 import CardStack from '../ui/CardStack';
 import type { PaymentSource } from '../ui/CardStack';
@@ -16,8 +15,7 @@ interface Props {
 }
 
 const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction }) => {
-  const { addTransaction, updateTransaction, deleteTransaction } = useEnvelopeStore();
-  const { currentMonth } = useMonthlyBudgetStore();
+  const { addTransaction, updateTransaction, deleteTransaction, currentMonth } = useBudgetStore();
   
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');

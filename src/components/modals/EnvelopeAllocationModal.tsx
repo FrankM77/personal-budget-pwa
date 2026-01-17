@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../../stores/budgetStore';
 import { useToastStore } from '../../stores/toastStore';
 import type { EnvelopeAllocation } from '../../models/types';
 
@@ -22,7 +22,7 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
-  const { setEnvelopeAllocation } = useMonthlyBudgetStore();
+  const { setEnvelopeAllocation } = useBudgetStore();
   const { showToast } = useToastStore();
 
   // Reset or populate form when opening

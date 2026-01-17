@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
+import { Decimal } from 'decimal.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
@@ -12,7 +13,7 @@ import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
 import { PiggybankListItem } from '../components/PiggybankListItem';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useNavigate } from 'react-router-dom';
 import type { IncomeSource } from '../models/types';
 
@@ -255,7 +256,7 @@ const EnvelopeListItem = ({
           <div className="text-right">
             <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
             <span className={`font-bold ${
-                remainingBalance.toNumber() < 0
+                (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                   ? 'text-red-500'
                   : (100 - percentage) <= 5
                     ? 'text-red-500'
@@ -263,7 +264,7 @@ const EnvelopeListItem = ({
                       ? 'text-yellow-600 dark:text-yellow-400'
                       : 'text-green-600 dark:text-emerald-400'
               }`}>
-              ${remainingBalance.toNumber().toFixed(2)}
+              ${(typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()).toFixed(2)}
             </span>
           </div>
         </div>
@@ -281,7 +282,7 @@ const EnvelopeListItem = ({
                   <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ease-out ${
-                        remainingBalance.toNumber() < 0
+                        (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                           ? 'bg-red-500'
                           : (100 - percentage) <= 5
                             ? 'bg-red-500'
@@ -337,7 +338,7 @@ export const EnvelopeListView: React.FC = () => {
     incomeSources,
     availableToBudget,
     currentMonth,
-    envelopeAllocations,
+    allocations,
     transactions,
     isLoading,
     isInitialLoading,
@@ -357,7 +358,7 @@ export const EnvelopeListView: React.FC = () => {
   } = useEnvelopeList();
 
   // Get setCurrentMonth directly from store for month selector
-  const { setCurrentMonth } = useMonthlyBudgetStore();
+  const { setMonth } = useBudgetStore();
   const navigate = useNavigate();
 
   // Local state for modals and UI
@@ -390,10 +391,10 @@ export const EnvelopeListView: React.FC = () => {
   // Effect to handle Copy Previous Month Prompt visibility
   useEffect(() => {
     if (!isInitialLoading) {
-      const hasNoData = incomeSources.length === 0 && envelopeAllocations.length === 0;
+      const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
       setShowCopyPrompt(hasNoData);
     }
-  }, [isInitialLoading, incomeSources, envelopeAllocations, currentMonth]);
+  }, [isInitialLoading, incomeSources, allocations, currentMonth]);
 
   // Effect to auto-focus the input when editing starts
   useEffect(() => {
@@ -804,8 +805,8 @@ export const EnvelopeListView: React.FC = () => {
         {/* Available to Budget */}
         <AvailableToBudget
           amount={availableToBudget}
-          totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
-          totalAllocated={envelopeAllocations
+          totalIncome={(incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0)}
+          totalAllocated={(allocations[currentMonth] || [])
             .filter(allocation => visibleEnvelopes.some((env: any) => env.id === allocation.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === allocation.envelopeId))
             .reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
           isLoading={isLoading}
@@ -817,7 +818,7 @@ export const EnvelopeListView: React.FC = () => {
           currentMonth={currentMonth}
           onMonthChange={(newMonth) => {
             setShowCopyPrompt(false);
-            setCurrentMonth(newMonth);
+            setMonth(newMonth);
           }}
         />
       </header>
@@ -841,12 +842,12 @@ export const EnvelopeListView: React.FC = () => {
             <PlusCircle size={20} />
           </button>
         </div>
-        {incomeSources.length === 0 ? (
+        {(incomeSources[currentMonth] || []).length === 0 ? (
           <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false} mode="popLayout">
-              {incomeSources.map((source) => (
+              {(incomeSources[currentMonth] || []).map((source) => (
                 <motion.div key={source.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
                   <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
                     <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
@@ -888,7 +889,7 @@ export const EnvelopeListView: React.FC = () => {
              <AnimatePresence initial={false}>
                <div className="space-y-3">
                  {visibleEnvelopes.map((env: any, index: number) => {
-                   const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
+                   const allocation = (allocations[currentMonth] || []).find(alloc => alloc.envelopeId === env.id);
                    const budgetedAmount = allocation?.budgetedAmount || 0;
                    const remainingBalance = getEnvelopeBalance(env.id);
 
@@ -960,7 +961,7 @@ export const EnvelopeListView: React.FC = () => {
                <PiggybankListItem
                  key={piggybank.id}
                  piggybank={piggybank}
-                 balance={getEnvelopeBalance(piggybank.id)}
+                 balance={new Decimal(typeof getEnvelopeBalance(piggybank.id) === 'number' ? getEnvelopeBalance(piggybank.id) : 0)}
                  onNavigate={(id) => navigate(`/envelope/${id}`)}
                />
              ))}
@@ -986,7 +987,7 @@ export const EnvelopeListView: React.FC = () => {
       {/* This modal is no longer used for editing, but we'll leave it for now in case it's needed elsewhere. */}
       {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => visibleEnvelopes.find((e: any) => e.id === envelopeId)?.name || ''} /> */}
 
-        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).length} totalAllocated={envelopeAllocations.filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={(incomeSources[currentMonth] || []).length} totalIncome={(incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0)} allocationCount={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).length} totalAllocated={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)} />
       </div>
     </div>
     </>

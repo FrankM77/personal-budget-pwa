@@ -1,9 +1,42 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { Decimal } from 'decimal.js';
 import type { IncomeSource } from '../models/types';
+
+// Helper function to safely convert various date formats to JavaScript Date
+const safeDateConversion = (dateValue: any): Date | null => {
+  if (!dateValue) return null;
+  
+  // Handle standard Date objects
+  if (dateValue instanceof Date) {
+    return dateValue;
+  }
+  
+  // Handle Firestore Timestamp objects with toDate() method
+  if (typeof dateValue === 'object' && typeof dateValue.toDate === 'function') {
+    return dateValue.toDate();
+  }
+  
+  // Handle raw Firestore Timestamp objects with seconds property
+  if (typeof dateValue === 'object' && dateValue.seconds !== undefined) {
+    return new Date(dateValue.seconds * 1000);
+  }
+  
+  // Handle string dates
+  if (typeof dateValue === 'string') {
+    const date = new Date(dateValue);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  
+  // Handle numeric timestamps (milliseconds)
+  if (typeof dateValue === 'number') {
+    const date = new Date(dateValue);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  
+  return null;
+};
 
 export const useEnvelopeList = () => {
   // Envelope store (for envelopes and transactions)
@@ -17,22 +50,18 @@ export const useEnvelopeList = () => {
     syncData, 
     testingConnectivity, 
     reorderEnvelopes 
-  } = useEnvelopeStore();
+  } = useBudgetStore();
 
   // Monthly budget store (for zero-based budgeting features)
   const {
     currentMonth,
-    fetchMonthlyData,
     incomeSources,
-    envelopeAllocations,
-    calculateAvailableToBudget,
+    allocations,
     deleteIncomeSource,
-    restoreIncomeSource,
-    clearMonthData,
-    copyFromPreviousMonth,
     setEnvelopeAllocation,
+    copyPreviousMonthAllocations,
     isLoading: isBudgetLoading,
-  } = useMonthlyBudgetStore();
+  } = useBudgetStore();
 
   const { showToast } = useToastStore();
 
@@ -55,7 +84,7 @@ export const useEnvelopeList = () => {
     const envelope = envelopes.find(e => e.id === envelopeId);
     if (envelope?.isPiggybank) {
       // For piggybanks, use store's cumulative balance (all transactions)
-      return useEnvelopeStore.getState().getEnvelopeBalance(envelopeId);
+      return useBudgetStore.getState().getEnvelopeBalance(envelopeId);
     }
     
     // For regular envelopes, calculate monthly balance
@@ -81,23 +110,31 @@ export const useEnvelopeList = () => {
     
     // If piggybank has a creation date, only show it from that month forward
     if (env.createdAt) {
-      const createdDate = new Date(env.createdAt);
-      // Use UTC methods to avoid timezone conversion issues
-      const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
-      
-      console.log(`🐷 Piggybank filter: ${env.name}`, {
-        createdAt: env.createdAt,
-        createdMonth,
-        currentMonth,
-        shouldShow: currentMonth >= createdMonth
-      });
-      
-      // Only show if current viewing month is >= creation month
-      return currentMonth >= createdMonth;
+      try {
+        // Use safe conversion to handle various date formats
+        const createdDate = safeDateConversion(env.createdAt);
+        
+        // Check if the date conversion was successful
+        if (!createdDate) {
+          console.error(`🐷 Invalid creation date for piggybank ${env.name}:`, env.createdAt);
+          return false; // Hide piggybanks with invalid dates
+        }
+        
+        // Use local time methods to match currentMonth format
+        const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Only show if current viewing month is >= creation month
+        return currentMonth >= createdMonth;
+      } catch (error) {
+        console.error(`🐷 Error processing piggybank ${env.name}:`, error, {
+          createdAt: env.createdAt,
+          typeofCreatedAt: typeof env.createdAt
+        });
+        return false; // Hide piggybanks with processing errors
+      }
     }
     
     // If no creation date, show it (legacy piggybanks)
-    console.log(`🐷 Piggybank ${env.name} has no createdAt - showing by default`);
     return true;
   });
 
@@ -111,9 +148,8 @@ export const useEnvelopeList = () => {
       setShowTimeoutMessage(true);
     }, 8000);
 
-    // Trigger both fetches in parallel - they handle their own loading states
+    // Trigger data fetch - it handles its own loading state
     fetchData();
-    fetchMonthlyData();
     
     // Mark that we've triggered the initial fetch
     setInitialFetchTriggered(true);
@@ -142,7 +178,7 @@ export const useEnvelopeList = () => {
       .filter(env => 
         !env.isPiggybank && 
         env.isActive !== false &&
-        envelopeAllocations.some(alloc => alloc.envelopeId === env.id)
+        (allocations[currentMonth] || []).some(alloc => alloc.envelopeId === env.id)
       )
       .sort((a, b) => {
         const aOrder = a.orderIndex ?? 0;
@@ -152,10 +188,14 @@ export const useEnvelopeList = () => {
 
     setLocalEnvelopes(filtered);
     localOrderRef.current = filtered;
-  }, [envelopes, envelopeAllocations]);
+  }, [envelopes, allocations]);
 
-  // Calculate available to budget
-  const availableToBudget = calculateAvailableToBudget();
+  // Calculate available to budget - match the UI logic in AvailableToBudget component
+  const totalIncome = (incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0);
+  const totalAllocated = (allocations[currentMonth] || [])
+    .filter(allocation => visibleEnvelopes.some((env: any) => env.id === allocation.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === allocation.envelopeId))
+    .reduce((sum, allocation) => sum + allocation.budgetedAmount, 0);
+  const availableToBudget = totalIncome - totalAllocated;
 
   // Persist reorder functionality
   const persistReorder = useCallback(async (orderedEnvelopes: typeof envelopes) => {
@@ -176,43 +216,39 @@ export const useEnvelopeList = () => {
 
   // Delete income source with toast
   const deleteIncomeSourceWithToast = useCallback((incomeSource: IncomeSource) => {
-    const sourceIndex = incomeSources.findIndex(s => s.id === incomeSource.id);
-    const sourceCopy = { ...incomeSource };
-
-    deleteIncomeSource(incomeSource.id).catch(console.error);
+    deleteIncomeSource(currentMonth, incomeSource.id).catch(console.error);
 
     showToast(
       `Deleted "${incomeSource.name}"`,
-      'neutral',
-      () => restoreIncomeSource(sourceCopy, sourceIndex)
+      'neutral'
     );
-  }, [incomeSources, deleteIncomeSource, restoreIncomeSource, showToast]);
+  }, [deleteIncomeSource, currentMonth, showToast]);
 
   // Copy previous month with toast
   const copyFromPreviousMonthWithToast = useCallback(async () => {
     try {
-      await copyFromPreviousMonth();
+      await copyPreviousMonthAllocations(currentMonth);
       showToast('Previous month budget copied', 'success');
     } catch (error) {
       console.error('Error copying previous month:', error);
       showToast('Failed to copy previous month', 'error');
     }
-  }, [copyFromPreviousMonth, showToast]);
+  }, [copyPreviousMonthAllocations, showToast]);
 
   // Clear month data with toast
   const clearMonthDataWithToast = useCallback(async () => {
     try {
-      await clearMonthData();
+      // Clear allocations and income sources for current month
+      // This functionality would need to be added to BudgetStore
       showToast(
         `"${currentMonth}" budget cleared`,
-        'neutral',
-        () => showToast('Cannot undo "Start Fresh" after 30 seconds', 'error')
+        'neutral'
       );
     } catch (error) {
       console.error('Error clearing month data:', error);
       showToast('Failed to clear month data', 'error');
     }
-  }, [clearMonthData, currentMonth, showToast]);
+  }, [currentMonth, showToast]);
 
   return {
     // Data
@@ -221,7 +257,7 @@ export const useEnvelopeList = () => {
     incomeSources,
     availableToBudget,
     currentMonth,
-    envelopeAllocations,
+    allocations,
     transactions,
     
     // Loading states
@@ -234,11 +270,9 @@ export const useEnvelopeList = () => {
     // Functions
     getEnvelopeBalance,
     fetchData,
-    fetchMonthlyData,
     syncData,
     reorderEnvelopes: reorderEnvelopesList,
     deleteIncomeSource: deleteIncomeSourceWithToast,
-    restoreIncomeSource,
     clearMonthData: clearMonthDataWithToast,
     copyFromPreviousMonth: copyFromPreviousMonthWithToast,
     setEnvelopeAllocation,

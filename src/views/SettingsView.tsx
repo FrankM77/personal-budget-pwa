@@ -1,19 +1,16 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, X, AlertTriangle } from 'lucide-react';
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle } from 'lucide-react';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
-import packageJson from '../../package.json';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { envelopes, transactions, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings } = useEnvelopeStore();
-  const { envelopeAllocations, incomeSources } = useMonthlyBudgetStore();
+  const { envelopes, transactions, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings, incomeSources, allocations, currentMonth } = useBudgetStore();
 
-  const { currentUser, deleteAccount } = useAuthStore();
+  const { deleteAccount } = useAuthStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
@@ -28,7 +25,6 @@ export const SettingsView: React.FC = () => {
   console.log(operationResult);
 
   const APPLE_EPOCH_OFFSET = 978307200;
-  const appVersion = packageJson.version;
 
   // Use appSettings theme, fallback to system
   const currentTheme = appSettings?.theme ?? 'system';
@@ -40,13 +36,7 @@ export const SettingsView: React.FC = () => {
         console.error('Failed to initialize app settings:', error);
       });
     }
-  }, [appSettings, initializeAppSettings]);
-
-  // Clean up invalid allocations on mount
-  useEffect(() => {
-    const { cleanupInvalidAllocations } = useMonthlyBudgetStore.getState();
-    cleanupInvalidAllocations();
-  }, []);
+  }, [initializeAppSettings, appSettings]);
 
   const showStatus = (type: 'success' | 'error', text: string) => {
     setStatusMessage({ type, text });
@@ -56,9 +46,14 @@ export const SettingsView: React.FC = () => {
   const dataSummary = useMemo(() => {
     const envelopeCount = envelopes.length;
     const transactionCount = transactions.length;
-    const incomeSourceCount = incomeSources.length;
-    const allocationCount = envelopeAllocations.length;
-    const totalBalance = envelopes.reduce((sum, env) => sum + getEnvelopeBalance(env.id!).toNumber(), 0);
+    const currentAllocations = currentMonth ? allocations[currentMonth] || [] : [];
+
+    const incomeSourceCount = Object.values(incomeSources).reduce((sum, sources) => sum + sources.length, 0);
+    const allocationCount = currentAllocations.length;
+    const totalBalance = envelopes.reduce((sum, env) => {
+      const balance = getEnvelopeBalance(env.id!);
+      return sum + (typeof balance === 'number' ? balance : 0);
+    }, 0);
 
     // New store doesn't have lastUpdated, so use latest transaction date
     const latestEnvelope = 0;
@@ -91,7 +86,7 @@ export const SettingsView: React.FC = () => {
       totalBalance,
       lastUpdated,
     };
-  }, [envelopes, transactions, incomeSources, envelopeAllocations]);
+  }, [envelopes, transactions, incomeSources, allocations, currentMonth]);
 
   const handleBackup = () => {
     try {
@@ -112,11 +107,14 @@ export const SettingsView: React.FC = () => {
         },
         envelopes: envelopes.map(env => ({
           ...env,
-          currentBalance: getEnvelopeBalance(env.id!).toNumber(), // Use computed balance for backup compatibility
+          currentBalance: (() => {
+            const balance = getEnvelopeBalance(env.id!);
+            return typeof balance === 'number' ? balance : 0;
+          })(), // Use computed balance for backup compatibility
           lastUpdated: new Date().toISOString()
         })),
         transactions,
-        envelopeAllocations,
+        allocations,
         incomeSources,
       };
 
@@ -183,7 +181,6 @@ export const SettingsView: React.FC = () => {
           (t.amount as number).toFixed(2),
           t.type,
           `"${envName}"`,
-
           t.reconciled ? 'Yes' : 'No',
         ].join(',');
       });
@@ -248,7 +245,7 @@ export const SettingsView: React.FC = () => {
 
         showStatus(
           'success',
-          `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions, ${parsed.envelopeAllocations?.length ?? 0} allocations, and ${parsed.incomeSources?.length ?? 0} income sources.`
+          `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions, ${parsed.allocations ? Object.keys(parsed.allocations).reduce((sum, month) => sum + (parsed.allocations[month]?.length || 0), 0) : 0} allocations, and ${parsed.incomeSources ? Object.keys(parsed.incomeSources).reduce((sum, month) => sum + (parsed.incomeSources[month]?.length || 0), 0) : 0} income sources.`
         );
       } catch (error) {
         console.error(error);
@@ -485,108 +482,112 @@ export const SettingsView: React.FC = () => {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm">
             <button
               onClick={handleReset}
-              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group border-b border-gray-100 dark:border-zinc-800"
+              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800"
             >
               <div className="flex items-center gap-3">
-                <Trash2 className="text-red-500 group-hover:text-red-600" size={20} />
-                <span className="text-red-500 group-hover:text-red-600 font-medium">Reset All Data</span>
+                <Trash2 className="text-red-500" size={20} />
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-900 dark:text-white font-medium">Reset All Data</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">Permanently delete all envelopes, transactions, allocations, income sources, and settings</span>
+                </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
             </button>
+
             <button
               onClick={() => setShowDeleteDialog(true)}
-              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
+              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <Trash2 className="text-red-600 group-hover:text-red-700" size={20} />
-                <span className="text-red-600 group-hover:text-red-700 font-medium">Delete Account</span>
+                <AlertTriangle className="text-red-500" size={20} />
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-900 dark:text-white font-medium">Delete Account</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">Permanently delete your account and all data</span>
+                </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
             </button>
-          </div>
-          <div className="px-1 pt-2 text-xs text-gray-500 dark:text-zinc-500 space-y-1">
-            <div>This clears every envelope, transaction, budget allocation, and income source. Use with caution.</div>
-            <div>Deleting your account permanently removes all data and cannot be undone.</div>
           </div>
         </section>
 
-        <div className="px-1 text-xs text-gray-500 dark:text-zinc-500 flex items-center justify-center">
-          <span>App Version {appVersion}</span>
-        </div>
-
-        {/* Delete Account Confirmation Modal */}
-        {showDeleteDialog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Account</h3>
-                </div>
-                <button
-                  onClick={() => setShowDeleteDialog(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <X size={20} />
-                </button>
+        {/* Operation Result Modal */}
+        {operationResult && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 max-w-sm w-full">
+              <div className="flex items-center gap-3 mb-4">
+                {operationResult.success ? (
+                  <CheckCircle className="text-green-500" size={24} />
+                ) : (
+                  <AlertTriangle className="text-red-500" size={24} />
+                )}
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {operationResult.success ? 'Success' : 'Error'}
+                </h3>
               </div>
-
-              <div className="space-y-4">
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                  <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-2">
-                    This action cannot be undone
-                  </p>
-                  <p className="text-sm text-red-700 dark:text-red-300">
-                    Deleting your account will permanently remove all your data including envelopes, transactions, budget allocations, income sources, and settings. This action is irreversible.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Account Email: <span className="font-semibold">{currentUser?.email}</span>
-                  </label>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Enter your password"
-                    disabled={isDeletingAccount}
-                  />
-                </div>
-
-                <div className="flex gap-3">
+              <p className="text-gray-600 dark:text-zinc-300 mb-4">{operationResult.message}</p>
+              <div className="flex gap-2">
+                {operationResult.onRetry && (
                   <button
-                    onClick={() => setShowDeleteDialog(false)}
-                    disabled={isDeletingAccount}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                    onClick={() => {
+                      setOperationResult(null);
+                      operationResult.onRetry?.();
+                    }}
+                    className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
                   >
-                    Cancel
+                    Retry
                   </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={isDeletingAccount || !deletePassword.trim()}
-                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-md transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isDeletingAccount ? (
-                      <>
-                        <Loader className="w-4 h-4 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      'Delete Account'
-                    )}
-                  </button>
-                </div>
+                )}
+                <button
+                  onClick={() => setOperationResult(null)}
+                  className="flex-1 py-2 px-4 bg-gray-200 dark:bg-zinc-700 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Delete Account Dialog */}
+        {showDeleteDialog && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 max-w-sm w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="text-red-500" size={24} />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Account</h3>
+              </div>
+              <p className="text-gray-600 dark:text-zinc-300 mb-4">
+                This action cannot be undone. This will permanently delete your account and remove all data from our servers.
+              </p>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-400 mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                    setDeletePassword('');
+                  }}
+                  className="flex-1 py-2 px-4 bg-gray-200 dark:bg-zinc-700 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount || !deletePassword.trim()}
+                  className="flex-1 py-2 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeletingAccount ? 'Deleting...' : 'Delete Account'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

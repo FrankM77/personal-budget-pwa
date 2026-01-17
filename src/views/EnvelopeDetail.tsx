@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEnvelopeStore } from '../stores/envelopeStore';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
 import type { Transaction } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
@@ -25,9 +24,8 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance } = useEnvelopeStore();
+    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance, currentMonth } = useBudgetStore();
     const { showToast } = useToastStore();
-    const { currentMonth } = useMonthlyBudgetStore();
 
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
     const navigate = useNavigate();
@@ -82,6 +80,11 @@ const EnvelopeDetail: React.FC = () => {
         .filter(t => {
             // If it's a piggybank, filter by creation date
             if (currentEnvelope.isPiggybank) {
+                // Always show monthly allocation transactions regardless of date
+                if (t.description === 'Monthly Allocation' && t.isAutomatic) {
+                    return true;
+                }
+                
                 if (!currentEnvelope.createdAt) return true; // Legacy piggybanks with no creation date
                 const createdDate = new Date(currentEnvelope.createdAt);
                 const transactionDate = new Date(t.date);
@@ -149,7 +152,9 @@ const EnvelopeDetail: React.FC = () => {
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-headline text-gray-900 dark:text-white">Current Balance</span>
                     {(() => {
-                      const balance = getEnvelopeBalance(currentEnvelope.id!).toNumber();
+                      const balance = typeof getEnvelopeBalance(currentEnvelope.id!) === 'number' 
+                      ? getEnvelopeBalance(currentEnvelope.id!)
+                      : 0;
                       console.log(`Debug: Envelope ${currentEnvelope.name} Balance:`, balance);
                       return (
                         <span

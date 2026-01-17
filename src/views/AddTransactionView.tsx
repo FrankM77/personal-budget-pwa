@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../stores/budgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 import CardStack from '../components/ui/CardStack';
 import type { PaymentSource } from '../components/ui/CardStack';
@@ -10,8 +9,7 @@ import '../styles/CardStack.css';
 
 export const AddTransactionView: React.FC = () => {
   const navigate = useNavigate();
-  const { envelopes, addTransaction } = useEnvelopeStore();
-  const { currentMonth } = useMonthlyBudgetStore();
+  const { envelopes, addTransaction, currentMonth } = useBudgetStore();
 
   // Form state
   const [amount, setAmount] = useState('');
