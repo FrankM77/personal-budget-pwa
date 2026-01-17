@@ -510,6 +510,11 @@ export const SettingsView: React.FC = () => {
           </div>
         </section>
 
+        {/* App Version */}
+        <div className="text-center py-4">
+          <p className="text-xs text-gray-400 dark:text-zinc-500">Version 1.2.0 (PWA)</p>
+        </div>
+
         {/* Operation Result Modal */}
         {operationResult && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
