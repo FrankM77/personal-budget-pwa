@@ -390,11 +390,23 @@ export const EnvelopeListView: React.FC = () => {
 
   // Effect to handle Copy Previous Month Prompt visibility
   useEffect(() => {
-    if (!isInitialLoading) {
-      const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
-      setShowCopyPrompt(hasNoData);
+    // Only check for copy prompt after initial loading is complete AND data has had time to load
+    if (!isInitialLoading && !isLoading) {
+      // Add a small delay to ensure data is loaded from backend
+      const timer = setTimeout(() => {
+        const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
+        console.log('🔍 Copy prompt check:', { 
+          currentMonth, 
+          hasIncome: (incomeSources[currentMonth] || []).length > 0,
+          hasAllocations: (allocations[currentMonth] || []).length > 0,
+          showPrompt: hasNoData 
+        });
+        setShowCopyPrompt(hasNoData);
+      }, 500); // 500ms delay to allow data to load
+      
+      return () => clearTimeout(timer);
     }
-  }, [isInitialLoading, incomeSources, allocations, currentMonth]);
+  }, [isInitialLoading, isLoading, incomeSources, allocations, currentMonth]);
 
   // Effect to auto-focus the input when editing starts
   useEffect(() => {
@@ -720,7 +732,7 @@ export const EnvelopeListView: React.FC = () => {
 
   const handleCopyPreviousMonth = async () => {
     setShowCopyPrompt(false);
-    await copyFromPreviousMonth();
+    await copyFromPreviousMonth(currentMonth);
   };
 
 
@@ -824,7 +836,7 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
 
-    <div className="pt-40 p-4 max-w-md mx-auto space-y-6">
+    <div className="pt-[calc(10rem+env(safe-area-inset-top))] p-4 max-w-md mx-auto space-y-6">
       {/* Copy Previous Month Prompt */}
       {showCopyPrompt && (
         <CopyPreviousMonthPrompt

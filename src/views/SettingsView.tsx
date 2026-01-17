@@ -1,16 +1,17 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle, Sparkles } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
+import { budgetService, type CleanupReport } from '../services/budgetService';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { envelopes, transactions, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings, incomeSources, allocations, currentMonth } = useBudgetStore();
 
-  const { deleteAccount } = useAuthStore();
+  const { deleteAccount, currentUser } = useAuthStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
@@ -20,6 +21,7 @@ export const SettingsView: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isExportingCSV, setIsExportingCSV] = useState(false);
   const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
+  const [isCleaningData, setIsCleaningData] = useState(false);
 
   // Dummy usage to satisfy TypeScript linter (operationResult IS used in JSX)
   console.log(operationResult);
@@ -303,6 +305,32 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleCleanupOrphanedData = async () => {
+    if (!currentUser) {
+      showStatus('error', 'You must be logged in to clean up data.');
+      return;
+    }
+
+    setIsCleaningData(true);
+    try {
+      const report: CleanupReport = await budgetService.cleanupOrphanedData(currentUser.id);
+      
+      const totalDeleted = report.orphanedAllocationsDeleted + report.orphanedTransactionsDeleted;
+      if (totalDeleted > 0) {
+        showStatus('success', 
+          `Cleaned ${totalDeleted} orphaned items: ${report.orphanedAllocationsDeleted} allocations and ${report.orphanedTransactionsDeleted} transactions from ${report.details.monthsProcessed.length} months.`
+        );
+      } else {
+        showStatus('success', 'No orphaned data found. Your database is already clean!');
+      }
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+      showStatus('error', 'Failed to clean up orphaned data. Please try again.');
+    } finally {
+      setIsCleaningData(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-between shadow-sm">
@@ -489,6 +517,27 @@ export const SettingsView: React.FC = () => {
                 <div className="flex flex-col items-start">
                   <span className="text-gray-900 dark:text-white font-medium">Reset All Data</span>
                   <span className="text-xs text-gray-500 dark:text-zinc-400">Permanently delete all envelopes, transactions, allocations, income sources, and settings</span>
+                </div>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
+
+            <button
+              onClick={handleCleanupOrphanedData}
+              disabled={isCleaningData}
+              className="w-full p-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-3">
+                {isCleaningData ? (
+                  <Loader className="text-orange-500 animate-spin" size={20} />
+                ) : (
+                  <Sparkles className="text-orange-500" size={20} />
+                )}
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {isCleaningData ? 'Cleaning Data...' : '🧹 Purge Orphaned Data'}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">Remove allocations and transactions pointing to deleted envelopes</span>
                 </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />

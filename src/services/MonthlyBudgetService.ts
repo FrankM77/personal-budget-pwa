@@ -379,3 +379,6 @@ export class MonthlyBudgetService {
     });
   }
 }
+
+// Export singleton instance
+export const monthlyBudgetService = MonthlyBudgetService.getInstance();

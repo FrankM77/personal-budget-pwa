@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FolderPlus, PiggyBank } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
+import { useToastStore } from '../stores/toastStore';
 
 export const AddEnvelopeView: React.FC = () => {
   const { addEnvelope, setEnvelopeAllocation, currentMonth } = useBudgetStore();
+  const { showToast } = useToastStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -66,15 +68,17 @@ export const AddEnvelopeView: React.FC = () => {
         setEnvelopeAllocation(newEnvelopeId, allocationAmount).catch(err => 
           console.error('Failed to create allocation:', err)
         );
+        
+        // Only navigate on successful creation
+        setTimeout(() => {
+          navigate('/');
+        }, 50);
       }
     }).catch(err => {
       console.error('Failed to create envelope:', err);
+      showToast(err.message || 'Failed to create envelope', 'error');
+      // Don't navigate on error - let user try again
     });
-    
-    // Small delay to ensure optimistic updates complete before navigation
-    setTimeout(() => {
-      navigate('/');
-    }, 50);
   };
 
   return (

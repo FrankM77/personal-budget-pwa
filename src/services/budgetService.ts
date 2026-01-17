@@ -4,6 +4,16 @@ import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation } from '..
 import { fromFirestore } from '../mappers/transaction';
 import { toISOString } from '../utils/dateUtils';
 
+export interface CleanupReport {
+  orphanedAllocationsDeleted: number;
+  orphanedTransactionsDeleted: number;
+  details: {
+    deletedAllocationIds: string[];
+    deletedTransactionIds: string[];
+    monthsProcessed: string[];
+  };
+}
+
 /**
  * Unified Budget Service Layer
  * Handles all Firestore interactions for the unified BudgetStore
@@ -318,6 +328,97 @@ export class BudgetService {
     } catch (error) {
       console.error('❌ BudgetService.getMonthData failed:', error);
       throw new Error(`Failed to fetch month data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Clean up orphaned data (allocations and transactions pointing to deleted envelopes)
+   * @param userId - User ID to clean up data for
+   * @returns Promise<CleanupReport> - Report of what was cleaned up
+   */
+  async cleanupOrphanedData(userId: string): Promise<CleanupReport> {
+    try {
+      console.log('🧹 BudgetService.cleanupOrphanedData: Starting cleanup for user:', userId);
+      
+      const report: CleanupReport = {
+        orphanedAllocationsDeleted: 0,
+        orphanedTransactionsDeleted: 0,
+        details: {
+          deletedAllocationIds: [],
+          deletedTransactionIds: [],
+          monthsProcessed: []
+        }
+      };
+
+      // Step 1: Get all existing envelopes
+      const envelopes = await this.getEnvelopes(userId);
+      const envelopeIds = new Set(envelopes.map(env => env.id));
+      console.log(`📋 Found ${envelopes.length} existing envelopes`);
+
+      // Step 2: Get all allocations across all months and clean orphaned ones
+      const allocationsCollection = collection(db, 'users', userId, 'envelopeAllocations');
+      const allAllocationsSnapshot = await getDocs(allocationsCollection);
+      
+      const orphanedAllocations: string[] = [];
+      const monthsProcessed = new Set<string>();
+
+      for (const doc of allAllocationsSnapshot.docs) {
+        const allocation = doc.data() as EnvelopeAllocation;
+        monthsProcessed.add(allocation.month);
+        
+        // Check if the envelope still exists
+        if (!envelopeIds.has(allocation.envelopeId)) {
+          orphanedAllocations.push(doc.id);
+          console.log(`🗑️ Found orphaned allocation: ${doc.id} for envelope ${allocation.envelopeId} in month ${allocation.month}`);
+        }
+      }
+
+      // Delete orphaned allocations
+      if (orphanedAllocations.length > 0) {
+        const deletePromises = orphanedAllocations.map(allocationId => 
+          deleteDoc(doc(db, 'users', userId, 'envelopeAllocations', allocationId))
+        );
+        await Promise.all(deletePromises);
+        report.orphanedAllocationsDeleted = orphanedAllocations.length;
+        report.details.deletedAllocationIds = orphanedAllocations;
+        console.log(`🗑️ Deleted ${orphanedAllocations.length} orphaned allocations`);
+      }
+
+      // Step 3: Get all transactions and clean orphaned ones
+      const transactions = await this.getTransactions(userId);
+      const orphanedTransactions: string[] = [];
+
+      for (const transaction of transactions) {
+        // Check if the envelope still exists
+        if (!envelopeIds.has(transaction.envelopeId)) {
+          orphanedTransactions.push(transaction.id);
+          console.log(`🗑️ Found orphaned transaction: ${transaction.id} for envelope ${transaction.envelopeId}`);
+        }
+      }
+
+      // Delete orphaned transactions
+      if (orphanedTransactions.length > 0) {
+        const deletePromises = orphanedTransactions.map(transactionId => 
+          deleteDoc(doc(db, 'users', userId, 'transactions', transactionId))
+        );
+        await Promise.all(deletePromises);
+        report.orphanedTransactionsDeleted = orphanedTransactions.length;
+        report.details.deletedTransactionIds = orphanedTransactions;
+        console.log(`🗑️ Deleted ${orphanedTransactions.length} orphaned transactions`);
+      }
+
+      report.details.monthsProcessed = Array.from(monthsProcessed);
+      
+      console.log('✅ Cleanup completed:', {
+        orphanedAllocationsDeleted: report.orphanedAllocationsDeleted,
+        orphanedTransactionsDeleted: report.orphanedTransactionsDeleted,
+        monthsProcessed: report.details.monthsProcessed.length
+      });
+
+      return report;
+    } catch (error) {
+      console.error('❌ BudgetService.cleanupOrphanedData failed:', error);
+      throw new Error(`Failed to cleanup orphaned data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

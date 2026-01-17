@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
+import { useAuthStore } from '../stores/authStore';
+import { monthlyBudgetService } from '../services/MonthlyBudgetService';
 import { Decimal } from 'decimal.js';
 import type { IncomeSource } from '../models/types';
 
@@ -51,6 +53,9 @@ export const useEnvelopeList = () => {
     testingConnectivity, 
     reorderEnvelopes 
   } = useBudgetStore();
+
+  // Auth store (for current user)
+  const { currentUser } = useAuthStore();
 
   // Monthly budget store (for zero-based budgeting features)
   const {
@@ -177,8 +182,9 @@ export const useEnvelopeList = () => {
     const filtered = envelopes
       .filter(env => 
         !env.isPiggybank && 
-        env.isActive !== false &&
-        (allocations[currentMonth] || []).some(alloc => alloc.envelopeId === env.id)
+        env.isActive !== false
+        // Show all envelopes by default - the allocation filter was too restrictive
+        // Users should see all their envelopes regardless of allocations
       )
       .sort((a, b) => {
         const aOrder = a.orderIndex ?? 0;
@@ -188,7 +194,7 @@ export const useEnvelopeList = () => {
 
     setLocalEnvelopes(filtered);
     localOrderRef.current = filtered;
-  }, [envelopes, allocations]);
+  }, [envelopes, allocations, currentMonth]);
 
   // Calculate available to budget - match the UI logic in AvailableToBudget component
   const totalIncome = (incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0);
@@ -225,30 +231,41 @@ export const useEnvelopeList = () => {
   }, [deleteIncomeSource, currentMonth, showToast]);
 
   // Copy previous month with toast
-  const copyFromPreviousMonthWithToast = useCallback(async () => {
+  const copyFromPreviousMonthWithToast = useCallback(async (targetMonth?: string) => {
     try {
-      await copyPreviousMonthAllocations(currentMonth);
+      const monthToUse = targetMonth || currentMonth;
+      console.log('🔧 Copying to month:', monthToUse);
+      await copyPreviousMonthAllocations(monthToUse);
       showToast('Previous month budget copied', 'success');
     } catch (error) {
       console.error('Error copying previous month:', error);
       showToast('Failed to copy previous month', 'error');
     }
-  }, [copyPreviousMonthAllocations, showToast]);
+  }, [copyPreviousMonthAllocations, showToast, currentMonth]);
 
   // Clear month data with toast
   const clearMonthDataWithToast = useCallback(async () => {
+    if (!currentUser || !currentMonth) {
+      showToast('Cannot clear data: not logged in or no month selected', 'error');
+      return;
+    }
+
     try {
       // Clear allocations and income sources for current month
-      // This functionality would need to be added to BudgetStore
+      await monthlyBudgetService.clearMonthData(currentUser.id, currentMonth);
+      
+      // Refresh data to reflect changes
+      await fetchData();
+      
       showToast(
-        `"${currentMonth}" budget cleared`,
-        'neutral'
+        `"${currentMonth}" budget cleared successfully`,
+        'success'
       );
     } catch (error) {
       console.error('Error clearing month data:', error);
       showToast('Failed to clear month data', 'error');
     }
-  }, [currentMonth, showToast]);
+  }, [currentUser, currentMonth, fetchData, showToast]);
 
   return {
     // Data
