@@ -16,13 +16,18 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   isLoading = false,
   variant = 'default',
 }) => {
+  // Ensure totalAllocated is a number (handle potential string from Firestore)
+  const safeTotalAllocated = typeof totalAllocated === 'number' ? totalAllocated : parseFloat(totalAllocated) || 0;
+  const safeTotalIncome = typeof totalIncome === 'number' ? totalIncome : parseFloat(totalIncome) || 0;
+  const safeAmount = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
+  
   // Calculate progress percentage
-  const progressPercentage = totalIncome > 0 ? ((totalAllocated / totalIncome) * 100) : 0;
+  const progressPercentage = safeTotalIncome > 0 ? ((safeTotalAllocated / safeTotalIncome) * 100) : 0;
 
   // Determine display state
-  const isPositive = amount > 0;
-  const isZero = Math.abs(amount) < 0.01;
-  const isNegative = amount < 0;
+  const isPositive = safeAmount > 0;
+  const isZero = Math.abs(safeAmount) < 0.01;
+  const isNegative = safeAmount < 0;
 
   const barWidth = isZero ? 100 : Math.min(progressPercentage, 100);
   const barColor = isNegative ? 'bg-red-500' : 'bg-green-500';
@@ -83,13 +88,15 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
       <div className={variant === 'header' ? 'flex items-center gap-3 mb-0.5' : `flex items-center justify-between mb-4`}>
         <div className="flex-shrink-0 text-center">
           <div className="text-xs text-gray-600 dark:text-zinc-400">Assigned:</div>
-          <div className="text-base font-semibold text-gray-900 dark:text-white">${totalAllocated.toFixed(2)}</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-white">${safeTotalAllocated.toFixed(2)}</div>
         </div>
 
         {variant === 'header' && (
           <div className="flex-1 flex justify-center items-center">
             {isZero ? (
-              <img src="/personal-budget-pwa/images/budget-balanced.png" alt="Budget Balanced" className="w-6 h-6" />
+              <div className="text-center">
+                <div className="text-xs text-green-600 dark:text-emerald-400 font-medium">Perfect! Every dollar has a job 🎯</div>
+              </div>
             ) : isNegative ? (
               <div className="text-center">
                 <div className="text-xs text-red-600 dark:text-red-400 font-medium">You're not in Congress!</div>
@@ -110,7 +117,7 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
           {isPositive ? (
             <>
               <div className="text-xs text-gray-600 dark:text-zinc-400">Left to Budget:</div>
-              <div className="text-base font-semibold text-gray-900 dark:text-white">${amount.toFixed(2)}</div>
+              <div className="text-base font-semibold text-gray-900 dark:text-white">${safeAmount.toFixed(2)}</div>
             </>
           ) : isZero ? (
             <>
@@ -120,14 +127,14 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
           ) : (
             <>
               <div className="text-xs text-red-600 dark:text-red-400">Over Budget:</div>
-              <div className="text-base font-semibold text-red-600 dark:text-red-400">-${Math.abs(amount).toFixed(2)}</div>
+              <div className="text-base font-semibold text-red-600 dark:text-red-400">-${Math.abs(safeAmount).toFixed(2)}</div>
             </>
           )}
         </div>
       </div>
 
       {/* Progress Bar */}
-      {variant !== 'header' && !isZeroBalance && totalIncome > 0 && (
+      {variant !== 'header' && !isZeroBalance && safeTotalIncome > 0 && (
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-gray-600 dark:text-zinc-400">
             <span>Allocated</span>
@@ -146,8 +153,8 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
             />
           </div>
           <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-500">
-            <span>${totalAllocated.toFixed(2)} allocated</span>
-            <span>${totalIncome.toFixed(2)} income</span>
+            <span>${safeTotalAllocated.toFixed(2)} allocated</span>
+            <span>${safeTotalIncome.toFixed(2)} income</span>
           </div>
         </div>
       )}
@@ -158,7 +165,7 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                ${totalIncome.toFixed(2)}
+                ${safeTotalIncome.toFixed(2)}
               </div>
               <div className="text-sm text-gray-600 dark:text-zinc-400">
                 Total Income
@@ -166,7 +173,7 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
             </div>
             <div>
               <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                ${totalAllocated.toFixed(2)}
+                ${safeTotalAllocated.toFixed(2)}
               </div>
               <div className="text-sm text-gray-600 dark:text-zinc-400">
                 Allocated

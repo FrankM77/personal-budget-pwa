@@ -11,7 +11,7 @@ import {
   } from 'firebase/firestore';
   import { db } from '../firebase'; // Ensure you have your firebase config initialized here
   import type { Transaction } from '../types/schema';
-  import { transactionFromFirestore } from '../mappers/transaction';
+  import { fromFirestore } from '../mappers/transaction';
 
   // The path to the collection: users/{userId}/transactions
   const getCollectionRef = (userId: string) => 
@@ -48,7 +48,7 @@ import {
       const snapshot = await getDocs(q);
       const transactions = snapshot.docs.map(doc => {
         const firebaseTx = { id: doc.id, ...doc.data() } as any;
-        return transactionFromFirestore(firebaseTx);
+        return fromFirestore(firebaseTx);
       });
       console.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description, month: t.month })));
       return transactions as any as Transaction[];

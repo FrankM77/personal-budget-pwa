@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useEnvelopeStore } from '../../stores/envelopeStore';
+import { useBudgetStore } from '../../stores/budgetStore';
 import type { Envelope } from '../../models/types';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 }
 
 const TransferModal: React.FC<Props> = ({ isVisible, onClose, sourceEnvelope }) => {
-  const { envelopes, transferFunds } = useEnvelopeStore();
+  const { envelopes, transferFunds } = useBudgetStore();
   
   const [targetEnvelopeId, setTargetEnvelopeId] = useState('');
   const [amount, setAmount] = useState('');

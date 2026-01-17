@@ -189,10 +189,8 @@ Piggybanks are special envelopes that persist across months with auto-contributi
 - Email verification, account deletion, password strength validation
 
 ### Future Enhancements
+- Enhance CSV export to match new data structure
 - Advanced reporting and analytics
-- Recurring transactions
-- Multi-currency
-- Advanced filtering
 - Data visualization
 - Performance testing
 - Error boundaries
@@ -313,7 +311,7 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Progress Bar**: Visual percentage of income allocated
 - **Instant Updates**: Recalculates immediately when income sources or allocations change
 
-### Phase 3: Split Transactions
+### Phase 3: Split Transactions ✅ COMPLETED
 1. **Split Transaction UI**
    - Split creation interface
    - Split editing capabilities

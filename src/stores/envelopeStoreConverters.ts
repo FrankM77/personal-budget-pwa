@@ -1,19 +1,7 @@
 import type { Transaction, Envelope, DistributionTemplate } from '../models/types';
+import { fromFirestore } from '../mappers/transaction';
 
-export const convertFirebaseTransaction = (firebaseTx: any): Transaction => ({
-  id: firebaseTx.id,
-  date: firebaseTx.date?.toDate?.() ? firebaseTx.date.toDate().toISOString() : firebaseTx.date,
-  amount: parseFloat(firebaseTx.amount) || 0,
-  description: firebaseTx.description || '',
-  merchant: firebaseTx.merchant || undefined,
-  envelopeId: firebaseTx.envelopeId || '',
-  reconciled: firebaseTx.reconciled || false,
-  type: firebaseTx.type === 'income' ? 'Income' : firebaseTx.type === 'expense' ? 'Expense' : 'Transfer',
-  transferId: firebaseTx.transferId || undefined,
-  userId: firebaseTx.userId || undefined,
-  isAutomatic: firebaseTx.isAutomatic || false,
-  month: firebaseTx.month || undefined
-});
+export const convertFirebaseTransaction = (firebaseTx: any): Transaction => fromFirestore(firebaseTx);
 
 export const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   id: firebaseEnv.id,

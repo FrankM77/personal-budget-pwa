@@ -29,10 +29,16 @@ import {
 
       // This listener stays alive and calls 'onUpdate' whenever DB changes
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const envelopes = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Envelope[];
+        const envelopes = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Convert Firestore Timestamps to ISO strings
+            createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt,
+            lastUpdated: data.lastUpdated?.toDate?.() ? data.lastUpdated.toDate().toISOString() : data.lastUpdated
+          };
+        }) as Envelope[];
 
         onUpdate(envelopes);
       });
@@ -51,12 +57,18 @@ import {
         const collectionRef = getCollectionRef(userId);
         const snapshot = await getDocs(collectionRef);
         
-        const envelopes = snapshot.docs.map((doc, index) => ({
-          id: doc.id,
-          ...doc.data(),
-          // Ensure orderIndex is always set (default to index if missing)
-          orderIndex: doc.data().orderIndex ?? index
-        })) as Envelope[];
+        const envelopes = snapshot.docs.map((doc, index) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Convert Firestore Timestamps to ISO strings
+            createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt,
+            lastUpdated: data.lastUpdated?.toDate?.() ? data.lastUpdated.toDate().toISOString() : data.lastUpdated,
+            // Ensure orderIndex is always set (default to index if missing)
+            orderIndex: data.orderIndex ?? index
+          };
+        }) as Envelope[];
         
         // Sort by orderIndex in memory (consistent with subscribeToEnvelopes)
         const sortedEnvelopes = envelopes.sort((a, b) => {

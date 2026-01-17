@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
+import { Decimal } from 'decimal.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
-import { useEnvelopeStore } from '../stores/envelopeStore';
-import { useMonthlyBudgetStore } from '../stores/monthlyBudgetStore';
+import { useEnvelopeList } from '../hooks/useEnvelopeList';
 import { MonthSelector } from '../components/ui/MonthSelector';
 import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
@@ -13,10 +13,9 @@ import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
 import { PiggybankListItem } from '../components/PiggybankListItem';
-import { useToastStore } from '../stores/toastStore';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useNavigate } from 'react-router-dom';
 import type { IncomeSource } from '../models/types';
-import { Decimal } from 'decimal.js';
 
 // Helper to convert hex color to rgba (used for piggybank accents)
 const hexToRgba = (hex: string, alpha = 1) => {
@@ -257,7 +256,7 @@ const EnvelopeListItem = ({
           <div className="text-right">
             <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
             <span className={`font-bold ${
-                remainingBalance.toNumber() < 0
+                (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                   ? 'text-red-500'
                   : (100 - percentage) <= 5
                     ? 'text-red-500'
@@ -265,7 +264,7 @@ const EnvelopeListItem = ({
                       ? 'text-yellow-600 dark:text-yellow-400'
                       : 'text-green-600 dark:text-emerald-400'
               }`}>
-              ${remainingBalance.toNumber().toFixed(2)}
+              ${(typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()).toFixed(2)}
             </span>
           </div>
         </div>
@@ -283,7 +282,7 @@ const EnvelopeListItem = ({
                   <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ease-out ${
-                        remainingBalance.toNumber() < 0
+                        (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                           ? 'bg-red-500'
                           : (100 - percentage) <= 5
                             ? 'bg-red-500'
@@ -332,46 +331,35 @@ const EnvelopeListItem = ({
 };
 
 export const EnvelopeListView: React.FC = () => {
-  // Envelope store (for envelopes and transactions)
-  const { envelopes, transactions, fetchData, isLoading, isOnline, pendingSync, syncData, testingConnectivity, reorderEnvelopes } = useEnvelopeStore();
-
-  // Callback ref for Moveable elements
-  const setMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
-    if (el) {
-      moveableRefs.current[envelopeId] = el;
-    } else {
-      delete moveableRefs.current[envelopeId];
-    }
-  }, []);
-
-  // Monthly budget store (for zero-based budgeting features)
-  const {
-    currentMonth,
-    fetchMonthlyData,
+  // Use the new hook that contains all business logic
+  const { 
+    visibleEnvelopes, 
+    piggybanks, 
     incomeSources,
-    envelopeAllocations,
-    calculateAvailableToBudget,
+    availableToBudget,
+    currentMonth,
+    allocations,
+    transactions,
+    isLoading,
+    isInitialLoading,
+    isOnline,
+    showTimeoutMessage,
+    pendingSync,
+    getEnvelopeBalance,
+    syncData,
+    reorderEnvelopes,
     deleteIncomeSource,
-    restoreIncomeSource,
     clearMonthData,
     copyFromPreviousMonth,
     setEnvelopeAllocation,
-    isLoading: isBudgetLoading,
-  } = useMonthlyBudgetStore();
+    testingConnectivity,
+    localOrderRef,
+    setLocalEnvelopes
+  } = useEnvelopeList();
 
-  const { showToast } = useToastStore();
+  // Get setCurrentMonth directly from store for month selector
+  const { setMonth } = useBudgetStore();
   const navigate = useNavigate();
-
-  const persistReorder = useCallback(async (orderedEnvelopes: typeof envelopes) => {
-    if (!orderedEnvelopes.length) return;
-    const orderedIds = orderedEnvelopes.map(env => env.id);
-    try {
-      await reorderEnvelopes(orderedIds);
-    } catch (error) {
-      console.error('Failed to persist envelope order:', error);
-      showToast('Failed to save envelope order', 'error');
-    }
-  }, [reorderEnvelopes, showToast]);
 
   // Local state for modals and UI
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
@@ -381,15 +369,6 @@ export const EnvelopeListView: React.FC = () => {
   const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Compute loading state from stores - no local state needed
-  const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
-  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [initialFetchTriggered, setInitialFetchTriggered] = useState(false);
-  
-  // Derive loading state purely from stores - show loading only if stores are loading
-  // Once fetch is triggered and stores are not loading, we're done
-  const isInitialLoading = !initialFetchTriggered || isLoading || isBudgetLoading;
 
   // State for inline budget editing
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
@@ -407,70 +386,15 @@ export const EnvelopeListView: React.FC = () => {
     localStorage.setItem('envelopeReorderUnlocked', isReorderUnlocked.toString());
   }, [isReorderUnlocked]);
 
-  // Function to get envelope balance 
-  const getEnvelopeBalance = (envelopeId: string) => {
-    // Check if this is a piggybank
-    const envelope = envelopes.find(e => e.id === envelopeId);
-    if (envelope?.isPiggybank) {
-      // For piggybanks, use store's cumulative balance (all transactions)
-      return useEnvelopeStore.getState().getEnvelopeBalance(envelopeId);
-    }
-    
-    // For regular envelopes, calculate monthly balance
-    const envelopeTransactions = transactions.filter(t => 
-      t.envelopeId === envelopeId && t.month === currentMonth
-    );
 
-    const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-    const incomes = envelopeTransactions.filter(t => t.type === 'Income');
-    const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
-    const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
-
-    // Balance = Income - Expenses (same as store calculation)
-    const balance = totalIncome.minus(totalSpent);
-    
-    return balance;
-  };
-
-  // Load data from Firebase on mount
-  useEffect(() => {
-    // Set timeout message after 8 seconds
-    loadingTimeoutRef.current = setTimeout(() => {
-      setShowTimeoutMessage(true);
-    }, 8000);
-
-    // Trigger both fetches in parallel - they handle their own loading states
-    fetchData();
-    fetchMonthlyData();
-    
-    // Mark that we've triggered the initial fetch
-    setInitialFetchTriggered(true);
-
-    // Cleanup
-    return () => {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-    };
-  }, []); // Empty dependency array - only run once on mount
-  
-  // Watch store loading states and hide timeout message when both are done
-  useEffect(() => {
-    if (initialFetchTriggered && !isLoading && !isBudgetLoading) {
-      setShowTimeoutMessage(false);
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-    }
-  }, [initialFetchTriggered, isLoading, isBudgetLoading]);
 
   // Effect to handle Copy Previous Month Prompt visibility
   useEffect(() => {
-    if (!isBudgetLoading && !isInitialLoading) {
-      const hasNoData = incomeSources.length === 0 && envelopeAllocations.length === 0;
+    if (!isInitialLoading) {
+      const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
       setShowCopyPrompt(hasNoData);
     }
-  }, [isBudgetLoading, isInitialLoading, incomeSources, envelopeAllocations, currentMonth]);
+  }, [isInitialLoading, incomeSources, allocations, currentMonth]);
 
   // Effect to auto-focus the input when editing starts
   useEffect(() => {
@@ -480,10 +404,14 @@ export const EnvelopeListView: React.FC = () => {
     }
   }, [editingEnvelopeId]);
 
-  const [isReordering, setIsReordering] = useState(false);
-  const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
-  const lastDragEndTime = useRef<number>(0);
-
+  // Callback ref for Moveable elements
+  const setMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
+    if (el) {
+      moveableRefs.current[envelopeId] = el;
+    } else {
+      delete moveableRefs.current[envelopeId];
+    }
+  }, []);
 
   // Moveable refs and instances for new reordering system
   const moveableRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -500,67 +428,20 @@ export const EnvelopeListView: React.FC = () => {
     currentIndex: 0,
     itemHeight: 0
   });
+
+  const [isReordering, setIsReordering] = useState(false);
+  const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
+  const lastDragEndTime = useRef<number>(0);
   
-  // Envelopes should already be sorted by orderIndex from the store/service
-  // Filter envelopes to only show those that have an allocation for the current month
-  // We use a local state for the reorder list to allow smooth dragging
-  const [localEnvelopes, setLocalEnvelopes] = useState<typeof envelopes>([]);
-  const localOrderRef = useRef<typeof envelopes>([]);
-
-  // Separate piggybanks from regular envelopes
-  // Only show piggybanks from their creation month forward
-  const piggybanks = envelopes.filter(env => {
-    if (!env.isPiggybank || !env.isActive) return false;
-    
-    // If piggybank has a creation date, only show it from that month forward
-    if (env.createdAt) {
-      const createdDate = new Date(env.createdAt);
-      // Use UTC methods to avoid timezone conversion issues
-      const createdMonth = `${createdDate.getUTCFullYear()}-${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}`;
-      
-      console.log(`🐷 Piggybank filter: ${env.name}`, {
-        createdAt: env.createdAt,
-        createdMonth,
-        currentMonth,
-        shouldShow: currentMonth >= createdMonth
-      });
-      
-      // Only show if current viewing month is >= creation month
-      return currentMonth >= createdMonth;
-    }
-    
-    // If no creation date, show it (legacy piggybanks)
-    console.log(`🐷 Piggybank ${env.name} has no createdAt - showing by default`);
-    return true;
-  });
-
-  useEffect(() => {
-    if (!isReordering) {
-      const filtered = envelopes
-        .filter(env => 
-          !env.isPiggybank && 
-          env.isActive !== false &&
-          envelopeAllocations.some(alloc => alloc.envelopeId === env.id)
-        )
-        .sort((a, b) => {
-          const aOrder = a.orderIndex ?? 0;
-          const bOrder = b.orderIndex ?? 0;
-          return aOrder - bOrder;
-        });
-
-      setLocalEnvelopes(filtered);
-      localOrderRef.current = filtered;
-    }
-  }, [envelopes, envelopeAllocations, isReordering]);
 
   const handleDragStart = useCallback(() => setIsReordering(true), []);
 
   const handleDragEnd = useCallback(() => {
     setIsReordering(false);
     if (localOrderRef.current.length) {
-      persistReorder(localOrderRef.current);
+      reorderEnvelopes(localOrderRef.current);
     }
-  }, [persistReorder]);
+  }, [reorderEnvelopes]);
 
   const handleItemDragStart = useCallback((_id: string) => {
     // Item-specific drag start handler (currently just for tracking)
@@ -572,7 +453,6 @@ export const EnvelopeListView: React.FC = () => {
     }
   }, [editingEnvelopeId, navigate]);
 
-  const visibleEnvelopes = localEnvelopes;
 
   // Initialize Moveable instances
   useEffect(() => {
@@ -781,12 +661,6 @@ export const EnvelopeListView: React.FC = () => {
 
 
 
-  const totalBalance = envelopes.reduce(
-    (sum, env) => sum + getEnvelopeBalance(env.id!).toNumber(),
-    0
-  );
-
-    console.log('💸 Total balance:', totalBalance);
   
     // Handler to save the inline budget edit
     const handleBudgetSave = async () => {
@@ -797,7 +671,7 @@ export const EnvelopeListView: React.FC = () => {
           await setEnvelopeAllocation(editingEnvelopeId, newAmount);
       } catch (error) {
           console.error("Failed to save budget amount:", error);
-          showToast("Failed to update budget", "error");
+          // showToast is now handled in the hook
       } finally {
           // ALWAYS exit edit mode, even if save fails, to prevent getting stuck.
           setEditingEnvelopeId(null);
@@ -825,16 +699,7 @@ export const EnvelopeListView: React.FC = () => {
     if (pendingEditTimeout.current) clearTimeout(pendingEditTimeout.current);
     setIsDeleting(true);
 
-    const sourceIndex = incomeSources.findIndex(s => s.id === incomeSource.id);
-    const sourceCopy = { ...incomeSource };
-
-    deleteIncomeSource(incomeSource.id).catch(console.error);
-
-    showToast(
-      `Deleted "${incomeSource.name}"`,
-      'neutral',
-      () => restoreIncomeSource(sourceCopy, sourceIndex)
-    );
+    deleteIncomeSource(incomeSource);
 
     setTimeout(() => setIsDeleting(false), 500);
   };
@@ -849,32 +714,15 @@ export const EnvelopeListView: React.FC = () => {
   };
 
   const handleStartFreshConfirm = async () => {
-    try {
-      await clearMonthData();
-      setStartFreshModalVisible(false);
-      showToast(
-        `"${currentMonth}" budget cleared`,
-        'neutral',
-        () => showToast('Cannot undo "Start Fresh" after 30 seconds', 'error')
-      );
-    } catch (error) {
-      console.error('Error clearing month data:', error);
-      showToast('Failed to clear month data', 'error');
-    }
+    setStartFreshModalVisible(false);
+    await clearMonthData();
   };
 
   const handleCopyPreviousMonth = async () => {
-    try {
-      await copyFromPreviousMonth();
-      setShowCopyPrompt(false);
-      showToast('Previous month budget copied', 'success');
-    } catch (error) {
-      console.error('Error copying previous month:', error);
-      showToast('Failed to copy previous month', 'error');
-    }
+    setShowCopyPrompt(false);
+    await copyFromPreviousMonth();
   };
 
-  const availableToBudget = calculateAvailableToBudget();
 
   // Show loading screen during initial data fetch
   if (isInitialLoading) {
@@ -957,9 +805,9 @@ export const EnvelopeListView: React.FC = () => {
         {/* Available to Budget */}
         <AvailableToBudget
           amount={availableToBudget}
-          totalIncome={incomeSources.reduce((sum, source) => sum + source.amount, 0)}
-          totalAllocated={envelopeAllocations
-            .filter(allocation => envelopes.some(env => env.id === allocation.envelopeId))
+          totalIncome={(incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0)}
+          totalAllocated={(allocations[currentMonth] || [])
+            .filter(allocation => visibleEnvelopes.some((env: any) => env.id === allocation.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === allocation.envelopeId))
             .reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
           isLoading={isLoading}
           variant="header"
@@ -970,7 +818,7 @@ export const EnvelopeListView: React.FC = () => {
           currentMonth={currentMonth}
           onMonthChange={(newMonth) => {
             setShowCopyPrompt(false);
-            useMonthlyBudgetStore.getState().setCurrentMonth(newMonth);
+            setMonth(newMonth);
           }}
         />
       </header>
@@ -994,12 +842,12 @@ export const EnvelopeListView: React.FC = () => {
             <PlusCircle size={20} />
           </button>
         </div>
-        {incomeSources.length === 0 ? (
+        {(incomeSources[currentMonth] || []).length === 0 ? (
           <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false} mode="popLayout">
-              {incomeSources.map((source) => (
+              {(incomeSources[currentMonth] || []).map((source) => (
                 <motion.div key={source.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
                   <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
                     <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
@@ -1030,7 +878,7 @@ export const EnvelopeListView: React.FC = () => {
           <div className="text-center py-6">
             <Wallet className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
             <p className="text-gray-500 dark:text-zinc-400 text-sm mb-4">
-              {envelopes.length > 0 
+              {visibleEnvelopes.length === 0 
                 ? "No envelopes added to this month. Copy from previous month or add new ones."
                 : "No envelopes yet. Create one to get started."}
             </p>
@@ -1040,8 +888,8 @@ export const EnvelopeListView: React.FC = () => {
            <div ref={reorderConstraintsRef}>
              <AnimatePresence initial={false}>
                <div className="space-y-3">
-                 {visibleEnvelopes.map((env, index) => {
-                   const allocation = envelopeAllocations.find(alloc => alloc.envelopeId === env.id);
+                 {visibleEnvelopes.map((env: any, index: number) => {
+                   const allocation = (allocations[currentMonth] || []).find(alloc => alloc.envelopeId === env.id);
                    const budgetedAmount = allocation?.budgetedAmount || 0;
                    const remainingBalance = getEnvelopeBalance(env.id);
 
@@ -1051,7 +899,7 @@ export const EnvelopeListView: React.FC = () => {
                      [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
                      localOrderRef.current = newOrder;
                      setLocalEnvelopes(newOrder);
-                     persistReorder(newOrder);
+                     reorderEnvelopes(newOrder);
                    };
 
                    const handleMoveDown = () => {
@@ -1060,7 +908,7 @@ export const EnvelopeListView: React.FC = () => {
                      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
                      localOrderRef.current = newOrder;
                      setLocalEnvelopes(newOrder);
-                     persistReorder(newOrder);
+                     reorderEnvelopes(newOrder);
                    };
 
                    return (
@@ -1109,11 +957,11 @@ export const EnvelopeListView: React.FC = () => {
         </div>
          {piggybanks.length > 0 ? (
            <div className="space-y-3">
-             {piggybanks.map((piggybank) => (
+             {piggybanks.map((piggybank: any) => (
                <PiggybankListItem
                  key={piggybank.id}
                  piggybank={piggybank}
-                 balance={getEnvelopeBalance(piggybank.id)}
+                 balance={new Decimal(typeof getEnvelopeBalance(piggybank.id) === 'number' ? getEnvelopeBalance(piggybank.id) : 0)}
                  onNavigate={(id) => navigate(`/envelope/${id}`)}
                />
              ))}
@@ -1137,9 +985,9 @@ export const EnvelopeListView: React.FC = () => {
       <IncomeSourceModal isVisible={incomeModalVisible} onClose={handleCloseModal} mode={incomeModalMode} initialIncomeSource={selectedIncomeSource} />
       
       {/* This modal is no longer used for editing, but we'll leave it for now in case it's needed elsewhere. */}
-      {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => envelopes.find(e => e.id === envelopeId)?.name || ''} /> */}
+      {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => visibleEnvelopes.find((e: any) => e.id === envelopeId)?.name || ''} /> */}
 
-        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={incomeSources.length} totalIncome={incomeSources.reduce((sum, s) => sum + s.amount, 0)} allocationCount={envelopeAllocations.filter(a => envelopes.some(env => env.id === a.envelopeId)).length} totalAllocated={envelopeAllocations.filter(a => envelopes.some(env => env.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={(incomeSources[currentMonth] || []).length} totalIncome={(incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0)} allocationCount={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).length} totalAllocated={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)} />
       </div>
     </div>
     </>

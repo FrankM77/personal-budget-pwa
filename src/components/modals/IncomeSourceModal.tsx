@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useMonthlyBudgetStore } from '../../stores/monthlyBudgetStore';
+import { useBudgetStore } from '../../stores/budgetStore';
 import { useToastStore } from '../../stores/toastStore';
 import type { IncomeSource } from '../../models/types';
 
@@ -16,7 +16,7 @@ const IncomeSourceModal: React.FC<IncomeSourceModalProps> = ({
   mode,
   initialIncomeSource
 }) => {
-  const { createIncomeSource, updateIncomeSource } = useMonthlyBudgetStore();
+  const { addIncomeSource, updateIncomeSource, currentMonth } = useBudgetStore();
   const { showToast } = useToastStore();
 
   const [name, setName] = useState('');
@@ -52,19 +52,25 @@ const IncomeSourceModal: React.FC<IncomeSourceModalProps> = ({
 
     try {
       if (mode === 'add') {
-        await createIncomeSource({
+        await addIncomeSource(currentMonth, {
           name: name.trim(),
           amount: parseFloat(amount),
+          month: currentMonth,
+          userId: '', // Will be set by the store
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
-        showToast(`Added "${name.trim()}" as income source`, 'success');
-      } else if (mode === 'edit') {
+        showToast('Income source added successfully', 'success');
+      } else {
         if (!initialIncomeSource) {
           showToast('Error: No income source to edit', 'error');
           return;
         }
-        await updateIncomeSource(initialIncomeSource.id, {
+        await updateIncomeSource(currentMonth, {
+          ...initialIncomeSource,
           name: name.trim(),
           amount: parseFloat(amount),
+          updatedAt: new Date().toISOString(),
         });
         showToast(`Updated "${name.trim()}" income source`, 'success');
       }

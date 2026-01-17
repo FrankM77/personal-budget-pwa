@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { EnvelopeListView } from './views/EnvelopeListView';
-// 1. ADD THIS IMPORT
 import EnvelopeDetail from './views/EnvelopeDetail';
 import { SettingsView } from './views/SettingsView';
 import { AddEnvelopeView } from './views/AddEnvelopeView';
@@ -14,13 +13,13 @@ import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNavigation } from './components/BottomNavigation';
-import { useEnvelopeStore } from './stores/envelopeStore';
+import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
-  const { appSettings } = useEnvelopeStore();
+  const { appSettings } = useBudgetStore();
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
@@ -113,6 +112,7 @@ function App() {
         </div>
       )}
 
+            
       <HashRouter>
         <Routes>
           <Route 
