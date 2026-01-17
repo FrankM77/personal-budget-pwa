@@ -809,9 +809,9 @@ async function addMonthField(userId: string) {
 
 ## Status Log
 
-### 2026-01-16: Phase 1 Complete ✅
+### 2026-01-16: Phase 1 Complete ✅ + Critical Bug Fixes
 
-**Summary:** Successfully completed Phase 1 of the architecture refactor with significant improvements to code organization, type safety, and maintainability.
+**Summary:** Successfully completed Phase 1 of the architecture refactor with significant improvements to code organization, type safety, and maintainability. Additionally resolved critical production bugs affecting piggybank functionality and budget calculations.
 
 **Accomplishments:**
 - **Refactored EnvelopeListView** to use a custom hook (`src/hooks/useEnvelopeList.ts`), implementing proper MVVM pattern separation
@@ -821,15 +821,25 @@ async function addMonthField(userId: string) {
 - **Updated all imports** to use new standardized function names (`fromFirestore`, `toFirestore`)
 - **Resolved all build errors** and maintained backward compatibility
 
+**Critical Bug Fixes Completed:**
+- **Fixed "Invalid Creation Date" Crash:** Implemented robust `safeDateConversion` helper to handle Firestore Timestamp objects, raw objects, strings, and numeric dates
+- **Fixed Missing Monthly Allocation Transactions:** Enhanced `setEnvelopeAllocation` and `updateEnvelopeAllocation` to automatically create/update/delete monthly transactions for piggybanks
+- **Fixed Transaction Display Issues:** Corrected date format mismatch (ISO format with 'T' separator) preventing transactions from appearing in history
+- **Fixed Piggybank Details View:** Updated filtering logic to always show automatic monthly allocation transactions regardless of creation date
+- **Fixed Available to Budget Calculation:** Resolved $700 discrepancy by aligning calculation logic between hook and UI components
+
 **Impact:**
 - Reduced complexity in God components
 - Improved type safety and eliminated runtime conversion errors  
 - Centralized business logic in appropriate layers
 - Established consistent patterns for data transformation
 - Maintained full functionality while improving code structure
+- **Piggybank system now fully functional** with automatic monthly contributions
+- **Budget calculations now accurate** across all UI components
 
-**Files Modified:** 12+ files including stores, services, mappers, and utilities
+**Files Modified:** 15+ files including stores, services, mappers, utilities, and UI components
 **Build Status:** ✅ All TypeScript compilation errors resolved
+**Production Status:** ✅ All critical bugs resolved, piggybank system operational
 
 ---
 
