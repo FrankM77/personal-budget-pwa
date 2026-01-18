@@ -333,13 +333,11 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
-      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-between shadow-sm">
-        <div className="flex items-center">
-          <button onClick={() => navigate(-1)} className="mr-3 text-blue-600 dark:text-blue-400 font-medium">
-            Done
-          </button>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
-        </div>
+      <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-center shadow-sm relative">
+        <button onClick={() => navigate(-1)} className="absolute left-4 text-blue-600 dark:text-blue-400 font-medium">
+          Done
+        </button>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
       </header>
 
       <div className="p-4 space-y-6 max-w-2xl mx-auto pb-24">
@@ -370,20 +368,20 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-              <div>
+              <div className="text-center">
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-zinc-500">Envelopes</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{dataSummary.envelopeCount}</p>
               </div>
-              <div>
+              <div className="text-center">
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-zinc-500">Transactions</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{dataSummary.transactionCount}</p>
               </div>
-              <div>
+              <div className="text-center">
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-zinc-500">Income Sources</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{dataSummary.incomeSourceCount}</p>
               </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-zinc-500">Budget Allocations</p>
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-zinc-500">Allocations</p>
                 <p className="text-xl font-semibold text-gray-900 dark:text-white">{dataSummary.allocationCount}</p>
               </div>
             </div>

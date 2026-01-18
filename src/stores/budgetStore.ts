@@ -50,7 +50,7 @@ interface BudgetState {
   transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
   fetchData: () => Promise<void>;
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
-  getEnvelopeBalance: (envelopeId: string) => number;
+  getEnvelopeBalance: (envelopeId: string, month?: string) => number;
   resetData: () => Promise<void>;
   importData: (data: any) => Promise<{ success: boolean; message: string }>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
@@ -59,6 +59,7 @@ interface BudgetState {
   testConnectivity: () => Promise<void>;
   updateOnlineStatus: () => Promise<void>;
   updatePiggybankContribution: (envelopeId: string, newAmount: number) => Promise<void>;
+  fetchMonthData: (month: string) => Promise<void>;
   
   // Income Source Actions
   addIncomeSource: (month: string, source: Omit<IncomeSource, 'id'>) => Promise<void>;
@@ -94,7 +95,98 @@ export const useBudgetStore = create<BudgetState>()(
         testingConnectivity: false,
 
         // Actions
-        setMonth: (month) => set({ currentMonth: month }),
+        fetchMonthData: async (month: string) => {
+            try {
+                // Get current user
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                
+                if (!currentUser) {
+                    console.log("No user logged in, skipping month data fetch");
+                    return;
+                }
+
+                console.log(`Fetching month data for: ${month}`);
+                const monthData = await budgetService.getMonthData(currentUser.id, month);
+                
+                const state = get();
+                set({
+                    incomeSources: {
+                        ...state.incomeSources,
+                        [month]: monthData.incomeSources
+                    },
+                    allocations: {
+                        ...state.allocations,
+                        [month]: monthData.allocations
+                    }
+                });
+                console.log(`✅ Fetched month data for ${month}`);
+
+                // --- Self-Healing: Verify Allocations vs Transactions ---
+                const verifyAndRepairAllocations = async () => {
+                    const currentState = get();
+                    const monthAllocations = currentState.allocations[month] || [];
+                    const monthTransactions = currentState.transactions.filter(t => t.month === month);
+                    
+                    let repairs = 0;
+
+                    for (const alloc of monthAllocations) {
+                        // Skip if envelope is a piggybank (handled differently)
+                        const envelope = currentState.envelopes.find(e => e.id === alloc.envelopeId);
+                        if (envelope?.isPiggybank) continue;
+
+                        const matchingTx = monthTransactions.find(t => 
+                            t.envelopeId === alloc.envelopeId && 
+                            (t.description === 'Monthly Budget Allocation' || t.description === 'Monthly Allocation')
+                        );
+
+                        if (!matchingTx) {
+                            if (alloc.budgetedAmount > 0) {
+                                console.log(`🔧 Repairing missing transaction for envelope ${envelope?.name || alloc.envelopeId}`);
+                                await currentState.addTransaction({
+                                    description: 'Monthly Budget Allocation',
+                                    amount: alloc.budgetedAmount,
+                                    envelopeId: alloc.envelopeId,
+                                    type: 'Income',
+                                    month: month,
+                                    date: `${month}-01T00:00:00`,
+                                    reconciled: false,
+                                    isAutomatic: true
+                                });
+                                repairs++;
+                            }
+                        } else if (matchingTx.amount !== alloc.budgetedAmount) {
+                            console.log(`🔧 Repairing mismatch for envelope ${envelope?.name || alloc.envelopeId}: Alloc ${alloc.budgetedAmount} vs Tx ${matchingTx.amount}`);
+                            await currentState.updateTransaction({
+                                ...matchingTx,
+                                amount: alloc.budgetedAmount
+                            });
+                            repairs++;
+                        }
+                    }
+                    if (repairs > 0) console.log(`✅ Repaired ${repairs} allocation discrepancies for ${month}`);
+                };
+
+                // Run verification (non-blocking)
+                verifyAndRepairAllocations().catch(err => console.error('Verification failed:', err));
+
+            } catch (error) {
+                console.error(`❌ Failed to fetch month data for ${month}:`, error);
+            }
+        },
+
+        setMonth: async (month: string) => {
+            set({ currentMonth: month });
+            
+            const state = get();
+            // Check if we need to fetch data for this month
+            if (state.incomeSources[month] === undefined || state.allocations[month] === undefined) {
+                 console.log(`Month ${month} data missing in store, fetching...`);
+                 set({ isLoading: true });
+                 await get().fetchMonthData(month);
+                 set({ isLoading: false });
+            }
+        },
         init: async () => {
             console.log("BudgetStore initializing...");
             const state = get();
@@ -163,11 +255,15 @@ export const useBudgetStore = create<BudgetState>()(
                 const envelopeWithUser = { ...envelope, userId: currentUser.id };
                 const createdEnvelope = await budgetService.createEnvelope(envelopeWithUser);
                 
-                // Update local state
-                set(state => ({
-                    envelopes: [...state.envelopes, createdEnvelope],
-                    isLoading: false
-                }));
+                // Update local state - Check for duplicates first
+                set(state => {
+                    const exists = state.envelopes.some(e => e.id === createdEnvelope.id);
+                    if (exists) return { isLoading: false };
+                    return {
+                        envelopes: [...state.envelopes, createdEnvelope],
+                        isLoading: false
+                    };
+                });
                 
                 console.log('✅ Added envelope:', createdEnvelope.id);
                 return createdEnvelope.id;
@@ -311,15 +407,27 @@ export const useBudgetStore = create<BudgetState>()(
                     throw new Error('No authenticated user found');
                 }
                 
-                // Create transaction with userId
-                const transactionWithUser = { ...transaction, userId: currentUser.id };
+                // Ensure month is set
+                const txDate = new Date(transaction.date);
+                const month = transaction.month || `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+
+                // Create transaction with userId and month
+                const transactionWithUser = { 
+                    ...transaction, 
+                    userId: currentUser.id,
+                    month 
+                };
                 const createdTransaction = await budgetService.createTransaction(transactionWithUser);
                 
-                // Update local state
-                set(state => ({
-                    transactions: [...state.transactions, createdTransaction],
-                    isLoading: false
-                }));
+                // Update local state - Check for duplicates first
+                set(state => {
+                    const exists = state.transactions.some(t => t.id === createdTransaction.id);
+                    if (exists) return { isLoading: false };
+                    return {
+                        transactions: [...state.transactions, createdTransaction],
+                        isLoading: false
+                    };
+                });
                 
                 console.log('✅ Added transaction:', createdTransaction.id);
                 
@@ -343,13 +451,19 @@ export const useBudgetStore = create<BudgetState>()(
                     throw new Error('No authenticated user found');
                 }
                 
+                // Ensure month is set
+                const txDate = new Date(transaction.date);
+                const month = transaction.month || `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                
+                const updatedTransaction = { ...transaction, month };
+
                 // Update in backend
-                await budgetService.updateTransaction(currentUser.id, transaction);
+                await budgetService.updateTransaction(currentUser.id, updatedTransaction);
                 
                 // Update local state
                 set(state => ({
                     transactions: state.transactions.map(tx => 
-                        tx.id === transaction.id ? transaction : tx
+                        tx.id === transaction.id ? updatedTransaction : tx
                     ),
                     isLoading: false
                 }));
@@ -481,7 +595,7 @@ export const useBudgetStore = create<BudgetState>()(
                 throw error;
             }
         },
-        getEnvelopeBalance: (envelopeId: string): number => {
+        getEnvelopeBalance: (envelopeId: string, month?: string): number => {
             const state = get();
             const envelope = state.envelopes.find(e => e.id === envelopeId);
             if (!envelope) {
@@ -489,17 +603,37 @@ export const useBudgetStore = create<BudgetState>()(
                 return 0;
             }
 
-            // Calculate balance from transactions
-            const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
+            // For Piggybanks, always calculate lifetime cumulative balance
+            if (envelope.isPiggybank) {
+                const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
 
-            const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-            const incomes = envelopeTransactions.filter(t => t.type === 'Income');
+                const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+                const incomes = envelopeTransactions.filter(t => t.type === 'Income');
 
-            const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-            const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
-            const balance = totalIncome - totalSpent;
-            return balance;
+                return totalIncome - totalSpent;
+            }
+
+            // For regular spending envelopes, calculate monthly balance if month is provided
+            if (month) {
+                const envelopeTransactions = state.transactions.filter(t => 
+                    t.envelopeId === envelopeId && t.month === month
+                );
+
+                const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
+                const incomes = envelopeTransactions.filter(t => t.type === 'Income');
+
+                const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+                const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+
+                return totalIncome - totalSpent;
+            }
+
+            // Fallback for regular envelopes if month is not provided (shouldn't happen if called correctly)
+            console.warn(`⚠️ getEnvelopeBalance: Month not provided for non-piggybank envelope ${envelopeId}. Returning 0.`);
+            return 0;
         },
         resetData: async () => {
             console.log('🔄 Resetting all data');
@@ -720,26 +854,32 @@ export const useBudgetStore = create<BudgetState>()(
                 
                 console.log('🔧 Adding income source:', { month, source });
                 
-                // Create income source with ID and userId
-                const incomeSource: IncomeSource = {
+                // Create income source via service
+                const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
+                const service = MonthlyBudgetService.getInstance();
+                
+                const newIncomeSource = await service.createIncomeSource({
                     ...source,
-                    id: `income-${Date.now()}-${Math.random()}`,
                     userId: currentUser.id,
-                    month,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
+                    month
+                });
                 
-                // Add to local state
-                set(state => ({
-                    incomeSources: {
-                        ...state.incomeSources,
-                        [month]: [...(state.incomeSources[month] || []), incomeSource]
-                    },
-                    isLoading: false
-                }));
+                // Add to local state - Check for duplicates first
+                set(state => {
+                    const currentSources = state.incomeSources[month] || [];
+                    const exists = currentSources.some(s => s.id === newIncomeSource.id);
+                    if (exists) return { isLoading: false };
+                    
+                    return {
+                        incomeSources: {
+                            ...state.incomeSources,
+                            [month]: [...currentSources, newIncomeSource]
+                        },
+                        isLoading: false
+                    };
+                });
                 
-                console.log('✅ Added income source:', incomeSource.id);
+                console.log('✅ Added income source:', newIncomeSource.id);
                 
             } catch (error) {
                 console.error('❌ addIncomeSource failed:', error);
@@ -804,10 +944,17 @@ export const useBudgetStore = create<BudgetState>()(
                 throw error;
             }
         },
-        copyPreviousMonthAllocations: async (currentMonth: string): Promise<void> => {
+        copyPreviousMonthAllocations: async (currentMonth: string) => {
             try {
                 set({ isLoading: true, error: null });
                 
+                // Get current user
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) {
+                    throw new Error('No authenticated user found');
+                }
+
                 console.log('📋 Copying allocations from previous month:', currentMonth);
                 
                 // Calculate previous month
@@ -825,44 +972,38 @@ export const useBudgetStore = create<BudgetState>()(
                 console.log(`💰 Found ${previousIncomeSources.length} income sources from ${prevMonthString}`);
                 
                 if (previousIncomeSources.length > 0) {
-                    const copiedIncomeSources = previousIncomeSources.map(source => ({
-                        ...source,
-                        id: `income-${Date.now()}-${Math.random()}`,
-                        month: currentMonth,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                    }));
-                    
-                    set(state => ({
-                        incomeSources: {
-                            ...state.incomeSources,
-                            [currentMonth]: copiedIncomeSources
-                        }
-                    }));
-                    
-                    console.log(`✅ Copied ${copiedIncomeSources.length} income sources to ${currentMonth}`);
+                    // Use addIncomeSource to ensure persistence
+                    for (const source of previousIncomeSources) {
+                        const { id, ...sourceData } = source; // Omit ID to create new
+                        await get().addIncomeSource(currentMonth, sourceData);
+                    }
+                    console.log(`✅ Copied ${previousIncomeSources.length} income sources to ${currentMonth}`);
                 }
                 
                 // Copy allocations from previous month
                 const previousAllocations = get().allocations[prevMonthString] || [];
                 console.log(`📋 Found ${previousAllocations.length} allocations from ${prevMonthString}`);
                 
-                // Update local state with copied allocations
-                set(state => ({
-                    allocations: {
-                        ...state.allocations,
-                        [currentMonth]: previousAllocations.map(alloc => ({
-                            ...alloc,
-                            id: `alloc-${Date.now()}-${Math.random()}`,
+                // Filter out allocations for piggybanks as they are handled separately
+                const regularAllocations = previousAllocations.filter(alloc => {
+                    const envelope = get().envelopes.find(e => e.id === alloc.envelopeId);
+                    return !envelope?.isPiggybank;
+                });
+
+                if (regularAllocations.length > 0) {
+                    // Use createEnvelopeAllocation to ensure persistence
+                    for (const alloc of regularAllocations) {
+                        await get().createEnvelopeAllocation({
+                            envelopeId: alloc.envelopeId,
+                            budgetedAmount: alloc.budgetedAmount,
+                            userId: currentUser.id,
                             month: currentMonth,
                             createdAt: new Date().toISOString(),
                             updatedAt: new Date().toISOString()
-                        }))
-                    },
-                    isLoading: false
-                }));
-                
-                console.log(`✅ Copied ${previousAllocations.length} allocations to ${currentMonth}`);
+                        });
+                    }
+                    console.log(`✅ Copied ${regularAllocations.length} regular allocations to ${currentMonth}`);
+                }
                 
                 // Also create/update piggybank allocations for the new month
                 const piggybanks = get().envelopes.filter(e => e.isPiggybank);
@@ -874,7 +1015,7 @@ export const useBudgetStore = create<BudgetState>()(
                     
                     if (!isPaused && monthlyContribution && monthlyContribution > 0) {
                         try {
-                            console.log(`🐷 Setting piggybank allocation for ${piggybank.name}: $${monthlyContribution}`);
+                            console.log(`🐷 Setting piggybank allocation for ${piggybank.name}: ${monthlyContribution}`);
                             await get().setEnvelopeAllocation(piggybank.id, monthlyContribution);
                         } catch (error) {
                             console.error(`❌ Failed to set allocation for piggybank ${piggybank.name}:`, error);
@@ -884,8 +1025,8 @@ export const useBudgetStore = create<BudgetState>()(
                     }
                 }
                 
-                console.log(`✅ Piggybank allocations processed for ${currentMonth}`);
-                console.log(`🎯 Complete monthly setup copied to ${currentMonth}: ${previousIncomeSources.length} income sources, ${previousAllocations.length} allocations, ${piggybanks.length} piggybanks`);
+                set({ isLoading: false });
+                console.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
                 
             } catch (error) {
                 console.error('❌ copyPreviousMonthAllocations failed:', error);
@@ -1027,14 +1168,20 @@ export const useBudgetStore = create<BudgetState>()(
                     month: currentMonth
                 });
                 
-                // Update local state
-                set(state => ({
-                    allocations: {
-                        ...state.allocations,
-                        [currentMonth]: [...(state.allocations[currentMonth] || []), newAllocation]
-                    },
-                    isLoading: false
-                }));
+                // Update local state - Check for duplicates first
+                set(state => {
+                    const currentAllocations = state.allocations[currentMonth] || [];
+                    const exists = currentAllocations.some(a => a.id === newAllocation.id);
+                    if (exists) return { isLoading: false };
+                    
+                    return {
+                        allocations: {
+                            ...state.allocations,
+                            [currentMonth]: [...currentAllocations, newAllocation]
+                        },
+                        isLoading: false
+                    };
+                });
                 
                 console.log('✅ Created envelope allocation:', newAllocation.id);
                 

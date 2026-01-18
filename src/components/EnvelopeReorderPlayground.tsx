@@ -40,11 +40,11 @@ export const EnvelopeReorderPlayground: React.FC = () => {
           hideChildMoveableDefaultLines: true,
         });
 
-        moveable.on('drag', (e) => {
+        moveable.on('drag', (e: any) => {
           e.target.style.transform = e.transform;
         });
 
-        moveable.on('dragEnd', (e) => {
+        moveable.on('dragEnd', (e: any) => {
           // Reset transform
           e.target.style.transform = '';
 

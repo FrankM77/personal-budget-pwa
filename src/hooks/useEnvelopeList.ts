@@ -84,29 +84,20 @@ export const useEnvelopeList = () => {
   const localOrderRef = useRef<typeof envelopes>([]);
 
   // Function to get envelope balance 
-  const getEnvelopeBalance = (envelopeId: string) => {
+  const getEnvelopeBalance = useCallback((envelopeId: string) => {
     // Check if this is a piggybank
     const envelope = envelopes.find(e => e.id === envelopeId);
+    
     if (envelope?.isPiggybank) {
-      // For piggybanks, use store's cumulative balance (all transactions)
-      return useBudgetStore.getState().getEnvelopeBalance(envelopeId);
+      // For piggybanks, use store's cumulative balance (no month param)
+      const balance = useBudgetStore.getState().getEnvelopeBalance(envelopeId);
+      return new Decimal(balance);
     }
     
-    // For regular envelopes, calculate monthly balance
-    const envelopeTransactions = transactions.filter(t => 
-      t.envelopeId === envelopeId && t.month === currentMonth
-    );
-
-    const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-    const incomes = envelopeTransactions.filter(t => t.type === 'Income');
-    const totalSpent = expenses.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
-    const totalIncome = incomes.reduce((acc, curr) => acc.plus(new Decimal(curr.amount || 0)), new Decimal(0));
-
-    // Balance = Income - Expenses (same as store calculation)
-    const balance = totalIncome.minus(totalSpent);
-    
-    return balance;
-  };
+    // For regular envelopes, use store's monthly balance (pass currentMonth)
+    const balance = useBudgetStore.getState().getEnvelopeBalance(envelopeId, currentMonth);
+    return new Decimal(balance);
+  }, [envelopes, currentMonth]);
 
   // Separate piggybanks from regular envelopes
   // Only show piggybanks from their creation month forward

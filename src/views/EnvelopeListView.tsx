@@ -520,7 +520,7 @@ export const EnvelopeListView: React.FC = () => {
           renderDirections: [],
         });
 
-        moveable.on('dragStart', (e) => {
+        moveable.on('dragStart', (e: any) => {
           const startIndex = localOrderRef.current.findIndex(env => env.id === envelope.id);
           const targetEl = e.target as HTMLElement;
           const rect = targetEl.getBoundingClientRect();
@@ -543,7 +543,7 @@ export const EnvelopeListView: React.FC = () => {
         });
 
         let rafId: number | null = null;
-        moveable.on('drag', (e) => {
+        moveable.on('drag', (e: any) => {
           const targetEl = e.target as HTMLElement;
           
           if (rafId !== null) {
@@ -603,7 +603,7 @@ export const EnvelopeListView: React.FC = () => {
           });
         });
 
-        moveable.on('dragEnd', (e) => {
+        moveable.on('dragEnd', (e: any) => {
           if (rafId !== null) {
             cancelAnimationFrame(rafId);
             rafId = null;
@@ -650,7 +650,7 @@ export const EnvelopeListView: React.FC = () => {
         });
 
         // Handle click events from Moveable
-        moveable.on('click', (e) => {
+        moveable.on('click', (e: any) => {
           // Check if the click originated from the budget field
           const target = e.inputEvent.target as HTMLElement;
           if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {

@@ -1,9 +1,9 @@
-# Swift-to-PWA Architect: Migration Protocol
+# PWA Architect-Senior Engineer
 
 ## 1. System Role & Objective
 **Role:** Senior Full-Stack Engineer specializing in Native iOS (Swift/SwiftUI) to Modern Web (React/TypeScript) migrations.
 
-**Objective:** Port existing Xcode projects into high-performance Progressive Web Apps (PWAs). The goal is to retain business logic and the "native app feel" while strictly adhering to modern web standards.
+**Objective:** The ultimate objective is to make a functioning zero based personal budget app that works online and offline. The goal is to retain business logic and the "native app feel" while strictly adhering to modern web standards.
 
 **Target Stack:**
 * **Framework:** React (Vite)
@@ -13,25 +13,9 @@
 * **Routing:** React Router DOM
 * **Backend:** Firebase (Firestore) for data persistence.
 
----
 
-## 2. Architecture Comparison
 
-When restructuring files from Xcode to VS Code, use this directory mapping:
-
-```text
-iOS Project (Xcode)              PWA Project (React/Vite)
-├── App.swift                 -> src/main.tsx & src/App.tsx
-├── Models/                   -> src/models/ (Interfaces for types)
-├── Views/                    -> src/views/ & src/components/
-├── ViewModels/               -> src/stores/ (Zustand stores as ViewModels)
-├── Managers/ (Services)      -> src/services/ (API calls, Firebase config)
-└── Assets.xcassets           -> public/ or src/assets/
-```
-
----
-
-## 3. Project File Tree
+## 2. Project File Tree
 
 ```
 /
@@ -111,48 +95,52 @@ iOS Project (Xcode)              PWA Project (React/Vite)
 
 ---
 
-## 4. Project Overview
+## 3. Project Overview
 
-This project is a Progressive Web App (PWA) version of a native iOS "House Budget" application. It allows users to track expenses and manage virtual "envelopes" for budgeting. The application is built with an "offline-first" architecture, using Zustand for state management and Firebase (Firestore) for data persistence.
+This project is a Progressive Web App (PWA) version of a native iOS "personal budgeting app". It is a **zero-based budgeting app** (following the "EveryDollar" model) designed to work online, but also functions just as well offline. It allows users to track expenses and manage virtual "envelopes" for budgeting. The application is built with an "offline-first" architecture, using Zustand for state management and Firebase (Firestore) for data persistence. All project status information is located in the `MD Files` directory.
 
 ### Key Features:
 
-*   **PWA:** The application is a PWA, meaning it can be installed on a user's device and can work offline.
-*   **Offline-First:** The application is designed to work offline, with data being synced to Firebase when a connection is available. The Zustand store handles optimistic updates and data synchronization.
-*   **State Management:** Zustand is used for state management. The main store, `useEnvelopeStore`, acts as a centralized "ViewModel" for the entire application, managing envelopes, transactions, and their interactions.
-*   **Routing:** React Router DOM is used for routing. The main views are:
-    *   `EnvelopeListView`: The main screen, showing all envelopes and the total balance.
-    *   `EnvelopeDetail`: Shows the transaction history for a single envelope.
-    *   `AddEnvelopeView`: A form to create a new envelope.
-    *   `AddTransactionView`: A form to add a new transaction (income or expense).
-    *   `TransactionHistoryView`: Shows all transactions across all envelopes.
-    *   `SettingsView`: Contains application settings.
-*   **Styling:** Tailwind CSS is used for styling, providing a utility-first CSS framework for rapidly building custom designs.
-*   **Backend:** Firebase (Firestore) is used for data persistence. The data is structured under a `users/{userId}` collection, with sub-collections for `envelopes` and `transactions`.
+*   **Zero-Based Budgeting:** Follows the "EveryDollar" model where every dollar of income is assigned a job (allocated to envelopes) until the "Available to Budget" pool is zero.
+*   **Monthly Budget Cycles:** Each month operates as an independent budget cycle with easy navigation and template copying.
+*   **Offline-First:** Robust offline architecture using a hybrid approach (Firebase persistence + custom sync "Nervous System") to ensure data integrity and optimistic UI updates.
+*   **Piggybanks (Savings Goals):** Special envelopes for long-term savings with auto-contributions, goal tracking, and progress visualization.
+*   **Split Transactions:** Ability to split single transactions across multiple envelopes/categories.
+*   **PWA:** Installable, responsive application with service worker caching for complete offline functionality.
+*   **State Management:** Modular Zustand store architecture (refactored into focused slices) serving as the centralized ViewModel.
+*   **Backend:** Firebase Firestore with user-scoped data structure (`users/{userId}/...`).
 
 ---
 
-## 5. Project History and Evolution
+## 4. Project History and Evolution
 
-This project has undergone a significant transformation from a local storage-based application to a cloud-native PWA with robust offline capabilities. The development was divided into several phases:
+This project has undergone a significant transformation from a local storage-based application to a cloud-native PWA with robust offline capabilities.
 
-*   **Phase 1: Firebase Connection Setup:** A connection to Firebase was established and tested.
-*   **Phase 2: Engine Swap to Firebase:** The state management was completely refactored to use Firebase as the backend, replacing the local storage-based persistence. A service layer was introduced to handle all Firebase operations.
-*   **Phase 3: Offline-First Implementation:** An optimistic UI pattern was implemented, allowing for immediate local updates and background synchronization with Firebase.
-*   **Phase 4: Bug Fixes and Polish:** Various bugs related to navigation, UI, network status, and data synchronization were fixed.
-*   **Phase 5: Current Status:** The application now has a stable offline-first architecture, with all major features implemented and tested.
+### Major Milestones:
 
-### Next Steps:
+*   **Phase 1-2: Firebase & Cloud Native:** Established Firebase connection, replaced local storage engine, and introduced service layer.
+*   **Phase 3: Offline-First:** Implemented optimistic UI, local persistence, and background synchronization.
+*   **The "Great Refactor" (Jan 2026):** Consolidate "God Objects" and split monolithic stores into focused Zustand slices. Extracted business logic from views into custom hooks (e.g., `useEnvelopeList`) and implemented strict type mappers.
+*   **UX Enhancements:**
+    *   **Moveable Reordering:** Migrated from Framer Motion Reorder to `moveable` for buttery-smooth, native-feeling drag-and-drop.
+    *   **Card Stack:** Implemented Apple Wallet-style payment method selector.
+    *   **Piggybanks:** Launched comprehensive savings goal system.
 
-*   Performance testing with large datasets.
-*   Implementation of error boundaries.
-*   User authentication with Firebase Auth.
-*   Enhanced data export/import functionality.
-*   Storage of distribution templates and app settings in Firebase.
+### Current Status:
+While the application is largely stable and feature-rich, a number of bugs still need fixing before continuing with the 30,000-foot-view MD file goals. Critical offline navigation bugs have been resolved, and the focus is on stability before database optimization and polish.
+
+### Next Steps & Roadmap:
+
+*   **Database Migration (High Priority):**
+    *   Normalize Firestore data types (convert string amounts to numbers).
+    *   Embed allocations within budget documents to reduce reads.
+    *   Add denormalized fields (e.g., `month`) to transactions for efficient querying.
+*   **Refactoring:** Continue moving towards a strict Repository pattern to isolate Firebase logic.
+*   **Features:** Enhanced Analytics, Automated Rules, and User Authentication polish.
 
 ---
 
-## 6. Building and Running
+## 5. Building and Running
 
 ### Prerequisites:
 
@@ -191,13 +179,19 @@ npm run deploy
 
 ---
 
-## 7. Development Conventions
+## 6. Development Conventions
 
-*   **State Management:** State is managed using Zustand. The `useEnvelopeStore` is the single source of truth for the application's data. Actions that modify the state are designed to work offline and sync with Firebase when a connection is available.
-*   **Firebase Services:** All interactions with Firebase are abstracted into service files in the `src/services` directory. This keeps the state management logic clean and separated from the data fetching logic.
-*   **Optimistic UI:** The application uses an optimistic UI pattern, where the UI is updated immediately on user actions, and data is synced with the backend in the background.
-*   **Temporary IDs:** When creating new items offline, temporary client-side IDs are used, which are later replaced with the actual Firebase document IDs upon successful synchronization.
+*   **Architecture Pattern:** MVVM (Model-View-ViewModel).
+    *   **Views:** Purely presentational React components.
+    *   **ViewModels:** Custom hooks (e.g., `useEnvelopeList`) that handle business logic, filtering, and derived state.
+    *   **Models:** Strict TypeScript interfaces (defined in `src/models/types.ts`).
+*   **State Management:** Zustand stores are refactored into focused slices. They act as the single source of truth.
+*   **Data Layer:**
+    *   **Services/Repositories:** Handle all Firebase interaction.
+    *   **Mappers:** Use `src/mappers/` to strictly convert between Firestore data (e.g., string amounts) and App models (number amounts).
+    *   **Date Utils:** ALWAYS use `src/utils/dateUtils.ts` for date manipulation to ensure consistency between ISO strings, Timestamps, and Date objects.
+*   **Offline Strategy:** Hybrid approach.
+    *   **Read:** Relies on Firebase's `enableIndexedDbPersistence`.
+    *   **Write:** Optimistic updates + Custom "Nervous System" sync queue for resilience.
 *   **Styling:** Tailwind CSS is used for styling.
-*   **PWA:** The application is a PWA, with a service worker and manifest generated by `vite-plugin-pwa`.
-*   **Data Models:** TypeScript interfaces for the data models are defined in `src/models/types.ts`.
-*   **Version Control:** Only commit changes to GitHub when explicitly initiated or requested by the user. Do not automate commits or pushes without direct user instruction.
+*   **Version Control:** Semantic versioning. Only commit changes to GitHub when explicitly initiated or requested by the user.
