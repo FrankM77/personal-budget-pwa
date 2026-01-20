@@ -16,10 +16,13 @@ export const AddEnvelopeView: React.FC = () => {
   const [targetAmount, setTargetAmount] = useState('');
   const [monthlyContribution, setMonthlyContribution] = useState('');
   const [color, setColor] = useState('#3B82F6');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
 
     // Parse balance, default to 0 if empty
     const balanceValue = parseFloat(initialBalance);
@@ -77,6 +80,7 @@ export const AddEnvelopeView: React.FC = () => {
     }).catch(err => {
       console.error('Failed to create envelope:', err);
       showToast(err.message || 'Failed to create envelope', 'error');
+      setIsSubmitting(false);
       // Don't navigate on error - let user try again
     });
   };
@@ -234,12 +238,12 @@ export const AddEnvelopeView: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={!name.trim() || (isPiggybank && !monthlyContribution)}
+                disabled={!name.trim() || (isPiggybank && !monthlyContribution) || isSubmitting}
                 className={`flex-1 py-3 px-4 rounded-xl font-semibold shadow-sm text-white transition-colors ${
-                  name.trim() && (!isPiggybank || monthlyContribution) ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600' : 'bg-gray-300 dark:bg-zinc-600 cursor-not-allowed'
+                  name.trim() && (!isPiggybank || monthlyContribution) && !isSubmitting ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600' : 'bg-gray-300 dark:bg-zinc-600 cursor-not-allowed'
                 }`}
               >
-                {isPiggybank ? 'Create Piggybank' : 'Create Envelope'}
+                {isSubmitting ? 'Creating...' : (isPiggybank ? 'Create Piggybank' : 'Create Envelope')}
               </button>
             </div>
           </form>

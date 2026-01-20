@@ -60,6 +60,7 @@ interface BudgetState {
   updateOnlineStatus: () => Promise<void>;
   updatePiggybankContribution: (envelopeId: string, newAmount: number) => Promise<void>;
   fetchMonthData: (month: string) => Promise<void>;
+  removeEnvelopeFromMonth: (envelopeId: string, month: string) => Promise<void>;
   
   // Income Source Actions
   addIncomeSource: (month: string, source: Omit<IncomeSource, 'id'>) => Promise<void>;
@@ -172,6 +173,51 @@ export const useBudgetStore = create<BudgetState>()(
 
             } catch (error) {
                 console.error(`❌ Failed to fetch month data for ${month}:`, error);
+            }
+        },
+
+        removeEnvelopeFromMonth: async (envelopeId: string, month: string) => {
+            try {
+                set({ isLoading: true, error: null });
+                console.log(`🗑️ Removing envelope ${envelopeId} from month ${month}`);
+
+                const state = get();
+                
+                // 1. Delete Allocation for this month
+                const allocation = state.allocations[month]?.find(a => a.envelopeId === envelopeId);
+                if (allocation) {
+                    await get().deleteEnvelopeAllocation(allocation.id);
+                } else {
+                    console.log(`⚠️ No allocation found for envelope ${envelopeId} in ${month}`);
+                }
+
+                // 2. Delete Transactions for this month
+                const transactionsToDelete = state.transactions.filter(t => 
+                    t.envelopeId === envelopeId && 
+                    (t.month === month || t.date.startsWith(month))
+                );
+
+                if (transactionsToDelete.length > 0) {
+                    console.log(`🗑️ Deleting ${transactionsToDelete.length} transactions for envelope ${envelopeId} in ${month}`);
+                    
+                    // Execute deletions in parallel
+                    await Promise.all(transactionsToDelete.map(tx => get().deleteTransaction(tx.id)));
+                }
+
+                // 3. DO NOT delete the global envelope definition
+                // The envelope remains in 'state.envelopes' but will be hidden from the month view
+                // because it no longer has an allocation or transactions in this month.
+
+                set({ isLoading: false });
+                console.log(`✅ Removed envelope ${envelopeId} from month ${month}`);
+
+            } catch (error) {
+                console.error(`❌ removeEnvelopeFromMonth failed:`, error);
+                set({ 
+                    isLoading: false, 
+                    error: error instanceof Error ? error.message : 'Failed to remove envelope from month' 
+                });
+                throw error;
             }
         },
 

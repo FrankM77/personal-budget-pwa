@@ -171,12 +171,26 @@ export const useEnvelopeList = () => {
   // Update filtered envelopes when data changes
   useEffect(() => {
     const filtered = envelopes
-      .filter(env => 
-        !env.isPiggybank && 
-        env.isActive !== false
-        // Show all envelopes by default - the allocation filter was too restrictive
-        // Users should see all their envelopes regardless of allocations
-      )
+      .filter(env => {
+        // Piggybanks are handled separately
+        if (env.isPiggybank) return false;
+        
+        // Respect global active flag
+        if (env.isActive === false) return false;
+
+        // Check if envelope has an allocation for the current month
+        const monthAllocations = allocations[currentMonth] || [];
+        const hasAllocation = monthAllocations.some(a => a.envelopeId === env.id);
+
+        // Check if envelope has transactions for the current month
+        const hasTransactions = transactions.some(t => 
+          t.envelopeId === env.id && 
+          (t.month === currentMonth || t.date.startsWith(currentMonth))
+        );
+
+        // Visible if it has an allocation or transactions in this month
+        return hasAllocation || hasTransactions;
+      })
       .sort((a, b) => {
         const aOrder = a.orderIndex ?? 0;
         const bOrder = b.orderIndex ?? 0;
@@ -185,7 +199,7 @@ export const useEnvelopeList = () => {
 
     setLocalEnvelopes(filtered);
     localOrderRef.current = filtered;
-  }, [envelopes, allocations, currentMonth]);
+  }, [envelopes, allocations, currentMonth, transactions]);
 
   // Calculate available to budget - match the UI logic in AvailableToBudget component
   const totalIncome = (incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0);

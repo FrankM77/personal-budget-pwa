@@ -1,6 +1,10 @@
-# House Budget PWA: Project Summary - 2026-01-15
+# House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-19**: Fixed Piggybank balance display issue in EnvelopeListView (now correctly handling Decimal types).
+- **2026-01-19**: Implemented month-specific spending envelopes logic (visibility based on allocation/transactions).
+- **2026-01-19**: Updated envelope deletion logic: spending envelopes are now removed only from the current month, while piggybanks remain global.
+- **2026-01-19**: Fixed "double-tap" duplication bug on envelope creation by adding submission state handling.
 - **2026-01-15**: UI polish: Centered "Settings" title and fixed "Budget Allocations" layout on Settings page.
 - **2026-01-15**: Fixed transaction duplication bug by adding race-condition protection in optimistic updates.
 - **2026-01-15**: Implemented "Self-Healing" sync to automatically repair budget vs ledger discrepancies on month load.

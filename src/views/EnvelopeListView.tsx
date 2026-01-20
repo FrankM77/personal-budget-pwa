@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
-import { Decimal } from 'decimal.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
@@ -969,15 +968,14 @@ export const EnvelopeListView: React.FC = () => {
         </div>
          {piggybanks.length > 0 ? (
            <div className="space-y-3">
-             {piggybanks.map((piggybank: any) => (
-               <PiggybankListItem
-                 key={piggybank.id}
-                 piggybank={piggybank}
-                 balance={new Decimal(typeof getEnvelopeBalance(piggybank.id) === 'number' ? getEnvelopeBalance(piggybank.id) : 0)}
-                 onNavigate={(id) => navigate(`/envelope/${id}`)}
-               />
-             ))}
-           </div>
+                      {piggybanks.map((piggybank: any) => (
+                        <PiggybankListItem
+                          key={piggybank.id}
+                          piggybank={piggybank}
+                          balance={getEnvelopeBalance(piggybank.id)}
+                          onNavigate={(id) => navigate(`/envelope/${id}`)}
+                        />
+                      ))}           </div>
           ) : (
             <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
               <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />

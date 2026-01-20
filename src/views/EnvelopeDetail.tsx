@@ -24,7 +24,7 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance, currentMonth } = useBudgetStore();
+    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, removeEnvelopeFromMonth, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance, currentMonth } = useBudgetStore();
     const { showToast } = useToastStore();
 
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
@@ -106,10 +106,14 @@ const EnvelopeDetail: React.FC = () => {
     };
     
     const handleDeleteEnvelope = () => {
-        if (id) {
+        if (!id) return;
+
+        if (currentEnvelope.isPiggybank) {
             deleteEnvelope(id);
-            navigate(-1);
+        } else {
+            removeEnvelopeFromMonth(id, currentMonth);
         }
+        navigate(-1);
     };
 
     const handleReconcile = (transaction: Transaction) => {
@@ -243,7 +247,11 @@ const EnvelopeDetail: React.FC = () => {
                 <button 
                     className="w-full py-3 px-4 rounded-lg bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition duration-150 flex items-center justify-center border border-gray-100 dark:border-zinc-800"
                     onClick={() => {
-                        if (confirm(`Are you sure you want to delete "${currentEnvelope.name}"? This will delete all transactions.`)) {
+                        const message = currentEnvelope.isPiggybank 
+                            ? `Are you sure you want to delete "${currentEnvelope.name}"? This will delete the piggybank and all its history.`
+                            : `Are you sure you want to remove "${currentEnvelope.name}" from ${currentMonth}? This will delete all transactions for this month only.`;
+                        
+                        if (confirm(message)) {
                             handleDeleteEnvelope();
                         }
                     }}
