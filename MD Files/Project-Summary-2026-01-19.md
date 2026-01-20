@@ -539,7 +539,7 @@ All previously logged bugs (conflicting drag handlers, snap-back, stuck animatio
 
 ### Technical Considerations
 - **Performance**: Moveable manipulates transforms without forcing React renders, but we must avoid re-rendering the entire list on every `onDrag` tick. Keep derived positions in refs or a lightweight store slice.
-- **Collision Detection**: Moveable doesn't automatically swap list items. We'll need to detect when the dragged card crosses another card's midpoint and reorder the backing array accordingly.
+- **Collision Detection**: Moveable doesn’t automatically swap list items. We’ll need to detect when the dragged card crosses another card’s midpoint and reorder the backing array accordingly.
 - **Virtualization**: If we later virtualize the list, ensure Moveable references stay valid when rows unmount.
 - **SSR**: Moveable is browser-only. Guard imports if we ever render on the server.
 

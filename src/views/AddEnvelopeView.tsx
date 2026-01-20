@@ -11,7 +11,6 @@ export const AddEnvelopeView: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   const [name, setName] = useState('');
-  const [initialBalance, setInitialBalance] = useState('');
   const isPiggybank = searchParams.get('type') === 'piggybank';
   const [targetAmount, setTargetAmount] = useState('');
   const [monthlyContribution, setMonthlyContribution] = useState('');
@@ -23,10 +22,6 @@ export const AddEnvelopeView: React.FC = () => {
     if (!name.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
-
-    // Parse balance, default to 0 if empty
-    const balanceValue = parseFloat(initialBalance);
-    const finalBalance = isNaN(balanceValue) ? 0 : balanceValue;
 
     // Get next orderIndex (after last envelope)
     const envelopes = useBudgetStore.getState().envelopes;
@@ -43,7 +38,7 @@ export const AddEnvelopeView: React.FC = () => {
     // Create the envelope or piggybank
     const envelopeData: any = {
       name,
-      currentBalance: finalBalance,
+      currentBalance: 0,
       lastUpdated: new Date().toISOString(),
       createdAt: creationDate.toISOString(),
       isActive: true,
@@ -199,33 +194,6 @@ export const AddEnvelopeView: React.FC = () => {
                 </div>
               </>
             )}
-
-            {/* Initial Balance Input */}
-            <div className="space-y-2">
-              <label htmlFor="balance" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                Initial Deposit (Optional)
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 font-semibold">$</span>
-                <input
-                  type="number"
-                  id="balance"
-                  value={initialBalance}
-                  onChange={(e) => setInitialBalance(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="0.00"
-                  step="0.01"
-                  className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-zinc-500">
-                This creates an "Initial Deposit" income transaction. You can also add money later by editing the envelope budget on the main screen.
-              </p>
-            </div>
 
             {/* Actions */}
             <div className="pt-4 flex gap-3">
