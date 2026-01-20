@@ -82,6 +82,10 @@ export const useEnvelopeList = () => {
   // State for reorder list to allow smooth dragging
   const [localEnvelopes, setLocalEnvelopes] = useState<typeof envelopes>([]);
   const localOrderRef = useRef<typeof envelopes>([]);
+  
+  // State for reorder list of piggybanks
+  const [localPiggybanks, setLocalPiggybanks] = useState<typeof envelopes>([]);
+  const localPiggybankOrderRef = useRef<typeof envelopes>([]);
 
   // Function to get envelope balance 
   const getEnvelopeBalance = useCallback((envelopeId: string) => {
@@ -99,40 +103,51 @@ export const useEnvelopeList = () => {
     return new Decimal(balance);
   }, [envelopes, currentMonth]);
 
-  // Separate piggybanks from regular envelopes
-  // Only show piggybanks from their creation month forward
-  const piggybanks = envelopes.filter(env => {
-    if (!env.isPiggybank || !env.isActive) return false;
-    
-    // If piggybank has a creation date, only show it from that month forward
-    if (env.createdAt) {
-      try {
-        // Use safe conversion to handle various date formats
-        const createdDate = safeDateConversion(env.createdAt);
-        
-        // Check if the date conversion was successful
-        if (!createdDate) {
-          console.error(`🐷 Invalid creation date for piggybank ${env.name}:`, env.createdAt);
-          return false; // Hide piggybanks with invalid dates
+  // Calculate piggybanks with sorting
+  useEffect(() => {
+    const filteredPiggybanks = envelopes.filter(env => {
+      if (!env.isPiggybank || !env.isActive) return false;
+      
+      // If piggybank has a creation date, only show it from that month forward
+      if (env.createdAt) {
+        try {
+          // Use safe conversion to handle various date formats
+          const createdDate = safeDateConversion(env.createdAt);
+          
+          // Check if the date conversion was successful
+          if (!createdDate) {
+            console.error(`🐷 Invalid creation date for piggybank ${env.name}:`, env.createdAt);
+            return false; // Hide piggybanks with invalid dates
+          }
+          
+          // Use local time methods to match currentMonth format
+          const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
+          
+          // Only show if current viewing month is >= creation month
+          return currentMonth >= createdMonth;
+        } catch (error) {
+          console.error(`🐷 Error processing piggybank ${env.name}:`, error, {
+            createdAt: env.createdAt,
+            typeofCreatedAt: typeof env.createdAt
+          });
+          return false; // Hide piggybanks with processing errors
         }
-        
-        // Use local time methods to match currentMonth format
-        const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
-        
-        // Only show if current viewing month is >= creation month
-        return currentMonth >= createdMonth;
-      } catch (error) {
-        console.error(`🐷 Error processing piggybank ${env.name}:`, error, {
-          createdAt: env.createdAt,
-          typeofCreatedAt: typeof env.createdAt
-        });
-        return false; // Hide piggybanks with processing errors
       }
-    }
-    
-    // If no creation date, show it (legacy piggybanks)
-    return true;
-  });
+      
+      // If no creation date, show it (legacy piggybanks)
+      return true;
+    }).sort((a, b) => {
+      const aOrder = a.orderIndex ?? 0;
+      const bOrder = b.orderIndex ?? 0;
+      return aOrder - bOrder;
+    });
+
+    setLocalPiggybanks(filteredPiggybanks);
+    localPiggybankOrderRef.current = filteredPiggybanks;
+  }, [envelopes, currentMonth]);
+
+  // Separate piggybanks from regular envelopes
+  const piggybanks = localPiggybanks;
 
   // Filter and sort envelopes for display
   const visibleEnvelopes = localEnvelopes;
@@ -302,6 +317,8 @@ export const useEnvelopeList = () => {
     
     // Local state refs for reordering
     localOrderRef,
-    setLocalEnvelopes
+    setLocalEnvelopes,
+    localPiggybankOrderRef,
+    setLocalPiggybanks
   };
 };

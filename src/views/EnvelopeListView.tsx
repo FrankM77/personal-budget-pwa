@@ -353,7 +353,9 @@ export const EnvelopeListView: React.FC = () => {
     setEnvelopeAllocation,
     testingConnectivity,
     localOrderRef,
-    setLocalEnvelopes
+    setLocalEnvelopes,
+    localPiggybankOrderRef,
+    setLocalPiggybanks
   } = useEnvelopeList();
 
   // Get setCurrentMonth directly from store for month selector
@@ -423,12 +425,38 @@ export const EnvelopeListView: React.FC = () => {
       delete moveableRefs.current[envelopeId];
     }
   }, []);
+  
+  // Callback ref for Piggybank Moveable elements
+  const setPiggybankMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
+    if (el) {
+      piggybankMoveableRefs.current[envelopeId] = el;
+    } else {
+      delete piggybankMoveableRefs.current[envelopeId];
+    }
+  }, []);
 
   // Moveable refs and instances for new reordering system
   const moveableRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const moveableInstances = useRef<{ [key: string]: Moveable | null }>({});
   const [activelyDraggingId, setActivelyDraggingId] = useState<string | null>(null);
   const moveableDragState = useRef<{ 
+    activeId: string | null; 
+    startIndex: number; 
+    currentIndex: number;
+    itemHeight: number;
+  }>({
+    activeId: null,
+    startIndex: 0,
+    currentIndex: 0,
+    itemHeight: 0
+  });
+
+  // Moveable refs and instances for Piggybanks
+  const piggybankMoveableRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const piggybankMoveableInstances = useRef<{ [key: string]: Moveable | null }>({});
+  const piggybankReorderConstraintsRef = useRef<HTMLDivElement | null>(null);
+  const [activelyDraggingPiggybankId, setActivelyDraggingPiggybankId] = useState<string | null>(null);
+  const piggybankMoveableDragState = useRef<{ 
     activeId: string | null; 
     startIndex: number; 
     currentIndex: number;
@@ -463,6 +491,221 @@ export const EnvelopeListView: React.FC = () => {
       navigate(`/envelope/${envelopeId}`);
     }
   }, [editingEnvelopeId, navigate]);
+
+  // Piggybank Drag Handlers
+  const handlePiggybankDragStart = useCallback(() => setIsReordering(true), []);
+
+  const handlePiggybankDragEnd = useCallback(() => {
+    setIsReordering(false);
+    if (localPiggybankOrderRef.current.length) {
+      reorderEnvelopes(localPiggybankOrderRef.current);
+    }
+  }, [reorderEnvelopes]);
+
+  // Initialize Moveable instances for Piggybanks
+  useEffect(() => {
+    const destroyMoveables = () => {
+      Object.values(piggybankMoveableInstances.current).forEach(instance => instance?.destroy());
+      piggybankMoveableInstances.current = {};
+    };
+
+    if (!piggybanks.length) {
+      return;
+    }
+
+    const initializeMoveable = () => {
+      // Only initialize Moveable if reordering is unlocked
+      if (!isReorderUnlocked) return;
+
+      piggybanks.forEach((piggybank) => {
+        const element = piggybankMoveableRefs.current[piggybank.id];
+        if (!element) return;
+
+        const existingInstance = piggybankMoveableInstances.current[piggybank.id];
+        if (existingInstance) {
+          existingInstance.target = element;
+          return;
+        }
+
+        // Use piggybankReorderConstraintsRef as container
+        const moveable = new Moveable(piggybankReorderConstraintsRef.current!, {
+          target: element,
+          draggable: isReorderUnlocked,
+          throttleDrag: 0,
+          edgeDraggable: false,
+          startDragRotate: 0,
+          throttleDragRotate: 0,
+          rotatable: false,
+          scalable: false,
+          resizable: false,
+          warpable: false,
+          pinchable: false,
+          snappable: true,
+          snapThreshold: 5,
+          isDisplaySnapDigit: false,
+          isDisplayInnerSnapDigit: false,
+          snapGap: true,
+          snapDirections: {"top": true, "bottom": true, "left": false, "right": false},
+          elementSnapDirections: {"top": true, "bottom": true, "left": false, "right": false},
+          clickable: true,
+          preventClickDefault: false,
+          preventClickEventOnDrag: true,
+          checkInput: false,
+          dragArea: true,
+          hideDefaultLines: true,
+          hideChildMoveableDefaultLines: true,
+          renderDirections: [],
+        });
+
+        moveable.on('dragStart', (e: any) => {
+          const startIndex = localPiggybankOrderRef.current.findIndex(p => p.id === piggybank.id);
+          const targetEl = e.target as HTMLElement;
+          const rect = targetEl.getBoundingClientRect();
+          const itemHeight = rect.height + MOVEABLE_ITEM_GAP;
+          
+          setActivelyDraggingPiggybankId(piggybank.id);
+          piggybankMoveableDragState.current = {
+            activeId: piggybank.id,
+            startIndex,
+            currentIndex: startIndex,
+            itemHeight
+          };
+          
+          if (targetEl) {
+            targetEl.style.transition = 'none';
+            targetEl.style.boxShadow = '0 18px 45px rgba(15,23,42,0.35)';
+            targetEl.style.zIndex = '20';
+          }
+          handlePiggybankDragStart();
+        });
+
+        let rafId: number | null = null;
+        moveable.on('drag', (e: any) => {
+          const targetEl = e.target as HTMLElement;
+          
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+          }
+          
+          rafId = requestAnimationFrame(() => {
+            const dragState = piggybankMoveableDragState.current;
+            if (dragState.activeId !== piggybank.id) return;
+
+            // Constrain to Y-axis only
+            const translateY = e.beforeTranslate[1];
+            targetEl.style.transform = `translateY(${translateY}px)`;
+            targetEl.style.transition = 'none';
+
+            // Calculate target index based on drag distance
+            const { itemHeight, startIndex } = dragState;
+            if (!itemHeight) return;
+            
+            const indexOffset = Math.round(translateY / itemHeight);
+            const targetIndex = clampValue(
+              startIndex + indexOffset,
+              0,
+              localPiggybankOrderRef.current.length - 1
+            );
+
+            // Update other items' positions to make space
+            if (targetIndex !== dragState.currentIndex) {
+              dragState.currentIndex = targetIndex;
+              
+              // Apply visual offsets to other items
+              localPiggybankOrderRef.current.forEach((p, idx) => {
+                if (p.id === piggybank.id) return;
+                
+                const otherEl = piggybankMoveableRefs.current[p.id];
+                if (!otherEl) return;
+                
+                let offset = 0;
+                if (startIndex < targetIndex) {
+                  // Dragging down: shift items up
+                  if (idx > startIndex && idx <= targetIndex) {
+                    offset = -itemHeight;
+                  }
+                } else if (startIndex > targetIndex) {
+                  // Dragging up: shift items down
+                  if (idx >= targetIndex && idx < startIndex) {
+                    offset = itemHeight;
+                  }
+                }
+                
+                otherEl.style.transform = offset ? `translateY(${offset}px)` : '';
+                otherEl.style.transition = 'transform 0.2s ease';
+              });
+            }
+            
+            rafId = null;
+          });
+        });
+
+        moveable.on('dragEnd', (e: any) => {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          
+          const targetEl = e.target as HTMLElement;
+          const dragState = piggybankMoveableDragState.current;
+          const { startIndex, currentIndex } = dragState;
+          
+          // Clear all transforms
+          targetEl.style.transform = '';
+          targetEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease';
+          targetEl.style.boxShadow = '';
+          
+          // Clear transforms on other items
+          localPiggybankOrderRef.current.forEach((p) => {
+            if (p.id === piggybank.id) return;
+            const otherEl = piggybankMoveableRefs.current[p.id];
+            if (otherEl) {
+              otherEl.style.transform = '';
+              otherEl.style.transition = '';
+            }
+          });
+          
+          // Reorder the array if position changed
+          if (startIndex !== currentIndex) {
+            const updated = [...localPiggybankOrderRef.current];
+            const [item] = updated.splice(startIndex, 1);
+            updated.splice(currentIndex, 0, item);
+            localPiggybankOrderRef.current = updated;
+            setLocalPiggybanks(updated);
+          }
+          
+          // Cleanup after animation
+          setTimeout(() => {
+            targetEl.style.zIndex = '';
+            targetEl.style.transition = '';
+            setActivelyDraggingPiggybankId(null);
+          }, 300);
+          
+          piggybankMoveableDragState.current = { activeId: null, startIndex: 0, currentIndex: 0, itemHeight: 0 };
+          handlePiggybankDragEnd();
+        });
+        
+        // Handle click events from Moveable
+        moveable.on('click', (e: any) => {
+          // Check if the click originated from interaction elements
+          const target = e.inputEvent.target as HTMLElement;
+          if (target.closest('.js-budget-target') || target.tagName === 'INPUT' || target.tagName === 'BUTTON') {
+            return;
+          }
+          handleEnvelopeClick(piggybank.id);
+        });
+
+        piggybankMoveableInstances.current[piggybank.id] = moveable;
+      });
+    };
+
+    const timeoutId = window.setTimeout(initializeMoveable, 80);
+
+    return () => {
+      clearTimeout(timeoutId);
+      destroyMoveables();
+    };
+  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick, isReorderUnlocked]);
 
 
   // Initialize Moveable instances
@@ -967,15 +1210,49 @@ export const EnvelopeListView: React.FC = () => {
           </button>
         </div>
          {piggybanks.length > 0 ? (
-           <div className="space-y-3">
-                      {piggybanks.map((piggybank: any) => (
-                        <PiggybankListItem
-                          key={piggybank.id}
-                          piggybank={piggybank}
-                          balance={getEnvelopeBalance(piggybank.id)}
-                          onNavigate={(id) => navigate(`/envelope/${id}`)}
-                        />
-                      ))}           </div>
+           <div ref={piggybankReorderConstraintsRef} className="relative">
+             <AnimatePresence initial={false}>
+               <div className="space-y-3">
+                 {piggybanks.map((piggybank: any, index: number) => {
+                   const handleMoveUp = () => {
+                     if (index === 0) return;
+                     const newOrder = [...localPiggybankOrderRef.current];
+                     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                     localPiggybankOrderRef.current = newOrder;
+                     setLocalPiggybanks(newOrder);
+                     reorderEnvelopes(newOrder);
+                   };
+
+                   const handleMoveDown = () => {
+                     if (index === piggybanks.length - 1) return;
+                     const newOrder = [...localPiggybankOrderRef.current];
+                     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                     localPiggybankOrderRef.current = newOrder;
+                     setLocalPiggybanks(newOrder);
+                     reorderEnvelopes(newOrder);
+                   };
+
+                   return (
+                     <PiggybankListItem
+                       key={piggybank.id}
+                       piggybank={piggybank}
+                       balance={getEnvelopeBalance(piggybank.id)}
+                       onNavigate={(id) => navigate(`/envelope/${id}`)}
+                       setMoveableRef={setPiggybankMoveableRef(piggybank.id)}
+                       isReorderingActive={isReordering}
+                       activelyDraggingId={activelyDraggingPiggybankId}
+                       onItemDragStart={() => {}}
+                       onMoveUp={handleMoveUp}
+                       onMoveDown={handleMoveDown}
+                       isFirst={index === 0}
+                       isLast={index === piggybanks.length - 1}
+                       isReorderUnlocked={isReorderUnlocked}
+                     />
+                   );
+                 })}
+               </div>
+             </AnimatePresence>
+           </div>
           ) : (
             <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
               <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
