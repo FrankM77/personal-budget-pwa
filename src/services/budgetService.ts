@@ -1,4 +1,4 @@
-import { collection, query, orderBy, where, getDocs, addDoc, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs, addDoc, doc, setDoc, deleteDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation } from '../models/types';
 import { fromFirestore } from '../mappers/transaction';
@@ -27,6 +27,76 @@ export class BudgetService {
       BudgetService.instance = new BudgetService();
     }
     return BudgetService.instance;
+  }
+
+  /**
+   * Restore user data from a backup (Time Machine)
+   * Wipes all existing data and replaces it with backup data
+   * @param userId - User ID to restore data for
+   * @param backupData - The parsed JSON backup data
+   */
+  async restoreUserData(userId: string, backupData: any): Promise<void> {
+    try {
+      console.log('🔄 BudgetService.restoreUserData: STARTING RESTORE for user:', userId);
+
+      // 1. Wipe existing data
+      await this.deleteAllUserData(userId);
+
+      // 2. Prepare batches for restoration
+      const collectionsToRestore: { name: string; data: any[] }[] = [
+        { name: 'envelopes', data: backupData.envelopes || [] },
+        { name: 'transactions', data: backupData.transactions || [] },
+        { name: 'incomeSources', data: backupData.incomeSources ? Object.values(backupData.incomeSources).flat() : [] },
+        { name: 'envelopeAllocations', data: backupData.allocations ? Object.values(backupData.allocations).flat() : [] },
+        // Handle monthly budgets if present in backup (might need to derive if not)
+        // For now, we'll focus on the core arrays. If monthlyBudgets are in backup, use them.
+        { name: 'appSettings', data: backupData.appSettings ? [backupData.appSettings] : [] }
+      ];
+
+      // Flatten all operations into a single list of { ref, data }
+      const operations: { ref: any; data: any }[] = [];
+
+      for (const { name, data } of collectionsToRestore) {
+        if (!Array.isArray(data)) continue;
+
+        for (const item of data) {
+          if (!item.id) continue; // Skip items without ID
+
+          // Clean up item for Firestore (remove undefined, convert dates if needed)
+          // Ideally we'd map these, but for restore we trust the backup structure mostly.
+          // We ensure 'userId' is set correctly to the current user.
+          const firestoreItem = { ...item, userId };
+          
+          // Settings special case: usually singleton or specific ID
+          const docId = item.id;
+          
+          const docRef = doc(db, 'users', userId, name, docId);
+          operations.push({ ref: docRef, data: firestoreItem });
+        }
+      }
+
+      console.log(`📦 Prepared ${operations.length} items for restoration.`);
+
+      // 3. Execute Batches (max 500 per batch)
+      const BATCH_SIZE = 450; // Safety margin
+      for (let i = 0; i < operations.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        const chunk = operations.slice(i, i + BATCH_SIZE);
+        
+        chunk.forEach(op => {
+          batch.set(op.ref, op.data);
+        });
+
+        console.log(`🚀 Committing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(operations.length / BATCH_SIZE)}...`);
+        await batch.commit();
+      }
+
+      console.log('✨ Restore completed successfully.');
+
+    } catch (error) {
+      console.error('❌ BudgetService.restoreUserData failed:', error);
+      throw new Error(`Failed to restore user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**

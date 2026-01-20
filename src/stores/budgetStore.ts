@@ -724,25 +724,26 @@ export const useBudgetStore = create<BudgetState>()(
                 if (!data || typeof data !== 'object') {
                     throw new Error('Invalid data format');
                 }
+
+                // Get current user
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
                 
-                // Import envelopes
-                if (data.envelopes && Array.isArray(data.envelopes)) {
-                    set(state => ({
-                        envelopes: data.envelopes,
-                        transactions: state.transactions
-                    }));
+                if (!currentUser) {
+                    throw new Error('You must be logged in to restore data.');
                 }
+
+                console.log('🔄 Starting Time Machine Restore for user:', currentUser.id);
                 
-                // Import transactions
-                if (data.transactions && Array.isArray(data.transactions)) {
-                    set(state => ({
-                        envelopes: state.envelopes,
-                        transactions: data.transactions
-                    }));
-                }
+                // Perform the cloud restore
+                await budgetService.restoreUserData(currentUser.id, data);
+                
+                // Re-initialize the app with the new cloud data
+                console.log('🔄 Reloading app state from cloud...');
+                await get().init();
                 
                 set({ isLoading: false });
-                return { success: true, message: 'Data imported successfully' };
+                return { success: true, message: 'Data restored successfully from backup.' };
                 
             } catch (error) {
                 console.error('❌ importData failed:', error);
@@ -1070,6 +1071,21 @@ export const useBudgetStore = create<BudgetState>()(
                             createdAt: new Date().toISOString(),
                             updatedAt: new Date().toISOString()
                         });
+
+                        // Create the corresponding income transaction for the allocation
+                        // This mirrors the behavior of setEnvelopeAllocation
+                        if (alloc.budgetedAmount > 0) {
+                            await get().addTransaction({
+                                description: 'Monthly Budget Allocation',
+                                amount: alloc.budgetedAmount,
+                                envelopeId: alloc.envelopeId,
+                                type: 'Income',
+                                month: currentMonth,
+                                date: `${currentMonth}-01T00:00:00`,
+                                reconciled: false,
+                                isAutomatic: true
+                            });
+                        }
                     }
                     console.log(`✅ Copied ${regularAllocations.length} regular allocations to ${currentMonth}`);
                 }

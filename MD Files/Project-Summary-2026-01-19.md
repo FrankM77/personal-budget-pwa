@@ -1,6 +1,8 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-19**: Fixed "Copy Previous Month" logic to automatically create funding transactions for spending envelopes, ensuring "Current Balance" is correct immediately.
+- **2026-01-19**: Implemented "Time Machine" Restore: Restore from backup now performs a full cloud wipe and replace, preserving original IDs and relationships.
 - **2026-01-19**: Fixed Piggybank balance display issue in EnvelopeListView (now correctly handling Decimal types).
 - **2026-01-19**: Implemented month-specific spending envelopes logic (visibility based on allocation/transactions).
 - **2026-01-19**: Updated envelope deletion logic: spending envelopes are now removed only from the current month, while piggybanks remain global.
@@ -1468,16 +1470,16 @@ All previously logged bugs (conflicting drag handlers, snap-back, stuck animatio
 3. Removed all feature flag logic from EnvelopeListView - deleted Framer Motion Reorder code path.
 4. Cleaned up unused parameters and functions from the codebase.
 
-### Phase 2 – Polish & Accessibility ✅ COMPLETED
+#### Phase 2 – Polish & Accessibility ✅ COMPLETED
 1. ✅ Added keyboard accessibility with up/down arrow buttons on each envelope card for users who prefer button-based reordering.
 
-## Technical Considerations
+### Technical Considerations
 - **Performance**: Moveable manipulates transforms without forcing React renders, but we must avoid re-rendering the entire list on every `onDrag` tick. Keep derived positions in refs or a lightweight store slice.
 - **Collision Detection**: Moveable doesn’t automatically swap list items. We’ll need to detect when the dragged card crosses another card’s midpoint and reorder the backing array accordingly.
 - **Virtualization**: If we later virtualize the list, ensure Moveable references stay valid when rows unmount.
 - **SSR**: Moveable is browser-only. Guard imports if we ever render on the server.
 
-## Implementation Status
+### Implementation Status
 - [x] **Phase 0 Sandbox**: Playground validates Moveable APIs
 - [x] **Moveable-Only Drag Path**: Framer Motion Reorder code removed - Moveable is now the default
 - [x] **Snap-to-row Logic**: Drag math snaps consistently across desktop + mobile
@@ -1487,13 +1489,13 @@ All previously logged bugs (conflicting drag handlers, snap-back, stuck animatio
 - [x] **Keyboard Accessibility**: Up/down arrow buttons added to each envelope card
 - [x] **Feature Flag Removed**: Moveable is now the default and only reordering method
 
-## Resolved Decisions
+### Resolved Decisions
 1. **Framer Motion**: Removed - Moveable is now the default and only reordering method
 2. **Multi-select**: Not needed for current use case - single envelope reordering is sufficient
 3. **Partial States**: Not persisting - drag operations are atomic (complete or cancel)
 4. **Keyboard Accessibility**: Implemented via up/down arrow buttons on each card
 
-## Future Enhancements (Optional)
+### Future Enhancements (Optional)
 1. **Performance Tuning**: Monitor Moveable instances and memory usage in production
 2. **Analytics**: Track reordering usage patterns to inform future UX improvements
 3. **Animations**: Consider adding more sophisticated spring animations for button-based reordering
