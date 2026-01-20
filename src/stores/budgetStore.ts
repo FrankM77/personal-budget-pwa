@@ -683,15 +683,38 @@ export const useBudgetStore = create<BudgetState>()(
         },
         resetData: async () => {
             console.log('🔄 Resetting all data');
-            set({
-                envelopes: [],
-                transactions: [],
-                appSettings: null,
-                incomeSources: {},
-                allocations: {},
-                isLoading: false,
-                error: null
-            });
+            set({ isLoading: true });
+            
+            try {
+                // Get current user
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                
+                if (currentUser) {
+                    console.log('🔥 Deleting all data from Firestore for user:', currentUser.id);
+                    await budgetService.deleteAllUserData(currentUser.id);
+                } else {
+                    console.warn('⚠️ No user logged in, only clearing local state');
+                }
+
+                set({
+                    envelopes: [],
+                    transactions: [],
+                    appSettings: null,
+                    incomeSources: {},
+                    allocations: {},
+                    isLoading: false,
+                    error: null
+                });
+                console.log('✅ Reset data complete');
+            } catch (error) {
+                console.error('❌ resetData failed:', error);
+                set({ 
+                    isLoading: false, 
+                    error: error instanceof Error ? error.message : 'Failed to reset data' 
+                });
+                throw error;
+            }
         },
         importData: async (data: any): Promise<{ success: boolean; message: string }> => {
             try {

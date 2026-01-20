@@ -421,6 +421,45 @@ export class BudgetService {
       throw new Error(`Failed to cleanup orphaned data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+   * Permanently delete ALL data for a user
+   * @param userId - User ID to delete data for
+   */
+  async deleteAllUserData(userId: string): Promise<void> {
+    try {
+      console.log('🔥 BudgetService.deleteAllUserData: STARTING DELETION for user:', userId);
+
+      const collections = [
+        'envelopes',
+        'transactions',
+        'incomeSources',
+        'envelopeAllocations',
+        'monthlyBudgets',
+        'appSettings'
+      ];
+
+      for (const collectionName of collections) {
+        console.log(`🗑️ Deleting collection: ${collectionName}...`);
+        const collectionRef = collection(db, 'users', userId, collectionName);
+        const snapshot = await getDocs(collectionRef);
+        
+        if (snapshot.empty) {
+          console.log(`   (Empty collection)`);
+          continue;
+        }
+
+        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+        console.log(`   ✅ Deleted ${snapshot.size} documents from ${collectionName}`);
+      }
+
+      console.log('✨ All user data deleted successfully.');
+    } catch (error) {
+      console.error('❌ BudgetService.deleteAllUserData failed:', error);
+      throw new Error(`Failed to delete all user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }
 
 // Export singleton instance
