@@ -1,7 +1,11 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
-- **2026-01-21**: **Phase 3.2 & 3.3 Transaction Migration Logic.** Added `migrateTransactions` utility and "Migrate DB Types" button in Settings to normalize transaction amounts to numbers and populate missing `month` keys. Updated transaction mapper to enforce number types and auto-generate `month` keys on all future saves.
+- **2026-01-21**: **Phase 3 Complete: Architectural Shift to Embedded Data.** Successfully migrated all `incomeSources` and `envelopeAllocations` from separate subcollections into the `monthlyBudgets` parent document. 
+  - Reduced Firestore reads from ~22+ per month to exactly 1.
+  - Refactored `BudgetService` to handle atomic read/writes for the whole month state.
+  - Removed all migration utilities and UI buttons after successful verification.
+- **2026-01-21**: **Phase 3.2 & 3.3 Transaction Normalization.** Normalized all transaction amounts to `number` type and backfilled missing `month` keys for efficient querying.
 - **2026-01-20**: **Phase 2.3 Complete: Native Offline Mode.** Removed legacy manual sync logic (`pendingSync`) and implemented true optimistic UI updates for all write operations in `BudgetService`.
 - **2026-01-20**: Fixed "Creating..." hang in offline mode by ensuring Firestore write operations are non-blocking (fire-and-forget) while returning local data immediately.
 - **2026-01-20**: Refactored `BudgetService` to use Collection-based patterns for `IncomeSource` and `EnvelopeAllocation` to ensure data consistency between reads and writes.

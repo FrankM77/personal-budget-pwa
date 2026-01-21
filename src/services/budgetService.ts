@@ -1,4 +1,4 @@
-import { collection, query, orderBy, where, getDocs, doc, setDoc, deleteDoc, Timestamp, writeBatch, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs, doc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, onSnapshot, arrayUnion, getDoc, deleteField } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation } from '../models/types';
@@ -354,99 +354,160 @@ export class BudgetService {
     }
   }
 
-  // === Income Source CRUD (Collection-based) ===
+  // === Income Source CRUD (Embedded) ===
 
   async createIncomeSource(source: Omit<IncomeSource, 'id' | 'createdAt' | 'updatedAt'> & { userId: string }): Promise<IncomeSource> {
     try {
-      console.log('📡 BudgetService.createIncomeSource called for user:', source.userId);
-      const collectionRef = collection(db, 'users', source.userId, 'incomeSources');
-      const docRef = doc(collectionRef);
+      console.log('📡 BudgetService.createIncomeSource (Embedded) called for user:', source.userId);
+      const docRef = doc(db, 'users', source.userId, 'monthlyBudgets', source.month);
       const now = Timestamp.now();
+      
+      // Generate ID client-side
+      const newId = `inc_${now.toMillis()}_${Math.random().toString(36).substring(2, 9)}`;
       
       const newSourceData = {
         ...source,
+        id: newId,
+        amount: Number(source.amount),
         createdAt: now,
         updatedAt: now
       };
 
-      // Optimistic write - do not await
-      setDoc(docRef, newSourceData).catch(err => console.error("Create income failed", err));
+      // Optimistic update - do not await
+      updateDoc(docRef, {
+        incomeSources: arrayUnion(newSourceData),
+        updatedAt: now
+      }).catch(err => {
+        // If document doesn't exist, create it
+        if (err.code === 'not-found') {
+          setDoc(docRef, {
+            id: `${source.userId}_${source.month}`,
+            userId: source.userId,
+            month: source.month,
+            createdAt: now,
+            updatedAt: now,
+            incomeSources: [newSourceData],
+            allocations: {},
+            totalIncome: 0,
+            availableToBudget: 0
+          }).catch(e => console.error("Failed to create monthly budget doc", e));
+        } else {
+          console.error("Create income failed", err);
+        }
+      });
       
       const newSource = {
         ...source,
-        id: docRef.id,
+        id: newId,
+        amount: Number(source.amount),
         createdAt: toISOString(now),
         updatedAt: toISOString(now)
       };
-      console.log('✅ Created income source (optimistic):', newSource.id);
+      console.log('✅ Created income source (optimistic/embedded):', newSource.id);
       return newSource;
     } catch (error) {
       console.error('❌ BudgetService.createIncomeSource failed:', error);
-      throw error;
+      throw new Error(`Failed to create income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async updateIncomeSource(userId: string, sourceId: string, _month: string, updates: Partial<IncomeSource>): Promise<void> {
+  async updateIncomeSource(userId: string, sourceId: string, month: string, updates: Partial<IncomeSource>): Promise<void> {
     try {
-      console.log('📡 BudgetService.updateIncomeSource called for source:', sourceId);
-      const docRef = doc(db, 'users', userId, 'incomeSources', sourceId);
+      console.log('📡 BudgetService.updateIncomeSource (Embedded) called for source:', sourceId);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
-      // Remove undefined fields
-      const cleanUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([_, v]) => v !== undefined)
-      );
+      // Read-modify-write pattern for array update
+      getDoc(docRef).then((snap: any) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const sources = data.incomeSources || [];
+        const updatedSources = sources.map((s: any) => {
+          if (s.id === sourceId) {
+            // Merge updates, ensuring amounts are numbers if present
+            const merged = { ...s, ...updates, updatedAt: Timestamp.now() };
+            if (updates.amount !== undefined) merged.amount = Number(updates.amount);
+            return merged;
+          }
+          return s;
+        });
+        
+        updateDoc(docRef, { 
+          incomeSources: updatedSources,
+          updatedAt: Timestamp.now()
+        });
+      }).catch((err: any) => console.error("Update income failed", err));
 
-      // Optimistic update - do not await
-      setDoc(docRef, {
-        ...cleanUpdates,
-        updatedAt: Timestamp.now()
-      }, { merge: true }).catch(err => console.error("Update income failed", err));
-      console.log('✅ Updated income source (optimistic):', sourceId);
+      console.log('✅ Updated income source (optimistic/embedded):', sourceId);
     } catch (error) {
       console.error('❌ BudgetService.updateIncomeSource failed:', error);
       throw error;
     }
   }
 
-  async deleteIncomeSource(userId: string, sourceId: string, _month: string): Promise<void> {
+  async deleteIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
     try {
-      console.log('📡 BudgetService.deleteIncomeSource called for source:', sourceId);
-      const docRef = doc(db, 'users', userId, 'incomeSources', sourceId);
+      console.log('📡 BudgetService.deleteIncomeSource (Embedded) called for source:', sourceId);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
-      // Optimistic delete - do not await
-      deleteDoc(docRef).catch(err => console.error("Delete income failed", err));
-      console.log('✅ Deleted income source (optimistic):', sourceId);
+      // Read-modify-write pattern for array deletion
+      getDoc(docRef).then((snap: any) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const sources = data.incomeSources || [];
+        const updatedSources = sources.filter((s: any) => s.id !== sourceId);
+        
+        updateDoc(docRef, { 
+          incomeSources: updatedSources,
+          updatedAt: Timestamp.now()
+        });
+      }).catch((err: any) => console.error("Delete income failed", err));
+
+      console.log('✅ Deleted income source (optimistic/embedded):', sourceId);
     } catch (error) {
       console.error('❌ BudgetService.deleteIncomeSource failed:', error);
-      throw error;
+      throw new Error(`Failed to delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  // === Envelope Allocation CRUD (Collection-based) ===
+  // === Envelope Allocation CRUD (Embedded) ===
 
   async createEnvelopeAllocation(allocation: Omit<EnvelopeAllocation, 'id' | 'createdAt' | 'updatedAt'> & { userId: string }): Promise<EnvelopeAllocation> {
     try {
-      console.log('📡 BudgetService.createEnvelopeAllocation called for user:', allocation.userId);
-      const collectionRef = collection(db, 'users', allocation.userId, 'envelopeAllocations');
-      const docRef = doc(collectionRef);
+      console.log('📡 BudgetService.createEnvelopeAllocation (Embedded) called for user:', allocation.userId);
+      const docRef = doc(db, 'users', allocation.userId, 'monthlyBudgets', allocation.month);
       const now = Timestamp.now();
       
-      const newAllocationData = {
-        ...allocation,
-        createdAt: now,
+      const updateData = {
+        [`allocations.${allocation.envelopeId}`]: Number(allocation.budgetedAmount),
         updatedAt: now
       };
 
-      // Optimistic write - do not await
-      setDoc(docRef, newAllocationData).catch(err => console.error("Create allocation failed", err));
+      // Optimistic update
+      updateDoc(docRef, updateData).catch(err => {
+        if (err.code === 'not-found') {
+          setDoc(docRef, {
+            id: `${allocation.userId}_${allocation.month}`,
+            userId: allocation.userId,
+            month: allocation.month,
+            createdAt: now,
+            updatedAt: now,
+            incomeSources: [],
+            allocations: { [allocation.envelopeId]: Number(allocation.budgetedAmount) },
+            totalIncome: 0,
+            availableToBudget: 0
+          }).catch(e => console.error("Failed to create monthly budget doc", e));
+        } else {
+          console.error("Create allocation failed", err);
+        }
+      });
       
       const newAllocation = {
         ...allocation,
-        id: docRef.id,
+        id: allocation.envelopeId,
         createdAt: toISOString(now),
         updatedAt: toISOString(now)
       };
-      console.log('✅ Created allocation (optimistic):', newAllocation.id);
+      console.log('✅ Created allocation (optimistic/embedded):', newAllocation.id);
       return newAllocation;
     } catch (error) {
       console.error('❌ BudgetService.createEnvelopeAllocation failed:', error);
@@ -454,35 +515,40 @@ export class BudgetService {
     }
   }
 
-  async updateEnvelopeAllocation(userId: string, allocationId: string, _month: string, updates: Partial<EnvelopeAllocation>): Promise<void> {
+  async updateEnvelopeAllocation(userId: string, envelopeId: string, month: string, updates: Partial<EnvelopeAllocation>): Promise<void> {
     try {
-      console.log('📡 BudgetService.updateEnvelopeAllocation called for allocation:', allocationId);
-      const docRef = doc(db, 'users', userId, 'envelopeAllocations', allocationId);
+      console.log('📡 BudgetService.updateEnvelopeAllocation (Embedded) called for envelope:', envelopeId);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
-      const cleanUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([_, v]) => v !== undefined)
-      );
-
-      // Optimistic update - do not await
-      setDoc(docRef, {
-        ...cleanUpdates,
+      const updateData: any = {
         updatedAt: Timestamp.now()
-      }, { merge: true }).catch(err => console.error("Update allocation failed", err));
-      console.log('✅ Updated allocation (optimistic):', allocationId);
+      };
+
+      if (updates.budgetedAmount !== undefined) {
+        updateData[`allocations.${envelopeId}`] = Number(updates.budgetedAmount);
+      }
+
+      // Optimistic update
+      updateDoc(docRef, updateData).catch(err => console.error("Update allocation failed", err));
+      console.log('✅ Updated allocation (optimistic/embedded):', envelopeId);
     } catch (error) {
       console.error('❌ BudgetService.updateEnvelopeAllocation failed:', error);
       throw new Error(`Failed to update envelope allocation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async deleteEnvelopeAllocation(userId: string, allocationId: string, _month: string): Promise<void> {
+  async deleteEnvelopeAllocation(userId: string, envelopeId: string, month: string): Promise<void> {
     try {
-      console.log('📡 BudgetService.deleteEnvelopeAllocation called for allocation:', allocationId);
-      const docRef = doc(db, 'users', userId, 'envelopeAllocations', allocationId);
+      console.log('📡 BudgetService.deleteEnvelopeAllocation (Embedded) called for envelope:', envelopeId);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
-      // Optimistic delete - do not await
-      deleteDoc(docRef).catch(err => console.error("Delete allocation failed", err));
-      console.log('✅ Deleted allocation (optimistic):', allocationId);
+      // Optimistic delete using deleteField
+      updateDoc(docRef, {
+        [`allocations.${envelopeId}`]: deleteField(),
+        updatedAt: Timestamp.now()
+      }).catch(err => console.error("Delete allocation failed", err));
+      
+      console.log('✅ Deleted allocation (optimistic/embedded):', envelopeId);
     } catch (error) {
       console.error('❌ BudgetService.deleteEnvelopeAllocation failed:', error);
       throw new Error(`Failed to delete envelope allocation: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -500,49 +566,37 @@ export class BudgetService {
     allocations: EnvelopeAllocation[];
   }> {
     try {
-      console.log(`📅 BudgetService.getMonthData: Fetching for user ${userId}, month ${monthStr}`);
+      console.log(`📅 BudgetService.getMonthData (Embedded): Fetching for user ${userId}, month ${monthStr}`);
       
-      // Fetch income sources for the month
-      const incomeSourcesQuery = query(
-        collection(db, 'users', userId, 'incomeSources'),
-        where('month', '==', monthStr)
-      );
-      const incomeSourcesSnapshot = await getDocs(incomeSourcesQuery);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', monthStr);
+      const snap = await getDoc(docRef);
       
-      const incomeSources = incomeSourcesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          userId: data.userId,
-          month: data.month,
-          name: data.name,
-          amount: data.amount, // Now a number
-          frequency: data.frequency,
-          category: data.category,
-          createdAt: toISOString(data.createdAt),
-          updatedAt: toISOString(data.updatedAt),
-        } as IncomeSource;
-      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      if (!snap.exists()) {
+        console.log(`ℹ️ No budget data found for ${monthStr}, returning empty defaults.`);
+        return { incomeSources: [], allocations: [] };
+      }
 
-      // Fetch envelope allocations for the month
-      const allocationsQuery = query(
-        collection(db, 'users', userId, 'envelopeAllocations'),
-        where('month', '==', monthStr)
-      );
-      const allocationsSnapshot = await getDocs(allocationsQuery);
+      const data = snap.data();
       
-      const allocations = allocationsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          userId: data.userId,
-          envelopeId: data.envelopeId,
-          month: data.month,
-          budgetedAmount: data.budgetedAmount, // Now a number
-          createdAt: toISOString(data.createdAt),
-          updatedAt: toISOString(data.updatedAt),
-        } as EnvelopeAllocation;
-      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      // Parse Income Sources (Embedded Array)
+      const incomeSources = (data.incomeSources || []).map((source: any) => ({
+        ...source,
+        amount: Number(source.amount), // Ensure number
+        createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
+        updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
+      })).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+      // Parse Allocations (Embedded Map: envelopeId -> amount)
+      const allocationsMap = data.allocations || {};
+      const allocations = Object.entries(allocationsMap).map(([envelopeId, amount]) => ({
+        id: envelopeId, // Use envelopeId as allocation ID
+        userId,
+        envelopeId,
+        month: monthStr,
+        budgetedAmount: Number(amount),
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(), // Fallback to doc creation time
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
+      })).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       console.log(`📊 Fetched ${incomeSources.length} income sources and ${allocations.length} allocations for ${monthStr}`);
       

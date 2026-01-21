@@ -1,11 +1,9 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-
 import { useNavigate } from 'react-router-dom';
 import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle, Sparkles } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import { budgetService, type CleanupReport } from '../services/budgetService';
-import { migrateTransactions } from '../utils/migration';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
@@ -23,7 +21,6 @@ export const SettingsView: React.FC = () => {
   const [isExportingCSV, setIsExportingCSV] = useState(false);
   const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
   const [isCleaningData, setIsCleaningData] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
 
   // Dummy usage to satisfy TypeScript linter (operationResult IS used in JSX)
 
@@ -72,7 +69,7 @@ export const SettingsView: React.FC = () => {
       return Math.max(max, ts);
     }, 0);
 
-    const lastUpdated =
+    const lastUpdated = 
       latestEnvelope || latestTransaction
         ? new Date(Math.max(latestEnvelope, latestTransaction)).toLocaleDateString('en-US', {
             month: 'long',
@@ -149,10 +146,10 @@ export const SettingsView: React.FC = () => {
       setOperationResult({ success: true, message: 'Backup downloaded successfully.' });
     } catch (error) {
       console.error(error);
-      setOperationResult({ 
-        success: false, 
+      setOperationResult({
+        success: false,
         message: 'Failed to create backup file.',
-        onRetry: handleBackup 
+        onRetry: handleBackup
       });
     }
   };
@@ -179,11 +176,11 @@ export const SettingsView: React.FC = () => {
         }
         return [
           dateStr,
-          `"${safeMerchant}"`,
-          `"${safeNotes}"`,
+          `"${safeMerchant}"`, 
+          `"${safeNotes}"`, 
           (t.amount as number).toFixed(2),
           t.type,
-          `"${envName}"`,
+          `"${envName}"`, 
           t.reconciled ? 'Yes' : 'No',
         ].join(',');
       });
@@ -201,8 +198,8 @@ export const SettingsView: React.FC = () => {
       setOperationResult({ success: true, message: 'Transactions CSV exported successfully.' });
     } catch (error) {
       console.error(error);
-      setOperationResult({ 
-        success: false, 
+      setOperationResult({
+        success: false,
         message: 'Failed to export CSV. Please try again.',
         onRetry: handleExportCSV
       });
@@ -306,30 +303,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleMigrateDB = async () => {
-    if (!currentUser) return;
-    
-    if (!window.confirm('Run DB Migration (Phase 3.2)? This converts string amounts to numbers and adds month keys. Backup recommended.')) {
-      return;
-    }
-
-    setIsMigrating(true);
-    try {
-      const result = await migrateTransactions(currentUser.id);
-      if (result.errors.length > 0) {
-        console.error('Migration errors:', result.errors);
-        showStatus('error', `Migration finished with ${result.errors.length} errors. Check console.`);
-      } else {
-        showStatus('success', `Migrated ${result.migratedCount} transactions successfully.`);
-      }
-    } catch (error) {
-      console.error('Migration failed:', error);
-      showStatus('error', 'Migration failed.');
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
   const handleCleanupOrphanedData = async () => {
     if (!currentUser) {
       showStatus('error', 'You must be logged in to clean up data.');
@@ -358,6 +331,7 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
+      {/* ... header ... */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-center shadow-sm relative">
         <button onClick={() => navigate(-1)} className="absolute left-4 text-blue-600 dark:text-blue-400 font-medium">
           Done
@@ -444,7 +418,7 @@ export const SettingsView: React.FC = () => {
                       console.error('Failed to update theme setting:', error);
                     }
                   }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${ 
                     currentTheme === option.value
                       ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-200'
                       : 'border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600'
@@ -531,27 +505,6 @@ export const SettingsView: React.FC = () => {
         <section>
           <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Danger Zone</h2>
           <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm">
-            <button
-              onClick={handleMigrateDB}
-              disabled={isMigrating}
-              className="w-full p-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-center gap-3">
-                {isMigrating ? (
-                  <Loader className="text-orange-500 animate-spin" size={20} />
-                ) : (
-                  <Sparkles className="text-orange-500" size={20} />
-                )}
-                <div className="flex flex-col items-start">
-                  <span className="text-gray-900 dark:text-white font-medium">
-                    {isMigrating ? 'Migrating...' : '⚡ Migrate DB Types'}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-zinc-400">Convert strings to numbers (Phase 3.2)</span>
-                </div>
-              </div>
-              <ChevronRight className="text-gray-400" size={18} />
-            </button>
-
             <button
               onClick={handleReset}
               className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800"

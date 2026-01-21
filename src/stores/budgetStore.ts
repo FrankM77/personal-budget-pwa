@@ -1276,7 +1276,7 @@ export const useBudgetStore = create<BudgetState>()(
                 const isPiggybank = envelope?.isPiggybank;
                 
                 // Update allocation via service
-                await budgetService.updateEnvelopeAllocation(currentUser.id, id, currentMonth, {
+                await budgetService.updateEnvelopeAllocation(currentUser.id, allocation.envelopeId, currentMonth, {
                   budgetedAmount: updates.budgetedAmount
                 });
                 
@@ -1377,6 +1377,12 @@ export const useBudgetStore = create<BudgetState>()(
                 console.log('🗑️ Deleting envelope allocation:', id);
                 
                 const currentMonth = get().currentMonth;
+                const allocation = get().allocations[currentMonth]?.find(alloc => alloc.id === id);
+                
+                if (!allocation) {
+                    console.warn("Allocation not found in store, skipping delete");
+                    return;
+                }
                 
                 // Get current user
                 const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
@@ -1385,8 +1391,8 @@ export const useBudgetStore = create<BudgetState>()(
                     throw new Error('No authenticated user found');
                 }
                 
-                // Delete allocation via service
-                await budgetService.deleteEnvelopeAllocation(currentUser.id, id, currentMonth);
+                // Delete allocation via service (using envelopeId as key)
+                await budgetService.deleteEnvelopeAllocation(currentUser.id, allocation.envelopeId, currentMonth);
                 
                 // Update local state
                 set(state => ({
