@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, setDoc, deleteDoc, query, where, getDocs, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, deleteDoc, query, where, getDocs, onSnapshot, Timestamp, updateDoc, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
@@ -31,8 +31,8 @@ export class MonthlyBudgetService {
           id: data.id,
           userId: data.userId,
           month: data.month,
-          totalIncome: parseFloat(data.totalIncome),
-          availableToBudget: parseFloat(data.availableToBudget),
+          totalIncome: data.totalIncome,
+          availableToBudget: data.availableToBudget,
           createdAt: toISOString(data.createdAt),
           updatedAt: toISOString(data.updatedAt),
         };
@@ -53,8 +53,8 @@ export class MonthlyBudgetService {
         id,
         userId: budget.userId,
         month: budget.month,
-        totalIncome: budget.totalIncome.toString(),
-        availableToBudget: budget.availableToBudget.toString(),
+        totalIncome: budget.totalIncome,
+        availableToBudget: budget.availableToBudget,
         createdAt: now,
         updatedAt: now,
       };
@@ -75,56 +75,39 @@ export class MonthlyBudgetService {
 
   // Income Sources CRUD
   async getIncomeSources(userId: string, month: string): Promise<IncomeSource[]> {
-    try {
-      const q = query(
-        collection(db, 'users', userId, 'incomeSources'),
-        where('month', '==', month)
-      );
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data() as FirestoreIncomeSource;
-        return {
-          id: data.id,
-          userId: data.userId,
-          month: data.month,
-          name: data.name,
-          amount: parseFloat(data.amount),
-          frequency: data.frequency,
-          category: data.category,
-          createdAt: toISOString(data.createdAt),
-          updatedAt: toISOString(data.updatedAt),
-        };
-      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    } catch (error) {
-      console.error('Error getting income sources:', error);
-      throw error;
-    }
+    const data = await this.getMonthData(userId, month);
+    return data.incomeSources;
   }
 
   async createIncomeSource(source: Omit<IncomeSource, 'id' | 'createdAt' | 'updatedAt'>): Promise<IncomeSource> {
     try {
       const now = Timestamp.now();
-      const docRef = doc(collection(db, 'users', source.userId, 'incomeSources'));
-
-      const firestoreData: FirestoreIncomeSource = {
-        id: docRef.id,
+      // Generate a client-side ID since we aren't using addDoc anymore
+      const newId = `inc_${now.toMillis()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const newSource: FirestoreIncomeSource = {
+        id: newId,
         userId: source.userId,
         month: source.month,
         name: source.name,
-        amount: source.amount.toString(),
+        amount: source.amount,
         frequency: source.frequency || 'monthly',
-        ...(source.category && { category: source.category }),
+        category: source.category,
         createdAt: now,
         updatedAt: now,
       };
 
-      await setDoc(docRef, firestoreData);
+      const docRef = doc(db, 'users', source.userId, 'monthlyBudgets', source.month);
+      
+      // Use arrayUnion to append to the embedded array
+      await updateDoc(docRef, {
+        incomeSources: arrayUnion(newSource)
+      });
 
       return {
         ...source,
+        id: newId,
         frequency: source.frequency || 'monthly',
-        id: docRef.id,
         createdAt: toISOString(now),
         updatedAt: toISOString(now),
       };
@@ -136,51 +119,24 @@ export class MonthlyBudgetService {
 
   // Envelope Allocations CRUD
   async getEnvelopeAllocations(userId: string, month: string): Promise<EnvelopeAllocation[]> {
-    try {
-      const q = query(
-        collection(db, 'users', userId, 'envelopeAllocations'),
-        where('month', '==', month)
-      );
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data() as FirestoreEnvelopeAllocation;
-        return {
-          id: data.id,
-          userId: data.userId,
-          envelopeId: data.envelopeId,
-          month: data.month,
-          budgetedAmount: parseFloat(data.budgetedAmount),
-          createdAt: toISOString(data.createdAt),
-          updatedAt: toISOString(data.updatedAt),
-        };
-      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    } catch (error) {
-      console.error('Error getting envelope allocations:', error);
-      throw error;
-    }
+    const data = await this.getMonthData(userId, month);
+    return data.allocations;
   }
 
   async createEnvelopeAllocation(allocation: Omit<EnvelopeAllocation, 'id' | 'createdAt' | 'updatedAt'>): Promise<EnvelopeAllocation> {
     try {
       const now = Timestamp.now();
-      const docRef = doc(collection(db, 'users', allocation.userId, 'envelopeAllocations'));
+      const docRef = doc(db, 'users', allocation.userId, 'monthlyBudgets', allocation.month);
 
-      const firestoreData: FirestoreEnvelopeAllocation = {
-        id: docRef.id,
-        userId: allocation.userId,
-        envelopeId: allocation.envelopeId,
-        month: allocation.month,
-        budgetedAmount: allocation.budgetedAmount.toString(),
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      await setDoc(docRef, firestoreData);
+      // Use dot notation to update the specific key in the embedded map
+      await updateDoc(docRef, {
+        [`allocations.${allocation.envelopeId}`]: allocation.budgetedAmount,
+        updatedAt: now
+      });
 
       return {
         ...allocation,
-        id: docRef.id,
+        id: allocation.envelopeId,
         createdAt: toISOString(now),
         updatedAt: toISOString(now),
       };
@@ -197,35 +153,49 @@ export class MonthlyBudgetService {
     toMonth: string
   ): Promise<void> {
     try {
-      // Copy income sources
-      const incomeSources = await this.getIncomeSources(userId, fromMonth);
-      for (const source of incomeSources) {
-        await this.createIncomeSource({
-          ...source,
-          month: toMonth,
-        });
-      }
-
-      // Copy envelope allocations
-      const allocations = await this.getEnvelopeAllocations(userId, fromMonth);
-      for (const allocation of allocations) {
-        await this.createEnvelopeAllocation({
-          ...allocation,
-          month: toMonth,
-        });
-      }
-
-      // Calculate total income and create new monthly budget
-      const totalIncome = incomeSources.reduce((sum, source) => sum + source.amount, 0);
-      const totalAllocations = allocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0);
-      const availableToBudget = totalIncome - totalAllocations;
-
-      await this.createOrUpdateMonthlyBudget({
+      // 1. Get source budget data
+      const sourceData = await this.getMonthData(userId, fromMonth);
+      
+      const now = Timestamp.now();
+      
+      // 2. Prepare new Income Sources
+      const newIncomeSources: FirestoreIncomeSource[] = sourceData.incomeSources.map(src => ({
+        id: `inc_${now.toMillis()}_${Math.random().toString(36).substr(2, 9)}`,
+        userId: userId,
+        month: toMonth,
+        name: src.name,
+        amount: src.amount,
+        frequency: src.frequency,
+        category: src.category,
+        createdAt: now,
+        updatedAt: now
+      }));
+      
+      // 3. Prepare new Allocations Map
+      const newAllocationsMap: Record<string, number> = {};
+      sourceData.allocations.forEach(alloc => {
+        newAllocationsMap[alloc.envelopeId] = alloc.budgetedAmount;
+      });
+      
+      // 4. Calculate totals
+      const totalIncome = newIncomeSources.reduce((sum, s) => sum + s.amount, 0);
+      const totalAllocations = Object.values(newAllocationsMap).reduce((sum, a) => sum + a, 0);
+      
+      // 5. Create new budget document
+      const targetId = `${userId}_${toMonth}`;
+      const firestoreData: FirestoreMonthlyBudget = {
+        id: targetId,
         userId,
         month: toMonth,
         totalIncome,
-        availableToBudget,
-      });
+        availableToBudget: totalIncome - totalAllocations,
+        createdAt: now,
+        updatedAt: now,
+        allocations: newAllocationsMap,
+        incomeSources: newIncomeSources
+      };
+      
+      await setDoc(doc(db, 'users', userId, 'monthlyBudgets', toMonth), firestoreData);
 
     } catch (error) {
       console.error('Error copying month data:', error);
@@ -234,48 +204,73 @@ export class MonthlyBudgetService {
   }
 
   // Delete methods
-  async deleteIncomeSource(userId: string, sourceId: string): Promise<void> {
+  async deleteIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
     try {
-      const docRef = doc(db, 'users', userId, 'incomeSources', sourceId);
-      await deleteDoc(docRef);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) return;
+      
+      const data = docSnap.data();
+      const currentSources = data.incomeSources || [];
+      const updatedSources = currentSources.filter((s: any) => s.id !== sourceId);
+      
+      await updateDoc(docRef, { 
+        incomeSources: updatedSources,
+        updatedAt: Timestamp.now()
+      });
     } catch (error) {
       console.error('Error deleting income source:', error);
       throw error;
     }
   }
 
-  async updateIncomeSource(userId: string, sourceId: string, updates: Partial<Omit<FirestoreIncomeSource, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
+  async updateIncomeSource(userId: string, sourceId: string, month: string, updates: Partial<Omit<FirestoreIncomeSource, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
     try {
-      const docRef = doc(db, 'users', userId, 'incomeSources', sourceId);
-      const updateData = {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      };
-      await setDoc(docRef, updateData, { merge: true });
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) return;
+      
+      const data = docSnap.data();
+      const currentSources = data.incomeSources || [];
+      const updatedSources = currentSources.map((s: any) => 
+        s.id === sourceId ? { ...s, ...updates, updatedAt: Timestamp.now() } : s
+      );
+      
+      await updateDoc(docRef, { 
+        incomeSources: updatedSources,
+        updatedAt: Timestamp.now() 
+      });
     } catch (error) {
       console.error('Error updating income source:', error);
       throw error;
     }
   }
 
-  async deleteEnvelopeAllocation(userId: string, allocationId: string): Promise<void> {
+  async deleteEnvelopeAllocation(userId: string, allocationId: string, month: string): Promise<void> {
     try {
-      const docRef = doc(db, 'users', userId, 'envelopeAllocations', allocationId);
-      await deleteDoc(docRef);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      await updateDoc(docRef, {
+        [`allocations.${allocationId}`]: deleteField(),
+        updatedAt: Timestamp.now()
+      });
     } catch (error) {
       console.error('Error deleting envelope allocation:', error);
       throw error;
     }
   }
 
-  async updateEnvelopeAllocation(userId: string, allocationId: string, updates: Partial<Omit<FirestoreEnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
+  async updateEnvelopeAllocation(userId: string, allocationId: string, month: string, updates: Partial<Omit<FirestoreEnvelopeAllocation, 'id' | 'userId' | 'month' | 'createdAt'>>): Promise<void> {
     try {
-      const docRef = doc(db, 'users', userId, 'envelopeAllocations', allocationId);
-      const updateData = {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      };
-      await setDoc(docRef, updateData, { merge: true });
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      
+      if (updates.budgetedAmount !== undefined) {
+        await updateDoc(docRef, {
+          [`allocations.${allocationId}`]: updates.budgetedAmount,
+          updatedAt: Timestamp.now()
+        });
+      }
     } catch (error) {
       console.error('Error updating envelope allocation:', error);
       throw error;
@@ -285,33 +280,15 @@ export class MonthlyBudgetService {
   // Clear all data for a month
   async clearMonthData(userId: string, month: string): Promise<void> {
     try {
-      // Get all data for this month
-      const [incomeSources, allocations] = await Promise.all([
-        this.getIncomeSources(userId, month),
-        this.getEnvelopeAllocations(userId, month)
-      ]);
-
-      // Delete all income sources
-      const incomeDeletePromises = incomeSources.map(source =>
-        this.deleteIncomeSource(userId, source.id)
-      );
-
-      // Delete all envelope allocations
-      const allocationDeletePromises = allocations.map(allocation =>
-        this.deleteEnvelopeAllocation(userId, allocation.id)
-      );
-
-      // Execute all deletions
-      await Promise.all([...incomeDeletePromises, ...allocationDeletePromises]);
-
-      // Update or reset the monthly budget
-      await this.createOrUpdateMonthlyBudget({
-        userId,
-        month,
+      // Just reset the document fields
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      await updateDoc(docRef, {
         totalIncome: 0,
         availableToBudget: 0,
+        incomeSources: [],
+        allocations: {},
+        updatedAt: Timestamp.now()
       });
-
     } catch (error) {
       console.error('Error clearing month data:', error);
       throw error;
@@ -321,12 +298,9 @@ export class MonthlyBudgetService {
   // Calculate available to budget for a month
   async calculateAvailableToBudget(userId: string, month: string): Promise<number> {
     try {
-      const incomeSources = await this.getIncomeSources(userId, month);
-      const allocations = await this.getEnvelopeAllocations(userId, month);
-
-      const totalIncome = incomeSources.reduce((sum, source) => sum + source.amount, 0);
-      const totalAllocations = allocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0);
-
+      const data = await this.getMonthData(userId, month);
+      const totalIncome = data.incomeSources.reduce((sum, source) => sum + source.amount, 0);
+      const totalAllocations = data.allocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0);
       return totalIncome - totalAllocations;
     } catch (error) {
       console.error('Error calculating available to budget:', error);
@@ -335,47 +309,14 @@ export class MonthlyBudgetService {
   }
 
   // Real-time subscription methods
-  subscribeToMonthlyBudget(userId: string, month: string, callback: (budget: any | null) => void): Unsubscribe {
-    const docRef = doc(db, 'monthlyBudgets', `${userId}_${month}`);
+  subscribeToMonthlyBudget(userId: string, month: string, callback: (budget: FirestoreMonthlyBudget | null) => void): Unsubscribe {
+    const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
     return onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data() as any;
-        callback(data);
+        callback(docSnap.data() as FirestoreMonthlyBudget);
       } else {
         callback(null);
       }
-    });
-  }
-
-  subscribeToIncomeSources(userId: string, month: string, callback: (sources: any[]) => void): Unsubscribe {
-    const q = query(
-      collection(db, 'users', userId, 'incomeSources'),
-      where('month', '==', month)
-    );
-    return onSnapshot(q, (querySnapshot) => {
-      const sources = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
-        const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
-        return timeA - timeB;
-      });
-      callback(sources);
-    });
-  }
-
-  subscribeToEnvelopeAllocations(userId: string, month: string, callback: (allocations: any[]) => void): Unsubscribe {
-    const q = query(
-      collection(db, 'users', userId, 'envelopeAllocations'),
-      where('month', '==', month)
-    );
-    return onSnapshot(q, (querySnapshot) => {
-      const allocations = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      callback(allocations);
     });
   }
 }

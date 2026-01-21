@@ -977,6 +977,14 @@ export const useBudgetStore = create<BudgetState>()(
                     isLoading: false
                 }));
                 
+                // Update in backend
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) return;
+
+                // Pass month to service
+                await budgetService.updateIncomeSource(currentUser.id, source.id, month, source);
+                
                 console.log('✅ Updated income source:', source.id);
                 
             } catch (error) {
@@ -1002,6 +1010,14 @@ export const useBudgetStore = create<BudgetState>()(
                     },
                     isLoading: false
                 }));
+                
+                // Delete from backend
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) return;
+
+                // Pass month to service
+                await budgetService.deleteIncomeSource(currentUser.id, sourceId, month);
                 
                 console.log('✅ Deleted income source:', sourceId);
                 
@@ -1306,8 +1322,8 @@ export const useBudgetStore = create<BudgetState>()(
                 const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
                 const service = MonthlyBudgetService.getInstance();
                 
-                await service.updateEnvelopeAllocation(currentUser.id, id, {
-                    budgetedAmount: updates.budgetedAmount?.toString()
+                await service.updateEnvelopeAllocation(currentUser.id, id, currentMonth, {
+                  budgetedAmount: updates.budgetedAmount
                 });
                 
                 // Update local state
@@ -1419,7 +1435,7 @@ export const useBudgetStore = create<BudgetState>()(
                 const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
                 const service = MonthlyBudgetService.getInstance();
                 
-                await service.deleteEnvelopeAllocation(currentUser.id, id);
+                await service.deleteEnvelopeAllocation(currentUser.id, id, currentMonth);
                 
                 // Update local state
                 set(state => ({

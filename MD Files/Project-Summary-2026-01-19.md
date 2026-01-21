@@ -1,6 +1,8 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-20**: Completed Phase 3 Data Migration: Normalized database types (numbers instead of strings) and embedded allocations/income sources into monthly budget documents for optimized performance (1 read vs N+1).
+- **2026-01-20**: Implemented full Piggybank reordering with "Moveable" drag-and-drop and accessible up/down arrow controls, mirroring the spending envelope experience.
 - **2026-01-19**: Fixed "Copy Previous Month" logic to automatically create funding transactions for spending envelopes, ensuring "Current Balance" is correct immediately.
 - **2026-01-19**: Implemented "Time Machine" Restore: Restore from backup now performs a full cloud wipe and replace, preserving original IDs and relationships.
 - **2026-01-19**: Fixed Piggybank balance display issue in EnvelopeListView (now correctly handling Decimal types).

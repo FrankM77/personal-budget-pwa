@@ -361,7 +361,7 @@ export class BudgetService {
           userId: data.userId,
           month: data.month,
           name: data.name,
-          amount: parseFloat(data.amount),
+          amount: data.amount, // Now a number
           frequency: data.frequency,
           category: data.category,
           createdAt: toISOString(data.createdAt),
@@ -383,7 +383,7 @@ export class BudgetService {
           userId: data.userId,
           envelopeId: data.envelopeId,
           month: data.month,
-          budgetedAmount: parseFloat(data.budgetedAmount),
+          budgetedAmount: data.budgetedAmount, // Now a number
           createdAt: toISOString(data.createdAt),
           updatedAt: toISOString(data.updatedAt),
         } as EnvelopeAllocation;

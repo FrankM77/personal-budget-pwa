@@ -24,7 +24,6 @@ export const SettingsView: React.FC = () => {
   const [isCleaningData, setIsCleaningData] = useState(false);
 
   // Dummy usage to satisfy TypeScript linter (operationResult IS used in JSX)
-  console.log(operationResult);
 
   const APPLE_EPOCH_OFFSET = 978307200;
 

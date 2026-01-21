@@ -12,7 +12,7 @@ export interface FirestoreAppSettings {
 export interface FirestoreTransaction {
   id: string;
   envelopeId: string;
-  amount: string;
+  amount: number; // Normalized: number instead of string
   date: Timestamp;
   description: string;
   merchant?: string;
@@ -34,7 +34,7 @@ export interface FirestoreTransaction {
 export interface FirestoreDistributionTemplate {
   id: string;
   name: string;
-  distributions: Record<string, string>;
+  distributions: Record<string, number>; // Normalized
   lastUsed: Timestamp;
   note: string;
   userId?: string;
@@ -45,10 +45,13 @@ export interface FirestoreMonthlyBudget {
   id: string;
   userId: string;
   month: string; // Format: "2025-01"
-  totalIncome: string; // Sum of all income sources for the month
-  availableToBudget: string; // Total minus envelope allocations
+  totalIncome: number; // Normalized
+  availableToBudget: number; // Normalized
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // Embedded Data (Phase 3.1)
+  allocations?: Record<string, number>; // Map: envelopeId -> budgetedAmount
+  incomeSources?: FirestoreIncomeSource[]; // Embedded Array
 }
 
 export interface FirestoreIncomeSource {
@@ -56,7 +59,7 @@ export interface FirestoreIncomeSource {
   userId: string;
   month: string; // Format: "2025-01"
   name: string; // e.g., "Primary Job", "Freelance", "Investments"
-  amount: string; // Monthly amount
+  amount: number; // Normalized
   frequency: 'monthly' | 'weekly' | 'biweekly';
   category?: string; // Optional grouping
   createdAt: Timestamp;
@@ -68,7 +71,7 @@ export interface FirestoreEnvelopeAllocation {
   userId: string;
   envelopeId: string;
   month: string; // Format: "2025-01"
-  budgetedAmount: string; // Allocated amount for this envelope this month
+  budgetedAmount: number; // Normalized
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

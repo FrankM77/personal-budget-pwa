@@ -99,9 +99,9 @@ export const toFirestore = (
     data.date = Timestamp.fromDate(toDate(tx.date));
   }
 
-  // 2. Ensure Amount is stored as string (Matching your current schema)
+  // 2. Amount is now stored as number (Normalized Schema)
   if (tx.amount !== undefined) {
-    data.amount = tx.amount.toString();
+    data.amount = tx.amount;
   }
 
   // 3. Format Type
@@ -122,7 +122,7 @@ export const transactionToFirestore = toFirestore;
 export const transactionUpdatesToFirestore = (tx: Transaction): Omit<FirestoreTransaction, 'id' | 'userId'> => {
   const updates: any = {
     envelopeId: tx.envelopeId,
-    amount: tx.amount.toString(),
+    amount: tx.amount, // Store as number
     date: Timestamp.fromDate(toDate(tx.date)),
     description: tx.description,
     merchant: tx.merchant || null,
