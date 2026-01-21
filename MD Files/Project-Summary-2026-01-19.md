@@ -213,11 +213,12 @@ Piggybanks are special envelopes that persist across months with auto-contributi
 ## 8. Next Steps & Roadmap
 
 ### Current Priorities ✅
-- Firebase data structure reorg
-- Monthly budget auto-calculation
-- Envelope deletion cascade
-- Store refactor
-- Email verification, account deletion, password strength validation
+- Firebase data structure reorg (Done)
+- Monthly budget auto-calculation (Done)
+- Envelope deletion cascade (Done)
+- Store refactor (Done)
+- Email verification, account deletion, password strength validation (Done)
+- **Database Optimization (Phase 3) (Done)** ✅
 
 ### Future Enhancements
 - Enhance CSV export to match new data structure

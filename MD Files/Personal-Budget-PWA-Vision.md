@@ -246,9 +246,9 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 
 ### 🎯 **Next Steps - Phase 3**
 - **✅ Split Transactions**: Completed with multi-envelope support, validation, and UI polish
-- **🚀 IMMEDIATE FOCUS - Piggybanks (Savings Goals)**: Build savings goal experience ✅ COMPLETED
-- **Enhanced Analytics**: Spending patterns, budget variance analysis (after piggybanks)
-- **Transaction Management Enhancements**: Advanced filtering/editing (after analytics)
+- **✅ Piggybanks (Savings Goals)**: Complete with reordering, month-scoping, and auto-contributions.
+- **🚀 IMMEDIATE FOCUS - Enhanced Analytics**: Spending patterns, budget variance analysis.
+- **Transaction Management Enhancements**: Advanced filtering/editing.
 
 ### 📱 **Mobile/Desktop UX Patterns Established**
 - **Mobile**: Tap for primary action (edit), swipe for secondary action (delete)

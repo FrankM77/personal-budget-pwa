@@ -809,6 +809,36 @@ async function addMonthField(userId: string) {
 
 ## Status Log
 
+### 2026-01-21: Phase 2 & 3 Complete ✅ - Architecture Unified & Optimized
+
+**Summary:** Successfully completed Phase 2 (Architecture Consolidation) and Phase 3 (Database Optimization). The application now operates on a unified `BudgetStore` with a clean, optimized data layer that adheres to the ideal "Greenfield" architecture.
+
+**Accomplishments:**
+- **Store Consolidation (Phase 2.1):** Merged `envelopeStore` and `monthlyBudgetStore` into a single `BudgetStore`, eliminating circular dependencies and simplifying state management.
+- **Offline Architecture (Phase 2.3):** Dismantled the custom "Nervous System" sync queue. The app now relies fully on Firebase's native `enableIndexedDbPersistence` for robust offline support with optimistic updates.
+- **Embedded Allocations (Phase 3.1):** `BudgetService` now reads and writes income sources and envelope allocations as **embedded maps/arrays** within `monthlyBudgets/{month}` documents. This has drastically reduced read operations.
+- **Type Normalization (Phase 3.2):** Implemented strict mappers that force all transaction amounts to be stored as `numbers` in Firestore, removing the need for fragile string parsing in the UI.
+- **Query Optimization (Phase 3.3):** Added a denormalized `month` field to all transactions, enabling efficient monthly querying without complex date filtering.
+
+**Remaining Polish:**
+- **Repository Pattern:** `BudgetService` is centralized but effectively acts as a hybrid Service/Repository. Strict separation is a low-priority polish item.
+- **UI/UX:** Continuous refinement of animations (Card Stack, Moveable lists).
+
+**Impact:**
+- **Performance:** Significant reduction in Firestore reads due to embedded allocations.
+- **Maintainability:** Single source of truth for state (`BudgetStore`) and data access (`BudgetService`).
+- **Stability:** Offline mode is now handled by the platform SDK, reducing custom code surface area.
+
+**Files Modified:**
+- `src/stores/budgetStore.ts` (Unified store)
+- `src/services/budgetService.ts` (Unified service with embedded logic)
+- `src/mappers/transaction.ts` (Strict type enforcement)
+- `src/hooks/useEnvelopeList.ts` (Logic extracted)
+
+**Project Status:** ✅ **Architecture Complete**. Ready for Feature Development.
+
+---
+
 ### 2026-01-16: Phase 1 Complete ✅ + Critical Bug Fixes
 
 **Summary:** Successfully completed Phase 1 of the architecture refactor with significant improvements to code organization, type safety, and maintainability. Additionally resolved critical production bugs affecting piggybank functionality and budget calculations.
