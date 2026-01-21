@@ -1,6 +1,7 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-21**: **Phase 3.2 & 3.3 Transaction Migration Logic.** Added `migrateTransactions` utility and "Migrate DB Types" button in Settings to normalize transaction amounts to numbers and populate missing `month` keys. Updated transaction mapper to enforce number types and auto-generate `month` keys on all future saves.
 - **2026-01-20**: **Phase 2.3 Complete: Native Offline Mode.** Removed legacy manual sync logic (`pendingSync`) and implemented true optimistic UI updates for all write operations in `BudgetService`.
 - **2026-01-20**: Fixed "Creating..." hang in offline mode by ensuring Firestore write operations are non-blocking (fire-and-forget) while returning local data immediately.
 - **2026-01-20**: Refactored `BudgetService` to use Collection-based patterns for `IncomeSource` and `EnvelopeAllocation` to ensure data consistency between reads and writes.

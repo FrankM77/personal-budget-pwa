@@ -101,7 +101,8 @@ export const toFirestore = (
 
   // 2. Amount is now stored as number (Normalized Schema)
   if (tx.amount !== undefined) {
-    data.amount = tx.amount;
+    // Force number type
+    data.amount = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
   }
 
   // 3. Format Type
@@ -112,6 +113,15 @@ export const toFirestore = (
   // 4. Handle Nullables explicitly (Firebase prefers null over undefined)
   if (tx.merchant === undefined) data.merchant = null;
   if (tx.transferId === undefined) data.transferId = null;
+
+  // 5. Add Month Field (Denormalized for Querying)
+  if (tx.date && !data.month) {
+    try {
+      data.month = toMonthKey(toDate(tx.date));
+    } catch (e) {
+      // Ignore invalid dates
+    }
+  }
   
   return data;
 };
