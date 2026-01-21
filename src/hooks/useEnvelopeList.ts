@@ -275,7 +275,7 @@ export const useEnvelopeList = () => {
       await fetchData();
       
       showToast(
-        `"${currentMonth}" budget cleared successfully`,
+        `"${currentMonth}" budget and transactions cleared successfully`,
         'success'
       );
     } catch (error) {

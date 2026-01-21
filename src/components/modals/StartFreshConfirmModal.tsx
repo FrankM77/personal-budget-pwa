@@ -9,6 +9,8 @@ interface StartFreshConfirmModalProps {
   totalIncome: number;
   allocationCount: number;
   totalAllocated: number;
+  transactionCount: number;
+  totalTransactionAmount: number;
   isLoading?: boolean;
 }
 
@@ -21,6 +23,8 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
   totalIncome,
   allocationCount,
   totalAllocated,
+  transactionCount,
+  totalTransactionAmount,
   isLoading = false,
 }) => {
   const [confirmationText, setConfirmationText] = useState('');
@@ -84,6 +88,7 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
                       <ul className="space-y-1">
                         <li>• {incomeCount} income source{incomeCount !== 1 ? 's' : ''} (totaling ${totalIncome.toFixed(2)}/month)</li>
                         <li>• {allocationCount} envelope allocation{allocationCount !== 1 ? 's' : ''} (totaling ${totalAllocated.toFixed(2)})</li>
+                        <li>• {transactionCount} transaction{transactionCount !== 1 ? 's' : ''} (totaling ${totalTransactionAmount.toFixed(2)})</li>
                       </ul>
                     </div>
                   </div>
@@ -99,7 +104,7 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      <strong>All other months will remain completely unchanged.</strong> This only affects the current month's budget data.
+                      <strong>All other months will remain completely unchanged.</strong> This only affects the current month's budget data, income sources, allocations, and all transactions.
                     </p>
                   </div>
                 </div>

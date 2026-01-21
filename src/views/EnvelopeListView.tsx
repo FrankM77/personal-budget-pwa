@@ -1262,7 +1262,18 @@ export const EnvelopeListView: React.FC = () => {
       {/* This modal is no longer used for editing, but we'll leave it for now in case it's needed elsewhere. */}
       {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => visibleEnvelopes.find((e: any) => e.id === envelopeId)?.name || ''} /> */}
 
-        <StartFreshConfirmModal isVisible={startFreshModalVisible} onClose={() => setStartFreshModalVisible(false)} onConfirm={handleStartFreshConfirm} currentMonth={currentMonth} incomeCount={(incomeSources[currentMonth] || []).length} totalIncome={(incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0)} allocationCount={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).length} totalAllocated={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)} />
+        <StartFreshConfirmModal 
+          isVisible={startFreshModalVisible} 
+          onClose={() => setStartFreshModalVisible(false)} 
+          onConfirm={handleStartFreshConfirm} 
+          currentMonth={currentMonth} 
+          incomeCount={(incomeSources[currentMonth] || []).length} 
+          totalIncome={(incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0)} 
+          allocationCount={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).length} 
+          totalAllocated={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)}
+          transactionCount={transactions.filter(t => t.month === currentMonth).length}
+          totalTransactionAmount={transactions.filter(t => t.month === currentMonth).reduce((sum, t) => sum + t.amount, 0)}
+        />
       </div>
     </div>
     </>

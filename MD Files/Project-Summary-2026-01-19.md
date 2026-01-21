@@ -1,6 +1,11 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-21**: **Enhanced "Start Fresh" Functionality**: Updated "Start Fresh" to provide true clean slate by deleting ALL transactions for the month along with income sources and allocations. This fixes data integrity issues where orphaned transactions remained after clearing budgets.
+  - Updated confirmation modal to show transaction count and total amount
+  - Enhanced MonthlyBudgetService to delete transactions for the specified month
+  - Improved user transparency about what will be deleted
+  - Ensures complete data consistency when starting fresh
 - **2026-01-21**: **Phase 3 Complete: Architectural Shift to Embedded Data.** Successfully migrated all `incomeSources` and `envelopeAllocations` from separate subcollections into the `monthlyBudgets` parent document. 
   - Reduced Firestore reads from ~22+ per month to exactly 1.
   - Refactored `BudgetService` to handle atomic read/writes for the whole month state.
@@ -43,6 +48,7 @@
 - **Complete Authentication System**: Email verification, account deletion, enhanced login security.
 - Enhanced user experience with streamlined navigation, account management, and connectivity troubleshooting.
 - **🏆 Recent Achievements**:
+  - **Enhanced "Start Fresh"**: Complete month reset now deletes all transactions, eliminating orphaned data and ensuring true clean slate functionality
   - **Stability & Polish**: Resolved critical race conditions causing duplicate transactions and delayed balance updates.
   - **Data Integrity**: Implemented self-healing logic to ensure budget allocations always match the transaction ledger.
   - **UI Refinements**: Polished Settings page layout, centered titles, and improved data summary readability.

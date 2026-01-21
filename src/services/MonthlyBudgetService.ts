@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp, deleteField, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import { onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -328,7 +328,7 @@ export class MonthlyBudgetService {
   // Clear all data for a month
   async clearMonthData(userId: string, month: string): Promise<void> {
     try {
-      // Just reset the document fields
+      // 1. Clear the monthly budget document
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       await updateDoc(docRef, {
         totalIncome: 0,
@@ -337,6 +337,24 @@ export class MonthlyBudgetService {
         allocations: {},
         updatedAt: Timestamp.now()
       });
+
+      // 2. Delete all transactions for that month
+      const transactionsQuery = query(
+        collection(db, 'users', userId, 'transactions'),
+        where('month', '==', month)
+      );
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      
+      if (transactionsSnapshot.size > 0) {
+        const deletePromises = transactionsSnapshot.docs.map(doc => 
+          deleteDoc(doc.ref)
+        );
+        
+        await Promise.all(deletePromises);
+        console.log(`🗑️ Deleted ${transactionsSnapshot.size} transactions for month ${month}`);
+      } else {
+        console.log(`📭 No transactions found for month ${month}`);
+      }
     } catch (error) {
       console.error('Error clearing month data:', error);
       throw error;
