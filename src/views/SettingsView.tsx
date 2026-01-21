@@ -558,8 +558,7 @@ export const SettingsView: React.FC = () => {
 
         {/* App Version */}
         <div className="text-center py-4">
-          <p className="text-xs text-gray-400 dark:text-zinc-500">Version 1.2.0 (PWA)</p>
-        </div>
+                      <p className="text-xs text-gray-400 dark:text-zinc-500">Version {__APP_VERSION__} (PWA)</p>        </div>
 
         {/* Operation Result Modal */}
         {operationResult && (
