@@ -28,10 +28,6 @@ interface BudgetState {
   // === CONTEXT ===
   currentMonth: string; // "YYYY-MM"
   isOnline: boolean;
-  pendingSync: boolean;
-  resetPending: boolean;
-  isImporting: boolean;
-  testingConnectivity: boolean;
   isLoading: boolean;
   error: string | null;
 
@@ -55,8 +51,6 @@ interface BudgetState {
   importData: (data: any) => Promise<{ success: boolean; message: string }>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
   initializeAppSettings: () => Promise<void>;
-  syncData: () => Promise<void>;
-  testConnectivity: () => Promise<void>;
   updateOnlineStatus: () => Promise<void>;
   updatePiggybankContribution: (envelopeId: string, newAmount: number) => Promise<void>;
   fetchMonthData: (month: string) => Promise<void>;
@@ -90,10 +84,6 @@ export const useBudgetStore = create<BudgetState>()(
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         isLoading: false,
         error: null,
-        pendingSync: false,
-        resetPending: false,
-        isImporting: false,
-        testingConnectivity: false,
 
         // Actions
         fetchMonthData: async (month: string) => {
@@ -809,33 +799,6 @@ export const useBudgetStore = create<BudgetState>()(
                 throw error;
             }
         },
-        syncData: async () => {
-            // Simply call init() to sync all data
-            await get().init();
-        },
-        testConnectivity: async () => {
-            console.log('🌐 Testing connectivity');
-            try {
-                set({ testingConnectivity: true });
-                
-                // Simple connectivity test - try to fetch data
-                await get().init();
-                
-                set({ 
-                    testingConnectivity: false,
-                    isOnline: true
-                });
-                console.log('✅ Connectivity test passed');
-                
-            } catch (error) {
-                console.error('❌ Connectivity test failed:', error);
-                set({ 
-                    testingConnectivity: false,
-                    isOnline: false,
-                    error: error instanceof Error ? error.message : 'Connectivity test failed'
-                });
-            }
-        },
         updatePiggybankContribution: async (envelopeId: string, newAmount: number): Promise<void> => {
             try {
                 set({ isLoading: true, error: null });
@@ -925,10 +888,7 @@ export const useBudgetStore = create<BudgetState>()(
                 console.log('🔧 Adding income source:', { month, source });
                 
                 // Create income source via service
-                const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
-                const service = MonthlyBudgetService.getInstance();
-                
-                const newIncomeSource = await service.createIncomeSource({
+                const newIncomeSource = await budgetService.createIncomeSource({
                     ...source,
                     userId: currentUser.id,
                     month
@@ -1259,10 +1219,7 @@ export const useBudgetStore = create<BudgetState>()(
                 const currentMonth = get().currentMonth;
                 
                 // Create allocation via service
-                const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
-                const service = MonthlyBudgetService.getInstance();
-                
-                const newAllocation = await service.createEnvelopeAllocation({
+                const newAllocation = await budgetService.createEnvelopeAllocation({
                     envelopeId: allocation.envelopeId,
                     budgetedAmount: allocation.budgetedAmount,
                     userId: currentUser.id,
@@ -1319,10 +1276,7 @@ export const useBudgetStore = create<BudgetState>()(
                 const isPiggybank = envelope?.isPiggybank;
                 
                 // Update allocation via service
-                const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
-                const service = MonthlyBudgetService.getInstance();
-                
-                await service.updateEnvelopeAllocation(currentUser.id, id, currentMonth, {
+                await budgetService.updateEnvelopeAllocation(currentUser.id, id, currentMonth, {
                   budgetedAmount: updates.budgetedAmount
                 });
                 
@@ -1432,10 +1386,7 @@ export const useBudgetStore = create<BudgetState>()(
                 }
                 
                 // Delete allocation via service
-                const { MonthlyBudgetService } = await import('../services/MonthlyBudgetService');
-                const service = MonthlyBudgetService.getInstance();
-                
-                await service.deleteEnvelopeAllocation(currentUser.id, id, currentMonth);
+                await budgetService.deleteEnvelopeAllocation(currentUser.id, id, currentMonth);
                 
                 // Update local state
                 set(state => ({

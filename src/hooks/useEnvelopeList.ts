@@ -48,9 +48,6 @@ export const useEnvelopeList = () => {
     fetchData, 
     isLoading, 
     isOnline, 
-    pendingSync, 
-    syncData, 
-    testingConnectivity, 
     reorderEnvelopes 
   } = useBudgetStore();
 
@@ -302,18 +299,15 @@ export const useEnvelopeList = () => {
     isInitialLoading,
     isOnline,
     showTimeoutMessage,
-    pendingSync,
     
     // Functions
     getEnvelopeBalance,
     fetchData,
-    syncData,
     reorderEnvelopes: reorderEnvelopesList,
     deleteIncomeSource: deleteIncomeSourceWithToast,
     clearMonthData: clearMonthDataWithToast,
     copyFromPreviousMonth: copyFromPreviousMonthWithToast,
     setEnvelopeAllocation,
-    testingConnectivity,
     
     // Local state refs for reordering
     localOrderRef,

@@ -343,15 +343,12 @@ export const EnvelopeListView: React.FC = () => {
     isInitialLoading,
     isOnline,
     showTimeoutMessage,
-    pendingSync,
     getEnvelopeBalance,
-    syncData,
     reorderEnvelopes,
     deleteIncomeSource,
     clearMonthData,
     copyFromPreviousMonth,
     setEnvelopeAllocation,
-    testingConnectivity,
     localOrderRef,
     setLocalEnvelopes,
     localPiggybankOrderRef,
@@ -1007,15 +1004,6 @@ export const EnvelopeListView: React.FC = () => {
                   <RefreshCw size={16} className="animate-spin" />
                   <span className="text-sm font-medium">Syncing...</span>
                 </div>
-              ) : pendingSync ? (
-                <button
-                  onClick={syncData}
-                  className="flex items-center gap-1 text-orange-500 hover:text-orange-600 transition-colors"
-                  title="Sync pending - tap to sync"
-                >
-                  <RefreshCw size={16} />
-                  <span className="text-sm font-medium">Sync</span>
-                </button>
               ) : (
                 <div className="flex items-center gap-1 text-green-500">
                   <Wifi size={16} />
@@ -1026,7 +1014,7 @@ export const EnvelopeListView: React.FC = () => {
               <div className="flex items-center gap-1 text-gray-500">
                 <WifiOff size={16} />
                 <span className="text-sm font-medium">
-                  {testingConnectivity ? 'Testing...' : isLoading ? 'Saving...' : 'Offline'}
+                  {isLoading ? 'Saving...' : 'Offline'}
                 </span>
               </div>
             )}

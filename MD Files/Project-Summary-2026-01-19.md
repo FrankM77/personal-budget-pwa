@@ -1,6 +1,10 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-20**: **Phase 2.3 Complete: Native Offline Mode.** Removed legacy manual sync logic (`pendingSync`) and implemented true optimistic UI updates for all write operations in `BudgetService`.
+- **2026-01-20**: Fixed "Creating..." hang in offline mode by ensuring Firestore write operations are non-blocking (fire-and-forget) while returning local data immediately.
+- **2026-01-20**: Refactored `BudgetService` to use Collection-based patterns for `IncomeSource` and `EnvelopeAllocation` to ensure data consistency between reads and writes.
+- **2026-01-20**: Cleaned up `budgetStore` and `envelopeStoreRealtime` by removing unused legacy sync code and helper functions.
 - **2026-01-20**: Completed Phase 3 Data Migration: Normalized database types (numbers instead of strings) and embedded allocations/income sources into monthly budget documents for optimized performance (1 read vs N+1).
 - **2026-01-20**: Implemented full Piggybank reordering with "Moveable" drag-and-drop and accessible up/down arrow controls, mirroring the spending envelope experience.
 - **2026-01-19**: Fixed "Copy Previous Month" logic to automatically create funding transactions for spending envelopes, ensuring "Current Balance" is correct immediately.

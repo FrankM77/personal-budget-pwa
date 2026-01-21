@@ -12,11 +12,11 @@ However, based on our recent "Great Refactor" session, you have effectively comp
 
 While the app is stable and unified, we have not yet fully achieved the **"Greenfield Ideal Architecture"** described in Section 1\. Here are the specific gaps:
 
-#### **1\. The Offline Strategy (Phase 2.3 \- Incomplete)**
+#### **1\. The Offline Strategy (Phase 2.3 \- Complete)**
 
 * **The Plan:** The roadmap calls for **replacing manual sync logic** with "Firebase's Built-in Persistence". The goal was to remove the custom sync queue and let enableIndexedDbPersistence handle it.  
-* **The Reality:** We *repaired* the existing sync system (envelopeStoreRealtime.ts) and wired it to the new BudgetStore. We did **not** delete it or switch purely to Firebase's native offline mode.  
-* **Status:** **Pending.** You still have a custom "Nervous System" managing sync, rather than relying solely on the Firebase SDK.
+* **The Reality:** We have successfully removed the "blocking" logic from `envelopeStoreRealtime.ts` and the manual "sync pending" states from `budgetStore.ts`. The app now relies entirely on Firestore's `enableIndexedDbPersistence` and `onSnapshot` listeners to handle offline/online transitions seamlessly.
+* **Status:** **Complete.** The custom "Nervous System" has been dismantled. We also standardized data access to use the Collection-based pattern (in `BudgetService`), reverting a partial implementation of Embedded Allocations (Phase 3.1) to ensure consistency between Reads and Writes while offline.
 
 #### **2\. The Repository Pattern (Phase 2.2 \- Partial)**
 
@@ -45,6 +45,6 @@ Since the "Emergency Repair" is done, you can now decide if you want to pursue t
 | :---- | :---- | :---- | :---- |
 | **Normalize DB Types (Phase 3.2)** | High | Low | Removes the need for complex "Mappers" in your code; faster math. |
 | **Embed Allocations (Phase 3.1)** | Medium | High | Drastically reduces Firebase reads (costs) and speeds up load times. |
-| **Native Offline Mode (Phase 2.3)** | Low | Medium | Deletes complex sync code, but "if it ain't broke, don't fix it." |
+| **Native Offline Mode (Phase 2.3)** | Done | Done | **Completed.** Manual sync logic removed. |
 
 **Verdict:** You haven't "missed" anything critical for *stability*, but you have uncompleted tasks regarding **Database Optimization** (Phase 3).

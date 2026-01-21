@@ -1,5 +1,6 @@
-import { collection, doc, getDoc, setDoc, deleteDoc, query, where, getDocs, onSnapshot, Timestamp, updateDoc, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp, deleteField } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
+import { onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
   FirestoreMonthlyBudget,
@@ -69,6 +70,53 @@ export class MonthlyBudgetService {
       };
     } catch (error) {
       console.error('Error creating/updating monthly budget:', error);
+      throw error;
+    }
+  }
+
+  async getMonthData(userId: string, month: string): Promise<{ incomeSources: IncomeSource[], allocations: EnvelopeAllocation[] }> {
+    try {
+      const budget = await this.getMonthlyBudget(userId, month);
+      
+      if (!budget) {
+        return { incomeSources: [], allocations: [] };
+      }
+
+      // Fetch the raw document to get embedded data
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        return { incomeSources: [], allocations: [] };
+      }
+      
+      const data = docSnap.data() as FirestoreMonthlyBudget;
+
+      const incomeSources: IncomeSource[] = (data.incomeSources || []).map(src => ({
+        id: src.id,
+        userId: src.userId,
+        month: src.month,
+        name: src.name,
+        amount: src.amount,
+        frequency: src.frequency || 'monthly',
+        category: src.category,
+        createdAt: toISOString(src.createdAt),
+        updatedAt: toISOString(src.updatedAt)
+      }));
+
+      const allocations: EnvelopeAllocation[] = Object.entries(data.allocations || {}).map(([envelopeId, amount]) => ({
+        id: envelopeId,
+        userId: userId,
+        envelopeId: envelopeId,
+        month: month,
+        budgetedAmount: amount,
+        createdAt: toISOString(data.createdAt),
+        updatedAt: toISOString(data.updatedAt)
+      }));
+
+      return { incomeSources, allocations };
+    } catch (error) {
+      console.error('Error getting month data:', error);
       throw error;
     }
   }
@@ -165,7 +213,7 @@ export class MonthlyBudgetService {
         month: toMonth,
         name: src.name,
         amount: src.amount,
-        frequency: src.frequency,
+        frequency: src.frequency || 'monthly',
         category: src.category,
         createdAt: now,
         updatedAt: now
