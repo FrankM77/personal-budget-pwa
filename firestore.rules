@@ -13,7 +13,7 @@ service cloud.firestore {
 
     // Users collection - each user can only access their own subcollections
     match /users/{userId} {
-      // Allow users to read/write their own user document (if needed)
+      // Allow users to read/write their own user document
       allow read, write: if isOwner(userId);
 
       // Envelopes subcollection
@@ -33,6 +33,21 @@ service cloud.firestore {
 
       // Distribution templates subcollection
       match /distributionTemplates/{templateId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Envelope allocations subcollection
+      match /envelopeAllocations/{allocationId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Income sources subcollection
+      match /incomeSources/{sourceId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Monthly budgets subcollection
+      match /monthlyBudgets/{monthId} {
         allow read, write: if isOwner(userId);
       }
     }
