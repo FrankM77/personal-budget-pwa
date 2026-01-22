@@ -1,4 +1,4 @@
-import { collection, query, orderBy, where, getDocs, doc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, onSnapshot, arrayUnion, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, onSnapshot, arrayUnion, getDoc, deleteField } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation } from '../models/types';
@@ -703,37 +703,38 @@ export class BudgetService {
 
   // === Real-time Subscriptions ===
 
-  subscribeToIncomeSources(userId: string, month: string, callback: (sources: IncomeSource[]) => void): Unsubscribe {
-    const q = query(
-      collection(db, 'users', userId, 'incomeSources'),
-      where('month', '==', month)
-    );
+  subscribeToMonthlyBudget(userId: string, month: string, callback: (data: { incomeSources: IncomeSource[], allocations: EnvelopeAllocation[] }) => void): Unsubscribe {
+    const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
 
-    return onSnapshot(q, (snapshot) => {
-      const sources = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: toISOString(doc.data().createdAt),
-        updatedAt: toISOString(doc.data().updatedAt)
-      })) as IncomeSource[];
-      callback(sources);
-    });
-  }
+    return onSnapshot(docRef, (docSnap) => {
+      if (!docSnap.exists()) {
+        callback({ incomeSources: [], allocations: [] });
+        return;
+      }
 
-  subscribeToEnvelopeAllocations(userId: string, month: string, callback: (allocations: EnvelopeAllocation[]) => void): Unsubscribe {
-    const q = query(
-      collection(db, 'users', userId, 'envelopeAllocations'),
-      where('month', '==', month)
-    );
+      const data = docSnap.data();
+      
+      // Parse Income Sources (Embedded Array)
+      const incomeSources = (data.incomeSources || []).map((source: any) => ({
+        ...source,
+        amount: Number(source.amount), // Ensure number
+        createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
+        updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
+      })).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    return onSnapshot(q, (snapshot) => {
-      const allocations = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: toISOString(doc.data().createdAt),
-        updatedAt: toISOString(doc.data().updatedAt)
-      })) as EnvelopeAllocation[];
-      callback(allocations);
+      // Parse Allocations (Embedded Map: envelopeId -> amount)
+      const allocationsMap = data.allocations || {};
+      const allocations = Object.entries(allocationsMap).map(([envelopeId, amount]) => ({
+        id: envelopeId, // Use envelopeId as allocation ID
+        userId,
+        envelopeId,
+        month,
+        budgetedAmount: Number(amount),
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(), // Fallback to doc creation time
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
+      })).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+      callback({ incomeSources, allocations });
     });
   }
 

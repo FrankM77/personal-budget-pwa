@@ -3,7 +3,7 @@ import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
 import { budgetService } from '../services/budgetService';
-import type { Transaction, Envelope, AppSettings, IncomeSource, EnvelopeAllocation } from '../models/types';
+import type { Transaction, Envelope, AppSettings } from '../models/types';
 import { fromFirestore } from '../mappers/transaction';
 
 type BudgetStoreLike = {
@@ -82,26 +82,18 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     budgetStore.setState({ appSettings: firebaseSettings });
   });
 
-  // Subscribe to income sources
-  const unsubscribeIncomeSources = budgetService.subscribeToIncomeSources(userId, currentMonth, (incomeSources: IncomeSource[]) => {
-      console.log('🔄 Real-time sync: Income sources updated', incomeSources.length);
+  // Subscribe to monthly budget (Income Sources & Allocations)
+  const unsubscribeMonthlyBudget = budgetService.subscribeToMonthlyBudget(userId, currentMonth, (data) => {
+      console.log(`🔄 Real-time sync: Monthly budget updated (${data.incomeSources.length} sources, ${data.allocations.length} allocations)`);
       const currentState = budgetStore.getState();
       budgetStore.setState({ 
         incomeSources: {
           ...currentState.incomeSources,
-          [currentMonth]: incomeSources
-        }
-      });
-  });
-
-  // Subscribe to allocations
-  const unsubscribeAllocations = budgetService.subscribeToEnvelopeAllocations(userId, currentMonth, (allocations: EnvelopeAllocation[]) => {
-      console.log('🔄 Real-time sync: Allocations updated', allocations.length);
-      const currentState = budgetStore.getState();
-      budgetStore.setState({ 
+          [currentMonth]: data.incomeSources
+        },
         allocations: {
           ...currentState.allocations,
-          [currentMonth]: allocations
+          [currentMonth]: data.allocations
         }
       });
   });
@@ -112,8 +104,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     transactions: unsubscribeTransactions,
     templates: unsubscribeTemplates,
     settings: unsubscribeSettings,
-    incomeSources: unsubscribeIncomeSources,
-    allocations: unsubscribeAllocations
+    monthlyBudget: unsubscribeMonthlyBudget
   };
 
   console.log('✅ Real-time subscriptions active - cross-device sync enabled');
@@ -167,8 +158,7 @@ export const setupEnvelopeStoreRealtime = (params: {
         if (unsubscribers.transactions) unsubscribers.transactions();
         if (unsubscribers.templates) unsubscribers.templates();
         if (unsubscribers.settings) unsubscribers.settings();
-        if (unsubscribers.incomeSources) unsubscribers.incomeSources();
-        if (unsubscribers.allocations) unsubscribers.allocations();
+        if (unsubscribers.monthlyBudget) unsubscribers.monthlyBudget();
         delete (window as any).__firebaseUnsubscribers;
         console.log('🧹 Cleaned up Firebase subscriptions');
       }
@@ -190,30 +180,22 @@ export const setupEnvelopeStoreRealtime = (params: {
         const unsubscribers = (window as any).__firebaseUnsubscribers;
         
         // Unsubscribe from old month
-        if (unsubscribers.incomeSources) unsubscribers.incomeSources();
-        if (unsubscribers.allocations) unsubscribers.allocations();
+        if (unsubscribers.monthlyBudget) unsubscribers.monthlyBudget();
         
         console.log('🔄 Unsubscribed from old month data');
         
         // Subscribe to new month
-        unsubscribers.incomeSources = budgetService.subscribeToIncomeSources(userId, state.currentMonth, (incomeSources: IncomeSource[]) => {
-            console.log('🔄 Real-time sync: Income sources updated for new month');
+        unsubscribers.monthlyBudget = budgetService.subscribeToMonthlyBudget(userId, state.currentMonth, (data) => {
+            console.log('🔄 Real-time sync: Monthly budget updated for new month');
             const currentState = useBudgetStore.getState();
             useBudgetStore.setState({ 
               incomeSources: {
                 ...currentState.incomeSources,
-                [state.currentMonth]: incomeSources
-              }
-            });
-        });
-
-        unsubscribers.allocations = budgetService.subscribeToEnvelopeAllocations(userId, state.currentMonth, (allocations: EnvelopeAllocation[]) => {
-            console.log('🔄 Real-time sync: Allocations updated for new month');
-            const currentState = useBudgetStore.getState();
-            useBudgetStore.setState({ 
+                [state.currentMonth]: data.incomeSources
+              },
               allocations: {
                 ...currentState.allocations,
-                [state.currentMonth]: allocations
+                [state.currentMonth]: data.allocations
               }
             });
         });
