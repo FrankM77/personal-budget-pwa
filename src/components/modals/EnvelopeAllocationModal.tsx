@@ -129,12 +129,20 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
               </span>
               <input
                 ref={amountInputRef}
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/\D/g, ''); // Strip non-digits
+                  if (!rawValue) {
+                    setAmount('');
+                    return;
+                  }
+                  const cents = parseInt(rawValue, 10);
+                  const dollars = (cents / 100).toFixed(2);
+                  setAmount(dollars);
+                }}
                 placeholder="0.00"
-                step="0.01"
-                min="0"
                 className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-zinc-800 dark:text-white"
                 required
                 autoComplete="off"

@@ -155,16 +155,18 @@ export const AddTransactionView: React.FC = () => {
             <div className="relative inline-block">
               <span className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-2xl ${amountColor}`}>$</span>
               <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={amount}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  // Ensure we don't set invalid values
-                  if (value === '' || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
-                    setAmount(value);
+                  const rawValue = e.target.value.replace(/\D/g, ''); // Strip non-digits
+                  if (!rawValue) {
+                    setAmount('');
+                    return;
                   }
+                  const cents = parseInt(rawValue, 10);
+                  const dollars = (cents / 100).toFixed(2);
+                  setAmount(dollars);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
