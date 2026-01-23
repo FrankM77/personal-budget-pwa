@@ -24,6 +24,9 @@ input[type="number"] {
 
     /* 2. Remove the grey flash when tapping buttons */
     -webkit-tap-highlight-color: transparent;
+
+    /* 3. Use tabular figures for all numbers (prevents layout shift) */
+    font-variant-numeric: tabular-nums;
   }
 
   /* CRITICAL: Re-enable selection for inputs so users can actually type! */

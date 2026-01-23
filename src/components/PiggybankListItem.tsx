@@ -360,7 +360,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
         background: accentBackground, 
         borderColor: accentBorder
       }}
-      className="rounded-xl p-4 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none"
+      className="rounded-xl p-4 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99]"
     >
       {content}
     </motion.div>

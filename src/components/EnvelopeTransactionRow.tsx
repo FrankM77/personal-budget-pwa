@@ -89,7 +89,7 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
   return (
     <div 
       onClick={onEdit}
-      className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 active:bg-gray-50 dark:active:bg-zinc-800 transition-colors cursor-pointer group border-b border-gray-100 dark:border-zinc-800 last:border-0"
+      className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 active:bg-gray-50 dark:active:bg-zinc-800 active:scale-[0.99] transition-all cursor-pointer group border-b border-gray-100 dark:border-zinc-800 last:border-0"
     >
       <div className="flex flex-col gap-1 overflow-hidden">
         {/* Main Title: Merchant (preferred) or Description */}
