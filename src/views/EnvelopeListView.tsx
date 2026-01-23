@@ -210,11 +210,11 @@ const EnvelopeListItem = ({
         </div>
         <div className="flex justify-between items-center">
           <div
-            className="flex items-center space-x-4"
+            className="flex items-center gap-x-4"
             onPointerDown={(e) => e.stopPropagation()}
           >
             {editingEnvelopeId === env.id ? (
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center gap-x-1">
                 <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
                 <form onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}>
                   <input
@@ -243,7 +243,7 @@ const EnvelopeListItem = ({
                   setEditingEnvelopeId(env.id);
                   setEditingAmount(budgetedAmount.toString());
                 }}
-                className="flex items-center space-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-3 py-2 rounded transition-colors cursor-pointer js-budget-target"
+                className="flex items-center gap-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-3 py-2 rounded transition-colors cursor-pointer js-budget-target"
               >
                 <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
                 <span className="font-medium text-gray-900 dark:text-white">${budgetedAmount.toFixed(2)}</span>

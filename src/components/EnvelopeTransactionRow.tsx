@@ -94,7 +94,7 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
       <div className="flex flex-col gap-1 overflow-hidden">
         {/* Main Title: Merchant (preferred) or Description */}
         <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900 dark:text-white truncate">
+            <span className="font-semibold text-gray-900 dark:text-white truncate">
                 {transaction.merchant || transaction.description || "No Description"}
             </span>
             {transaction.reconciled && (
