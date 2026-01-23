@@ -27,6 +27,9 @@ input[type="number"] {
 
     /* 3. Use tabular figures for all numbers (prevents layout shift) */
     font-variant-numeric: tabular-nums;
+
+    /* 4. Set base background to prevent white flash during transitions */
+    @apply bg-gray-50 dark:bg-black;
   }
 
   /* CRITICAL: Re-enable selection for inputs so users can actually type! */

@@ -1,18 +1,12 @@
 import { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
-import { EnvelopeListView } from './views/EnvelopeListView';
-import EnvelopeDetail from './views/EnvelopeDetail';
-import { SettingsView } from './views/SettingsView';
-import { AddEnvelopeView } from './views/AddEnvelopeView';
-import { AddTransactionView } from './views/AddTransactionView';
-import { TransactionHistoryView } from './views/TransactionHistoryView';
+import { HashRouter } from 'react-router-dom';
 import { LoginView } from './views/LoginView';
 import { EmailVerificationView } from './views/EmailVerificationView';
-import CardStackDemo from './views/CardStackDemo';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNavigation } from './components/BottomNavigation';
+import { AppRoutes } from './components/AppRoutes';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
 
@@ -114,72 +108,7 @@ function App() {
 
             
       <HashRouter>
-        <Routes>
-          <Route 
-            path="/" 
-            element={
-              <ErrorBoundary>
-                <EnvelopeListView />
-              </ErrorBoundary>
-            } 
-          />
-          <Route 
-            path="/envelope/:id" 
-            element={
-              <ErrorBoundary>
-                <EnvelopeDetail />
-              </ErrorBoundary>
-            } 
-          />
-          <Route 
-            path="/add-envelope" 
-            element={
-              <ErrorBoundary>
-                <AddEnvelopeView />
-              </ErrorBoundary>
-            } 
-          />
-          <Route 
-            path="/add-transaction" 
-            element={
-              <ErrorBoundary>
-                <AddTransactionView />
-              </ErrorBoundary>
-            } 
-          />
-          <Route 
-            path="/transactions" 
-            element={
-              <ErrorBoundary>
-                <TransactionHistoryView />
-              </ErrorBoundary>
-            } 
-          />
-          <Route 
-            path="/settings" 
-            element={
-              <ErrorBoundary>
-                <SettingsView />
-              </ErrorBoundary>
-            } 
-          />
-          <Route
-            path="/verify-email"
-            element={
-              <ErrorBoundary>
-                <EmailVerificationView />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/card-stack"
-            element={
-              <ErrorBoundary>
-                <CardStackDemo />
-              </ErrorBoundary>
-            }
-          />
-        </Routes>
+        <AppRoutes />
         {/* Bottom Navigation - Only show on main app pages */}
         <BottomNavigation />
       </HashRouter>
