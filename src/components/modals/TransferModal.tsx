@@ -95,11 +95,19 @@ const TransferModal: React.FC<Props> = ({ isVisible, onClose, sourceEnvelope }) 
             <div className="relative inline-block">
               <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-2xl text-blue-600 dark:text-blue-400">$</span>
               <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/\D/g, ''); // Strip non-digits
+                  if (!rawValue) {
+                    setAmount('');
+                    return;
+                  }
+                  const cents = parseInt(rawValue, 10);
+                  const dollars = (cents / 100).toFixed(2);
+                  setAmount(dollars);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
                     e.preventDefault();
