@@ -128,14 +128,17 @@ export const useBudgetStore = create<BudgetState>()(
 
                         const matchingTx = monthTransactions.find(t => 
                             t.envelopeId === alloc.envelopeId && 
-                            (t.description === 'Monthly Budget Allocation' || t.description === 'Monthly Allocation')
+                            (t.description === 'Monthly Budget Allocation' || 
+                             t.description === 'Monthly Allocation' ||
+                             t.description === 'Budgeted' ||
+                             t.description === 'Piggybank Contribution')
                         );
 
                         if (!matchingTx) {
                             if (alloc.budgetedAmount > 0) {
                                 console.log(`🔧 Repairing missing transaction for envelope ${envelope?.name || alloc.envelopeId}`);
                                 await currentState.addTransaction({
-                                    description: 'Monthly Budget Allocation',
+                                    description: 'Budgeted',
                                     amount: alloc.budgetedAmount,
                                     envelopeId: alloc.envelopeId,
                                     type: 'Income',
@@ -843,7 +846,7 @@ export const useBudgetStore = create<BudgetState>()(
                     isLoading: false
                 }));
                 
-                // Update the monthly budget allocation (this creates the allocation transaction)
+                // Update the piggybank contribution (this creates the allocation transaction)
                 if (!piggybank.piggybankConfig?.paused) {
                     try {
                         await get().setEnvelopeAllocation(envelopeId, newAmount);
@@ -852,14 +855,14 @@ export const useBudgetStore = create<BudgetState>()(
                         setTimeout(() => {
                             const allocationTx = get().transactions.find(tx => 
                                 tx.envelopeId === envelopeId && 
-                                tx.description === 'Monthly Budget Allocation'
+                                (tx.description === 'Monthly Allocation' || tx.description === 'Piggybank Contribution')
                             );
                             if (!allocationTx) {
-                                console.warn('⚠️ Monthly allocation transaction not found after update');
+                                console.warn('⚠️ Piggybank contribution transaction not found after update');
                             }
                         }, 1000);
                     } catch (error) {
-                        console.error('❌ Failed to update monthly budget allocation:', error);
+                        console.error('❌ Failed to update piggybank contribution:', error);
                     }
                 }
                 
@@ -1052,7 +1055,7 @@ export const useBudgetStore = create<BudgetState>()(
                         // This mirrors the behavior of setEnvelopeAllocation
                         if (alloc.budgetedAmount > 0) {
                             await get().addTransaction({
-                                description: 'Monthly Budget Allocation',
+                                description: 'Budgeted',
                                 amount: alloc.budgetedAmount,
                                 envelopeId: alloc.envelopeId,
                                 type: 'Income',
@@ -1145,12 +1148,19 @@ export const useBudgetStore = create<BudgetState>()(
                     const existingTransaction = get().transactions.find(t => 
                         t.envelopeId === envelopeId && 
                         t.month === currentMonth &&
-                        t.description === 'Monthly Allocation'
+                        (t.description === 'Monthly Allocation' || t.description === 'Piggybank Contribution')
                     );
                     
-                    if (!existingTransaction) {
+                    if (existingTransaction) {
                         const transactionData = {
-                            description: 'Monthly Allocation',
+                            ...existingTransaction,
+                            amount: budgetedAmount,
+                            description: 'Piggybank Contribution' // Force update description
+                        };
+                        await get().updateTransaction(transactionData);
+                    } else {
+                        const transactionData = {
+                            description: 'Piggybank Contribution',
                             amount: budgetedAmount,
                             envelopeId: envelopeId,
                             type: 'Income' as const,
@@ -1164,25 +1174,27 @@ export const useBudgetStore = create<BudgetState>()(
                     }
                 }
                 
-                // For regular spending envelopes, create/update Monthly Budget Allocation transaction
+                // For regular spending envelopes, create/update Budgeted transaction
                 if (!isPiggybank && budgetedAmount > 0) {
-                    // Check if a Monthly Budget Allocation transaction already exists for this month
+                    // Check if a Budgeted transaction already exists for this month
                     const existingTransaction = get().transactions.find(t => 
                         t.envelopeId === envelopeId && 
                         t.month === currentMonth &&
-                        t.description === 'Monthly Budget Allocation'
+                        (t.description === 'Monthly Budget Allocation' || t.description === 'Budgeted')
                     );
                     
                     if (existingTransaction) {
                         // Update existing transaction
-                        await get().updateTransaction({
+                        const transactionData = {
                             ...existingTransaction,
-                            amount: budgetedAmount
-                        });
+                            amount: budgetedAmount,
+                            description: 'Budgeted' // Force update description
+                        };
+                        await get().updateTransaction(transactionData);
                     } else {
                         // Create new transaction
                         const transactionData = {
-                            description: 'Monthly Budget Allocation',
+                            description: 'Budgeted',
                             amount: budgetedAmount,
                             envelopeId: envelopeId,
                             type: 'Income' as const,
@@ -1297,7 +1309,7 @@ export const useBudgetStore = create<BudgetState>()(
                     const existingTransaction = get().transactions.find(t => 
                         t.envelopeId === allocation.envelopeId && 
                         t.month === currentMonth &&
-                        t.description === 'Monthly Allocation'
+                        (t.description === 'Monthly Allocation' || t.description === 'Piggybank Contribution')
                     );
                     
                     if (existingTransaction) {
@@ -1305,7 +1317,8 @@ export const useBudgetStore = create<BudgetState>()(
                             // Update existing transaction
                             await get().updateTransaction({
                                 ...existingTransaction,
-                                amount: updates.budgetedAmount
+                                amount: updates.budgetedAmount,
+                                description: 'Piggybank Contribution' // Force update description
                             });
                         } else if (updates.budgetedAmount === 0 || envelope?.piggybankConfig?.paused) {
                             // Delete transaction if amount is 0 or piggybank is paused
@@ -1314,7 +1327,7 @@ export const useBudgetStore = create<BudgetState>()(
                     } else if (updates.budgetedAmount > 0 && !envelope?.piggybankConfig?.paused) {
                         // Create new transaction if none exists and amount > 0
                         await get().addTransaction({
-                            description: 'Monthly Allocation',
+                            description: 'Piggybank Contribution',
                             amount: updates.budgetedAmount,
                             envelopeId: allocation.envelopeId,
                             type: 'Income',
@@ -1326,13 +1339,13 @@ export const useBudgetStore = create<BudgetState>()(
                     }
                 }
                 
-                // For regular spending envelopes, create/update Monthly Budget Allocation transaction
+                // For regular spending envelopes, create/update Budgeted transaction
                 if (!isPiggybank && updates.budgetedAmount !== undefined) {
-                    // Find the existing Monthly Budget Allocation transaction
+                    // Find the existing Budgeted transaction
                     const existingTransaction = get().transactions.find(t => 
                         t.envelopeId === allocation.envelopeId && 
                         t.month === currentMonth &&
-                        t.description === 'Monthly Budget Allocation'
+                        (t.description === 'Monthly Budget Allocation' || t.description === 'Budgeted')
                     );
                     
                     if (existingTransaction) {
@@ -1340,7 +1353,8 @@ export const useBudgetStore = create<BudgetState>()(
                             // Update existing transaction
                             await get().updateTransaction({
                                 ...existingTransaction,
-                                amount: updates.budgetedAmount
+                                amount: updates.budgetedAmount,
+                                description: 'Budgeted' // Force update description
                             });
                         } else if (updates.budgetedAmount === 0) {
                             // Delete transaction if amount is 0
@@ -1349,7 +1363,7 @@ export const useBudgetStore = create<BudgetState>()(
                     } else if (updates.budgetedAmount > 0) {
                         // Create new transaction if none exists and amount > 0
                         await get().addTransaction({
-                            description: 'Monthly Budget Allocation',
+                            description: 'Budgeted',
                             amount: updates.budgetedAmount,
                             envelopeId: allocation.envelopeId,
                             type: 'Income',

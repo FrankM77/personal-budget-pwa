@@ -81,7 +81,7 @@ const EnvelopeDetail: React.FC = () => {
             // If it's a piggybank, filter by creation date
             if (currentEnvelope.isPiggybank) {
                 // Always show monthly allocation transactions regardless of date
-                if (t.description === 'Monthly Allocation' && t.isAutomatic) {
+                if ((t.description === 'Monthly Allocation' || t.description === 'Piggybank Contribution') && t.isAutomatic) {
                     return true;
                 }
                 

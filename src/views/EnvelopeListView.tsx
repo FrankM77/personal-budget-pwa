@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
 import { MonthSelector } from '../components/ui/MonthSelector';
-import { AvailableToBudget } from '../components/ui/AvailableToBudget';
 import { UserMenu } from '../components/ui/UserMenu';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
@@ -1044,211 +1043,208 @@ export const EnvelopeListView: React.FC = () => {
           </div>
         </div>
 
-        {/* Available to Budget */}
-        <AvailableToBudget
-          amount={availableToBudget}
-          totalIncome={(incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0)}
-          totalAllocated={(allocations[currentMonth] || [])
-            .filter(allocation => visibleEnvelopes.some((env: any) => env.id === allocation.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === allocation.envelopeId))
-            .reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)}
-          isLoading={isLoading}
-          variant="header"
-        />
-
-        {/* Month Selector */}
+        {/* Combined Month Selector & Budget Status */}
         <MonthSelector
           currentMonth={currentMonth}
           onMonthChange={(newMonth) => {
             setShowCopyPrompt(false);
             setMonth(newMonth);
           }}
+          budgetStatus={{
+            amount: availableToBudget,
+            totalIncome: (incomeSources[currentMonth] || []).reduce((sum, source) => sum + source.amount, 0),
+            totalAllocated: (allocations[currentMonth] || [])
+              .filter(allocation => visibleEnvelopes.some((env: any) => env.id === allocation.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === allocation.envelopeId))
+              .reduce((sum, allocation) => sum + allocation.budgetedAmount, 0)
+          }}
         />
       </header>
 
 
-    <div className="pt-[calc(10rem+env(safe-area-inset-top))] p-4 max-w-md mx-auto space-y-6">
+    <div className="pt-[calc(7rem+env(safe-area-inset-top))] p-4 max-w-md mx-auto space-y-6">
       {/* Copy Previous Month Prompt */}
-      {showCopyPrompt && (
+      {showCopyPrompt ? (
         <CopyPreviousMonthPrompt
           currentMonth={currentMonth}
           onCopy={handleCopyPreviousMonth}
-          onDismiss={() => setShowCopyPrompt(false)}
         />
-      )}
-
-      {/* Income Sources Section */}
-      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income Sources</h2>
-          <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
-            <PlusCircle size={20} />
-          </button>
-        </div>
-        {(incomeSources[currentMonth] || []).length === 0 ? (
-          <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
-        ) : (
-          <div className="space-y-3">
-            <AnimatePresence initial={false} mode="popLayout">
-              {(incomeSources[currentMonth] || []).map((source) => (
-                <motion.div key={source.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                  <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
-                    <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 dark:text-white">{source.name}</p>
-                        <p className="text-sm text-gray-600 dark:text-zinc-400">Monthly income</p>
-                      </div>
-                      <p className="font-semibold text-green-600 dark:text-emerald-400">${source.amount.toFixed(2)}</p>
-                    </div>
-                  </SwipeableRow>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )
-      }
-      </section>
-
-      {/* Spending Envelopes Section */}
-      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Envelopes</h2>
-          <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Envelope">
-            <PlusCircle size={20} />
-          </button>
-        </div>
-        {visibleEnvelopes.length === 0 ? (
-          <div className="text-center py-6">
-            <Wallet className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-zinc-400 text-sm mb-4">
-              {visibleEnvelopes.length === 0 
-                ? "No envelopes added to this month. Copy from previous month or add new ones."
-                : "No envelopes yet. Create one to get started."}
-            </p>
-            <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 font-medium hover:text-blue-700 dark:hover:text-blue-200 transition-colors">Create First Envelope</button>
-          </div>
-         ) : (
-           <div ref={reorderConstraintsRef}>
-             <AnimatePresence initial={false}>
-               <div className="space-y-3">
-                 {visibleEnvelopes.map((env: any, index: number) => {
-                   const allocation = (allocations[currentMonth] || []).find(alloc => alloc.envelopeId === env.id);
-                   const budgetedAmount = allocation?.budgetedAmount || 0;
-                   const remainingBalance = getEnvelopeBalance(env.id);
-
-                   const handleMoveUp = () => {
-                     if (index === 0) return;
-                     const newOrder = [...localOrderRef.current];
-                     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-                     localOrderRef.current = newOrder;
-                     setLocalEnvelopes(newOrder);
-                     reorderEnvelopes(newOrder);
-                   };
-
-                   const handleMoveDown = () => {
-                     if (index === visibleEnvelopes.length - 1) return;
-                     const newOrder = [...localOrderRef.current];
-                     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-                     localOrderRef.current = newOrder;
-                     setLocalEnvelopes(newOrder);
-                     reorderEnvelopes(newOrder);
-                   };
-
-                   return (
-                     <EnvelopeListItem
-                       key={env.id}
-                       env={env}
-                       budgetedAmount={budgetedAmount}
-                       remainingBalance={remainingBalance}
-                       editingEnvelopeId={editingEnvelopeId}
-                       setEditingEnvelopeId={setEditingEnvelopeId}
-                       editingAmount={editingAmount}
-                       setEditingAmount={setEditingAmount}
-                       handleBudgetSave={handleBudgetSave}
-                       navigate={navigate}
-                       inputRef={inputRef}
-                       transactions={transactions}
-                       currentMonth={currentMonth}
-                       setMoveableRef={setMoveableRef}
-                       isReorderingActive={isReordering}
-                       activelyDraggingId={activelyDraggingId}
-                       onItemDragStart={handleItemDragStart}
-                       onMoveUp={handleMoveUp}
-                       onMoveDown={handleMoveDown}
-                       isFirst={index === 0}
-                       isLast={index === visibleEnvelopes.length - 1}
-                       isReorderUnlocked={isReorderUnlocked}
-                     />
-                   );
-                 })}
-               </div>
-             </AnimatePresence>
-           </div>
-         )}
-      </section>
-
-      {/* Piggybanks Section */}
-      <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
-            Piggybanks
-          </h2>
-          <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
-            <PlusCircle size={20} />
-          </button>
-        </div>
-         {piggybanks.length > 0 ? (
-           <div ref={piggybankReorderConstraintsRef} className="relative">
-             <AnimatePresence initial={false}>
-               <div className="space-y-3">
-                 {piggybanks.map((piggybank: any, index: number) => {
-                   const handleMoveUp = () => {
-                     if (index === 0) return;
-                     const newOrder = [...localPiggybankOrderRef.current];
-                     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-                     localPiggybankOrderRef.current = newOrder;
-                     setLocalPiggybanks(newOrder);
-                     reorderEnvelopes(newOrder);
-                   };
-
-                   const handleMoveDown = () => {
-                     if (index === piggybanks.length - 1) return;
-                     const newOrder = [...localPiggybankOrderRef.current];
-                     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-                     localPiggybankOrderRef.current = newOrder;
-                     setLocalPiggybanks(newOrder);
-                     reorderEnvelopes(newOrder);
-                   };
-
-                   return (
-                     <PiggybankListItem
-                       key={piggybank.id}
-                       piggybank={piggybank}
-                       balance={getEnvelopeBalance(piggybank.id)}
-                       onNavigate={(id) => navigate(`/envelope/${id}`)}
-                       setMoveableRef={setPiggybankMoveableRef(piggybank.id)}
-                       isReorderingActive={isReordering}
-                       activelyDraggingId={activelyDraggingPiggybankId}
-                       onItemDragStart={() => {}}
-                       onMoveUp={handleMoveUp}
-                       onMoveDown={handleMoveDown}
-                       isFirst={index === 0}
-                       isLast={index === piggybanks.length - 1}
-                       isReorderUnlocked={isReorderUnlocked}
-                     />
-                   );
-                 })}
-               </div>
-             </AnimatePresence>
-           </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
-              <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No piggybanks yet</p>
-              <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
+      ) : (
+        <>
+          {/* Income Sources Section */}
+          <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income Sources</h2>
+              <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
+                <PlusCircle size={20} />
+              </button>
             </div>
-          )}
-      </section>
+            {(incomeSources[currentMonth] || []).length === 0 ? (
+              <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {(incomeSources[currentMonth] || []).map((source) => (
+                    <motion.div key={source.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+                      <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
+                        <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 dark:text-white">{source.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-zinc-400">Monthly income</p>
+                          </div>
+                          <p className="font-semibold text-green-600 dark:text-emerald-400">${source.amount.toFixed(2)}</p>
+                        </div>
+                      </SwipeableRow>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )
+          }
+          </section>
+
+          {/* Spending Envelopes Section */}
+          <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Envelopes</h2>
+              <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Envelope">
+                <PlusCircle size={20} />
+              </button>
+            </div>
+            {visibleEnvelopes.length === 0 ? (
+              <div className="text-center py-6">
+                <Wallet className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-zinc-400 text-sm mb-4">
+                  {visibleEnvelopes.length === 0 
+                    ? "No envelopes added to this month. Copy from previous month or add new ones."
+                    : "No envelopes yet. Create one to get started."}
+                </p>
+                <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 font-medium hover:text-blue-700 dark:hover:text-blue-200 transition-colors">Create First Envelope</button>
+              </div>
+            ) : (
+              <div ref={reorderConstraintsRef}>
+                <AnimatePresence initial={false}>
+                  <div className="space-y-3">
+                    {visibleEnvelopes.map((env: any, index: number) => {
+                      const allocation = (allocations[currentMonth] || []).find(alloc => alloc.envelopeId === env.id);
+                      const budgetedAmount = allocation?.budgetedAmount || 0;
+                      const remainingBalance = getEnvelopeBalance(env.id);
+
+                      const handleMoveUp = () => {
+                        if (index === 0) return;
+                        const newOrder = [...localOrderRef.current];
+                        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                        localOrderRef.current = newOrder;
+                        setLocalEnvelopes(newOrder);
+                        reorderEnvelopes(newOrder);
+                      };
+
+                      const handleMoveDown = () => {
+                        if (index === visibleEnvelopes.length - 1) return;
+                        const newOrder = [...localOrderRef.current];
+                        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                        localOrderRef.current = newOrder;
+                        setLocalEnvelopes(newOrder);
+                        reorderEnvelopes(newOrder);
+                      };
+
+                      return (
+                        <EnvelopeListItem
+                          key={env.id}
+                          env={env}
+                          budgetedAmount={budgetedAmount}
+                          remainingBalance={remainingBalance}
+                          editingEnvelopeId={editingEnvelopeId}
+                          setEditingEnvelopeId={setEditingEnvelopeId}
+                          editingAmount={editingAmount}
+                          setEditingAmount={setEditingAmount}
+                          handleBudgetSave={handleBudgetSave}
+                          navigate={navigate}
+                          inputRef={inputRef}
+                          transactions={transactions}
+                          currentMonth={currentMonth}
+                          setMoveableRef={setMoveableRef}
+                          isReorderingActive={isReordering}
+                          activelyDraggingId={activelyDraggingId}
+                          onItemDragStart={handleItemDragStart}
+                          onMoveUp={handleMoveUp}
+                          onMoveDown={handleMoveDown}
+                          isFirst={index === 0}
+                          isLast={index === visibleEnvelopes.length - 1}
+                          isReorderUnlocked={isReorderUnlocked}
+                        />
+                      );
+                    })}
+                  </div>
+                </AnimatePresence>
+              </div>
+            )}
+          </section>
+
+          {/* Piggybanks Section */}
+          <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
+                Piggybanks
+              </h2>
+              <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
+                <PlusCircle size={20} />
+              </button>
+            </div>
+             {piggybanks.length > 0 ? (
+               <div ref={piggybankReorderConstraintsRef} className="relative">
+                 <AnimatePresence initial={false}>
+                   <div className="space-y-3">
+                     {piggybanks.map((piggybank: any, index: number) => {
+                       const handleMoveUp = () => {
+                         if (index === 0) return;
+                         const newOrder = [...localPiggybankOrderRef.current];
+                         [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                         localPiggybankOrderRef.current = newOrder;
+                         setLocalPiggybanks(newOrder);
+                         reorderEnvelopes(newOrder);
+                       };
+
+                       const handleMoveDown = () => {
+                         if (index === piggybanks.length - 1) return;
+                         const newOrder = [...localPiggybankOrderRef.current];
+                         [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                         localPiggybankOrderRef.current = newOrder;
+                         setLocalPiggybanks(newOrder);
+                         reorderEnvelopes(newOrder);
+                       };
+
+                       return (
+                         <PiggybankListItem
+                           key={piggybank.id}
+                           piggybank={piggybank}
+                           balance={getEnvelopeBalance(piggybank.id)}
+                           onNavigate={(id) => navigate(`/envelope/${id}`)}
+                           setMoveableRef={setPiggybankMoveableRef(piggybank.id)}
+                           isReorderingActive={isReordering}
+                           activelyDraggingId={activelyDraggingPiggybankId}
+                           onItemDragStart={() => {}}
+                           onMoveUp={handleMoveUp}
+                           onMoveDown={handleMoveDown}
+                           isFirst={index === 0}
+                           isLast={index === piggybanks.length - 1}
+                           isReorderUnlocked={isReorderUnlocked}
+                         />
+                       );
+                     })}
+                   </div>
+                 </AnimatePresence>
+               </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
+                  <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No piggybanks yet</p>
+                  <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
+                </div>
+              )}
+          </section>
+        </>
+      )}
 
       <button
         onClick={() => navigate('/add-transaction')}

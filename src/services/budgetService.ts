@@ -652,15 +652,42 @@ export class BudgetService {
         }
       }
 
-      // Delete orphaned allocations
+      // Delete orphaned allocations (Legacy Collection)
       if (orphanedAllocations.length > 0) {
         const deletePromises = orphanedAllocations.map(allocationId => 
           deleteDoc(doc(db, 'users', userId, 'envelopeAllocations', allocationId))
         );
         await Promise.all(deletePromises);
-        report.orphanedAllocationsDeleted = orphanedAllocations.length;
-        report.details.deletedAllocationIds = orphanedAllocations;
-        console.log(`🗑️ Deleted ${orphanedAllocations.length} orphaned allocations`);
+        report.orphanedAllocationsDeleted += orphanedAllocations.length;
+        report.details.deletedAllocationIds.push(...orphanedAllocations);
+        console.log(`🗑️ Deleted ${orphanedAllocations.length} orphaned allocations (legacy)`);
+      }
+
+      // Step 2b: Clean up embedded allocations in monthlyBudgets
+      const monthlyBudgetsCollection = collection(db, 'users', userId, 'monthlyBudgets');
+      const monthlyBudgetsSnapshot = await getDocs(monthlyBudgetsCollection);
+      
+      for (const docSnap of monthlyBudgetsSnapshot.docs) {
+        const data = docSnap.data();
+        const allocations = data.allocations || {};
+        const updates: any = {};
+        let hasUpdates = false;
+        
+        Object.keys(allocations).forEach(envelopeId => {
+          if (!envelopeIds.has(envelopeId)) {
+             updates[`allocations.${envelopeId}`] = deleteField();
+             hasUpdates = true;
+             console.log(`🗑️ Found orphaned embedded allocation in ${docSnap.id} for envelope ${envelopeId}`);
+             report.orphanedAllocationsDeleted++;
+             report.details.deletedAllocationIds.push(`${docSnap.id}_${envelopeId}`);
+          }
+        });
+        
+        if (hasUpdates) {
+          updates.updatedAt = Timestamp.now();
+          await updateDoc(docSnap.ref, updates);
+          monthsProcessed.add(docSnap.id);
+        }
       }
 
       // Step 3: Get all transactions and clean orphaned ones

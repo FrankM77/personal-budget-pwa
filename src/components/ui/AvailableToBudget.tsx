@@ -86,10 +86,12 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
     <div className={variant === 'header' ? 'py-1.5 px-2' : `rounded-2xl p-6 border ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
       {/* Header */}
       <div className={variant === 'header' ? 'flex items-center gap-3 mb-0.5' : `flex items-center justify-between mb-4`}>
-        <div className="flex-shrink-0 text-center">
-          <div className="text-xs text-gray-600 dark:text-zinc-400">Assigned:</div>
-          <div className="text-base font-semibold text-gray-900 dark:text-white">${safeTotalAllocated.toFixed(2)}</div>
-        </div>
+        {variant !== 'header' && (
+          <div className="flex-shrink-0 text-center">
+            <div className="text-xs text-gray-600 dark:text-zinc-400">Assigned:</div>
+            <div className="text-base font-semibold text-gray-900 dark:text-white">${safeTotalAllocated.toFixed(2)}</div>
+          </div>
+        )}
 
         {variant === 'header' && (
           <div className="flex-1 flex justify-center items-center">
