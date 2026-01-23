@@ -284,8 +284,13 @@ export class BudgetService {
       const docRef = doc(collectionRef);
       const now = Timestamp.now();
 
+      // Filter out undefined fields
+      const cleanTransaction = Object.fromEntries(
+        Object.entries(transaction).filter(([_, value]) => value !== undefined)
+      );
+
       const newTransactionData = {
-        ...transaction,
+        ...cleanTransaction,
         createdAt: now
       };
 

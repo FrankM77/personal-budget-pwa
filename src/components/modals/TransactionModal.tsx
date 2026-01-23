@@ -23,38 +23,37 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD for input
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
 
-  // Reset or Populate when opening (deferred to avoid synchronous setState in effect)
+  // Reset or Populate when opening
   useEffect(() => {
-    if (!isVisible) return undefined;
+    if (!isVisible) return;
 
-    const timeoutId = window.setTimeout(() => {
-      if (mode === 'edit' && initialTransaction) {
-        setAmount(initialTransaction.amount.toString()); // Convert number to string
-        setMerchant(initialTransaction.merchant || '');
-        setNote(initialTransaction.description);
-        setSelectedPaymentMethod(initialTransaction.paymentMethod || null);
-        try {
-          const d = new Date(initialTransaction.date);
-          if (!isNaN(d.getTime())) {
-            setDate(d.toISOString().split('T')[0]);
-          } else {
-            console.warn('Invalid date in transaction:', initialTransaction.date);
-            setDate(new Date().toISOString().split('T')[0]);
-          }
-        } catch (error) {
-          console.error('Error parsing transaction date:', error);
+    if (mode === 'edit' && initialTransaction) {
+      setAmount(initialTransaction.amount.toString()); // Convert number to string
+      setMerchant(initialTransaction.merchant || '');
+      setNote(initialTransaction.description);
+      setSelectedPaymentMethod(initialTransaction.paymentMethod || null);
+      try {
+        const d = new Date(initialTransaction.date);
+        if (!isNaN(d.getTime())) {
+          setDate(d.toISOString().split('T')[0]);
+        } else {
+          console.warn('Invalid date in transaction:', initialTransaction.date);
           setDate(new Date().toISOString().split('T')[0]);
         }
-      } else {
-        setAmount('');
-        setMerchant('');
-        setNote('');
+      } catch (error) {
+        console.error('Error parsing transaction date:', error);
         setDate(new Date().toISOString().split('T')[0]);
-        setSelectedPaymentMethod(null);
       }
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    } else {
+      setAmount('');
+      setMerchant('');
+      setNote('');
+      setDate(new Date().toISOString().split('T')[0]);
+      // Don't forcefully nullify if we want to keep the default, 
+      // but CardStack relies on null to trigger default selection.
+      // With setTimeout removed, the race condition should be resolved.
+      setSelectedPaymentMethod(null);
+    }
   }, [isVisible, mode, initialTransaction]);
 
   if (!isVisible) return null;
