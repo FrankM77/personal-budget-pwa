@@ -26,10 +26,12 @@
 │   └── workbox-5a5d9309.js
 ├── dist/
 ├── MD Files/
-│   ├── CloudSync.md
-│   ├── Deploy.md
-│   ├── Phase2_Status_Roadmap.md
-│   └── Project Summary.md
+│   ├── Complete-Roadmap-Review.md
+│   ├── Personal-Budget-PWA-Vision.md
+│   ├── Project-Summary-2026-01-19.md
+│   ├── Thirty-thousand-foot-view.MD
+│   ├── BUG_TESTING_GUIDE.md
+│   └── OFFLINE_TROUBLESHOOTING.md
 ├── public/
 │   ├── apple-touch-icon.png
 │   ├── icon-192.png
@@ -39,32 +41,67 @@
 │   ├── assets/
 │   │   └── react.svg
 │   ├── components/
+│   │   ├── BottomNavigation.tsx
+│   │   ├── EnvelopeReorderPlayground.tsx
+│   │   ├── EnvelopeTransactionRow.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── PiggybankListItem.tsx
+│   │   ├── SplitTransactionHelper.tsx
+│   │   ├── debug/
 │   │   ├── modals/
-│   │   │   ├── DistributeFundsModal.tsx
+│   │   │   ├── EnvelopeAllocationModal.tsx
+│   │   │   ├── IncomeSourceModal.tsx
+│   │   │   ├── PiggybankModal.tsx
+│   │   │   ├── StartFreshConfirmModal.tsx
 │   │   │   ├── TransactionModal.tsx
 │   │   │   └── TransferModal.tsx
-│   │   ├── ui/
+│   │   └── ui/
+│   │       ├── AvailableToBudget.tsx
+│   │       ├── CardStack.tsx
+│   │       ├── CopyPreviousMonthPrompt.tsx
+│   │       ├── LoadingScreen.tsx
+│   │       ├── MonthSelector.tsx
+│   │       ├── PasswordRequirementsChecklist.tsx
+│   │       ├── PasswordStrengthIndicator.tsx
 │   │       ├── SwipeableRow.tsx
-│   │       └── Toast.tsx
-│   │   └── EnvelopeTransactionRow.tsx
+│   │       ├── Toast.tsx
+│   │       └── UserMenu.tsx
+│   ├── firebase.ts
+│   ├── hooks/
+│   │   └── useEnvelopeList.ts
+│   ├── mappers/
+│   │   └── transactionMapper.ts
 │   ├── models/
 │   │   └── types.ts
 │   ├── services/
 │   │   ├── EnvelopeService.ts
+│   │   ├── MonthlyBudgetService.ts
 │   │   └── TransactionService.ts
 │   ├── stores/
-│   │   ├── envelopeStore.ts
+│   │   ├── authStore.ts
+│   │   ├── budgetStore.ts
+│   │   ├── envelopeStoreConverters.ts
+│   │   ├── envelopeStoreRealtime.ts
+│   │   ├── envelopeStoreSettings.ts
+│   │   ├── envelopeStoreTemplates.ts
 │   │   ├── themeStore.ts
 │   │   └── toastStore.ts
+│   ├── styles/
+│   │   └── globals.css
 │   ├── types/
 │   │   └── schema.ts
 │   ├── utils/
-│   │   └── formatters.ts
+│   │   ├── formatters.ts
+│   │   ├── calculations.ts
+│   │   └── validation.ts
 │   ├── views/
 │   │   ├── AddEnvelopeView.tsx
 │   │   ├── AddTransactionView.tsx
+│   │   ├── CardStackDemo.tsx
+│   │   ├── EmailVerificationView.tsx
 │   │   ├── EnvelopeDetail.tsx
 │   │   ├── EnvelopeListView.tsx
+│   │   ├── LoginView.tsx
 │   │   ├── SettingsView.tsx
 │   │   └── TransactionHistoryView.tsx
 │   ├── App.css

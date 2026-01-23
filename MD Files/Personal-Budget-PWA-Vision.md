@@ -176,31 +176,86 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **User Retention**: Continued app usage over time
 
 ## Future Enhancements
+
+### Phase 5: Advanced Features & Integrations
+
+#### 1. Net Worth Tracking
+- **Asset Management**: Track bank accounts, investment portfolios, real estate, vehicles
+- **Liability Tracking**: Credit cards, loans, mortgages, other debts
+- **Net Worth Calculation**: Real-time net worth dashboard with historical trends
+- **Account Integration**: Manual entry or bank sync for account balances
+- **Progress Visualization**: Charts showing net worth growth over time
+- **Goal Setting**: Net worth targets with milestone tracking
+
+#### 2. CSV Import with Smart Categorization
+- **Import Engine**: Support for bank CSV formats (Chase, Bank of America, etc.)
+- **Holding Area**: Unprocessed transactions appear in a dedicated "To Be Categorized" queue
+- **Smart Suggestions**: AI-powered envelope recommendations based on merchant names and amounts
+- **Batch Processing**: Todo-list interface for quickly categorizing multiple transactions
+- **Learning System**: App remembers categorization choices for future imports
+- **Validation**: Duplicate detection and amount/merchant normalization
+- **Import History**: Track which CSV files have been imported and when
+
+#### 3. Siri Shortcuts Integration
+- **Voice Transaction Entry**: "Hey Siri, add a grocery transaction at Walmart for $33.28, payment method was Chase Amazon"
+- **Natural Language Processing**: Parse merchant, amount, category, and payment method from voice input
+- **Quick Envelope Funding**: "Hey Siri, add $50 to my grocery envelope"
+- **Budget Status**: "Hey Siri, what's my available to budget?"
+- **Spending Updates**: "Hey Siri, how much have I spent on groceries this month?"
+- **Custom Shortcuts**: User-created voice commands for frequent actions
+- **Confirmation Feedback**: Siri confirms successful entries with details
+
+#### 4. Enhanced Analytics & Insights
+- **Spending Patterns**: AI-powered analysis of spending habits and trends
+- **Budget Variance**: Compare planned vs actual spending with recommendations
+- **Cash Flow Analysis**: Monthly income vs expense flow projections
+- **Category Insights**: Deep dive into spending by envelope category
+- **Seasonal Trends**: Identify seasonal spending patterns
+- **Anomaly Detection**: Flag unusual spending that deviates from patterns
+
+#### 5. Automation & Rules
+- **Recurring Transactions**: Automatic entry of regular income/expenses
+- **Envelope Rules**: Auto-fund envelopes based on income patterns
+- **Alert System**: Notifications for budget limits, unusual spending, savings goals
+- **Smart Suggestions**: AI recommendations for budget optimization
+- **Bill Reminders**: Proactive notifications for upcoming bills
+
+#### 6. Bank Integration (Advanced)
+- **Plaid Integration**: Direct bank account syncing for automatic transaction import
+- **Real-time Sync**: Continuous transaction monitoring and categorization
+- **Multi-institution Support**: Connect multiple banks and credit cards
+- **Security**: End-to-end encryption with read-only access
+- **Transaction Enrichment**: Automatic merchant categorization and receipt matching
+
+### Legacy Future Enhancements
 - **Automated Rules**: Set up recurring allocations
 - **Goal Tracking**: Savings goals with progress tracking
 - **AI Insights**: Spending pattern analysis and suggestions
 - **Integration**: Bank account syncing for automatic transaction import
-- **Backup/Export UX**: Show clear success/failure feedback after CSV exports or backup generation so users know when downloads are ready ✅ COMPLETED
-- **Smart Month Onboarding**: Auto-select the real current month on launch and, when the month has no data, prompt the user to create that month’s budget (e.g., open Feb 2026 on Feb 1 and guide them to start budgeting)
-- **Transaction Field Updates**: When creating transactions, add a dedicated “Merchant” input and reserve the existing Notes field for meta info (e.g., which bank/card was used) to enable better filtering later   ✅ COMPLETED
+- **Backup/Export UX**: Show clear success/failure feedback after CSV exports or backup generation so users know when downloads are ready 
+- **Smart Month Onboarding**: Auto-select the real current month on launch and, when the month has no data, prompt the user to create that month's budget (e.g., open Feb 2026 on Feb 1 and guide them to start budgeting)
+- **Transaction Field Updates**: When creating transactions, add a dedicated "Merchant" input and reserve the existing Notes field for meta info (e.g., which bank/card was used) to enable better filtering later   
 
 ## Implementation Priority
 1. **✅ COMPLETED**: Month management, income tracking, basic allocation (Phase 1)
 2. **✅ COMPLETED**: Full income and envelope allocation management with interactive UI (Phase 2)
 3. **✅ COMPLETED**: Split transactions (Phase 3)
-4. **🎯 NEXT PRIORITY**: Piggybanks (savings goals) and enhanced analytics
-5. **Low Priority**: Enhanced analytics, advanced features, integrations
+4. **✅ COMPLETED**: Piggybanks (savings goals) and enhanced analytics
+5. **🎯 NEXT PRIORITY**: Phase 5 Advanced Features (Net Worth, CSV Import, Siri Shortcuts)
+6. **Low Priority**: Enhanced analytics, advanced features, integrations
 
-## Current Status: Phase 3 Complete - Moving to Piggybanks! ✅
+## Current Status: Phase 4 Complete - Ready for Phase 5! ✅
 
-Phase 3 has been fully implemented with split transaction functionality. The demo page now provides a complete monthly budgeting experience with:
+Phase 4 (Enhanced Analytics) has been fully implemented. The app now provides a complete monthly budgeting experience with:
 
 - **Interactive Income Management**: Add/edit/delete income sources with swipe and tap gestures   ✅ COMPLETED
 - **Interactive Envelope Allocation**: Edit envelope names and amounts with identical UX patterns   ✅ COMPLETED
 - **Real-Time Calculations**: Available to Budget updates instantly as you make changes   ✅ COMPLETED
 - **Zero-Based Budgeting Logic**: EveryDollar-style allocation workflow   ✅ COMPLETED
+- **Split Transactions**: Multi-envelope support with validation and UI polish ✅ COMPLETED
+- **Piggybanks (Savings Goals)**: Complete with reordering, month-scoping, and auto-contributions ✅ COMPLETED
 
-The foundation is now ready for integrating these features into the main app views (EnvelopeListView and EnvelopeDetail).
+The foundation is now ready for Phase 5 Advanced Features & Integrations.
 
 ## Live Demo
 
@@ -244,11 +299,12 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 - **Success Feedback**: Visual confirmation when envelopes are created
 - **Demo Mode Integration**: All envelope functionality works offline with mock data
 
-### 🎯 **Next Steps - Phase 3**
-- **✅ Split Transactions**: Completed with multi-envelope support, validation, and UI polish
-- **✅ Piggybanks (Savings Goals)**: Complete with reordering, month-scoping, and auto-contributions.
-- **🚀 IMMEDIATE FOCUS - Enhanced Analytics**: Spending patterns, budget variance analysis.
-- **Transaction Management Enhancements**: Advanced filtering/editing.
+### 🎯 **Next Steps - Phase 5**
+- **🚀 IMMEDIATE FOCUS - Phase 5 Advanced Features**: Net Worth Tracking, CSV Import with Smart Categorization, Siri Shortcuts Integration
+- **Enhanced Analytics**: AI-powered spending patterns, budget variance analysis, anomaly detection
+- **Automation & Rules**: Recurring transactions, envelope rules, alert system
+- **Bank Integration**: Plaid integration for automatic transaction import
+- **Transaction Management Enhancements**: Advanced filtering/editing capabilities
 
 ### 📱 **Mobile/Desktop UX Patterns Established**
 - **Mobile**: Tap for primary action (edit), swipe for secondary action (delete)
@@ -258,7 +314,7 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 
 ---
 *Document created: December 27, 2025*
-*Last updated: January 7, 2026*
+*Last updated: January 23, 2026*
 
 ## Recent Bug Fixes & Improvements (2026-01-04)
 

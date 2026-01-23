@@ -52,7 +52,6 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       // Don't forcefully nullify if we want to keep the default, 
       // but CardStack relies on null to trigger default selection.
       // With setTimeout removed, the race condition should be resolved.
-      setSelectedPaymentMethod(null);
     }
   }, [isVisible, mode, initialTransaction]);
 
