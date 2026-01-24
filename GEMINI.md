@@ -231,4 +231,5 @@ npm run deploy
     *   **Read:** Relies on Firebase's `enableIndexedDbPersistence`.
     *   **Write:** Optimistic updates + Custom "Nervous System" sync queue for resilience.
 *   **Styling:** Tailwind CSS is used for styling.
-*   **Version Control:** Semantic versioning. **NEVER** commit or push changes to GitHub without first asking the user for explicit approval. This allows the user to test changes before they are finalized in the repository. **IMPORTANT:** When executing Git commands (add, commit, push), run them as separate, individual commands. Do NOT use `&&` to chain them, as it is not supported by default in PowerShell on Windows.
+*   **Version Control:** Semantic versioning. **CRITICAL: STOP AND ASK.** You are FORBIDDEN from committing or pushing changes to GitHub without explicit, verbal permission from the user for *each specific commit*. Do not assume permission carries over. Always ask: "Shall I commit and push these changes?" **IMPORTANT:** When executing Git commands (add, commit, push), run them as separate, individual commands. Do NOT use `&&` to chain them, as it is not supported by default in PowerShell on Windows.
+*   **Mandatory Build Check:** After applying any code changes and *before* asking to commit, you MUST run `npm run build` to verify there are no TypeScript or compilation errors.
