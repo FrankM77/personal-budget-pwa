@@ -9,10 +9,12 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { AppRoutes } from './components/AppRoutes';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
+import { AddTransactionView } from './views/AddTransactionView';
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
+  const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
   const { appSettings } = useBudgetStore();
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
 
@@ -106,11 +108,26 @@ function App() {
         </div>
       )}
 
-            
       <HashRouter>
         <AppRoutes />
+
+        {showAddTransactionModal && (
+          <div className="fixed inset-0 z-[60]">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowAddTransactionModal(false)}
+            />
+            <div className="absolute inset-0">
+              <AddTransactionView
+                onClose={() => setShowAddTransactionModal(false)}
+                onSaved={() => setShowAddTransactionModal(false)}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Bottom Navigation - Only show on main app pages */}
-        <BottomNavigation />
+        <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
       </HashRouter>
 
       {/* Global Toast Notifications */}

@@ -1,6 +1,16 @@
 # House Budget PWA: Project Summary - 2026-01-19
 
 ## Changelog (Highlights)
+- **2026-01-23**: **Enhanced Navigation Dock with Floating Action Button**: Replaced traditional bottom navigation bar with modern floating dock design featuring glassmorphism effect, hierarchical "More" menu, and prominent central FAB for transaction entry.
+  - Implemented semi-transparent floating dock with backdrop blur
+  - Added hierarchical navigation with overflow menu for Reports/Analytics
+  - Central FAB with hover animations and rotation effects
+  - iOS Safari keyboard compatibility through modal overlay approach
+- **2026-01-23**: **iOS Safari Keyboard Fix for FAB**: Resolved iOS Safari keyboard activation issue by changing dock FAB from route navigation to modal overlay, ensuring keyboard appears immediately on tap.
+  - Modal overlay mounts during same tap gesture (iOS requirement)
+  - Removed complex focus tricks, restored simple autoFocus approach
+  - Consistent behavior between envelope details and dock FAB
+  - Enhanced AddTransactionView to support both modal and route usage
 - **2026-01-21**: **Enhanced "Start Fresh" Functionality**: Updated "Start Fresh" to provide true clean slate by deleting ALL transactions for the month along with income sources and allocations. This fixes data integrity issues where orphaned transactions remained after clearing budgets.
   - Updated confirmation modal to show transaction count and total amount
   - Enhanced MonthlyBudgetService to delete transactions for the specified month
@@ -203,8 +213,11 @@ Piggybanks are special envelopes that persist across months with auto-contributi
 ## 7. Deployment Guide Summary
 
 ### Quick Deploy Routine
-1. `git add . && git commit -m "Update: Description" && git push origin main`
-2. `npm run build && npm run deploy`
+1.  git add .
+2.  git commit -m "Update: Description"
+3.  git push origin main
+4.  npm run build
+5.  npm run deploy
 
 ### Configuration
 - **package.json**: `homepage` set to GitHub Pages URL

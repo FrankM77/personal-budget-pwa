@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { PlusCircle, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
+import { Plus, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
@@ -1075,7 +1075,7 @@ export const EnvelopeListView: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income Sources</h2>
               <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
-                <PlusCircle size={20} />
+                <Plus size={20} />
               </button>
             </div>
             {(incomeSources[currentMonth] || []).length === 0 ? (
@@ -1107,7 +1107,7 @@ export const EnvelopeListView: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Envelopes</h2>
               <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Envelope">
-                <PlusCircle size={20} />
+                <Plus size={20} />
               </button>
             </div>
             {visibleEnvelopes.length === 0 ? (
@@ -1188,7 +1188,7 @@ export const EnvelopeListView: React.FC = () => {
                 Piggybanks
               </h2>
               <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
-                <PlusCircle size={20} />
+                <Plus size={20} />
               </button>
             </div>
              {piggybanks.length > 0 ? (
@@ -1245,13 +1245,6 @@ export const EnvelopeListView: React.FC = () => {
           </section>
         </>
       )}
-
-      <button
-        onClick={() => navigate('/add-transaction')}
-        className="fixed bottom-32 right-6 md:bottom-20 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform z-40 pointer-events-auto"
-      >
-        <PlusCircle size={28} />
-      </button>
 
       <IncomeSourceModal isVisible={incomeModalVisible} onClose={handleCloseModal} mode={incomeModalMode} initialIncomeSource={selectedIncomeSource} />
       

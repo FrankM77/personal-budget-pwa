@@ -7,7 +7,12 @@ import CardStack from '../components/ui/CardStack';
 import type { PaymentSource } from '../components/ui/CardStack';
 import '../styles/CardStack.css';
 
-export const AddTransactionView: React.FC = () => {
+interface AddTransactionViewProps {
+  onClose?: () => void;
+  onSaved?: () => void;
+}
+
+export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose, onSaved }) => {
   const navigate = useNavigate();
   const { envelopes, addTransaction, currentMonth } = useBudgetStore();
 
@@ -20,6 +25,14 @@ export const AddTransactionView: React.FC = () => {
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
   const [hasUserSelectedPayment, setHasUserSelectedPayment] = useState(false);
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
+    navigate(-1);
+  };
 
   const handlePaymentMethodSelect = (card: PaymentSource) => {
     setSelectedPaymentMethod(card);
@@ -79,8 +92,15 @@ export const AddTransactionView: React.FC = () => {
         )
       ).catch(err => console.error('Failed to create transactions:', err));
 
-      // Navigate immediately - don't wait for Firebase
-      navigate('/');
+      // Navigate/close immediately - don't wait for Firebase
+      if (onSaved) {
+        onSaved();
+      }
+      if (onClose) {
+        onClose();
+      } else {
+        navigate('/');
+      }
     } catch (error) {
       console.error('Error saving transaction:', error);
       alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -104,7 +124,7 @@ export const AddTransactionView: React.FC = () => {
       {/* Header */}
       <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+6px)] pb-2 sticky top-0 z-10 flex items-center justify-between">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleClose}
           className="text-blue-600 dark:text-blue-400 font-medium"
         >
           Cancel
