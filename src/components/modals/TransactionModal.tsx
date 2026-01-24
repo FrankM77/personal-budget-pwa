@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
 import type { Transaction, Envelope } from '../../models/types';
 import CardStack from '../ui/CardStack';
@@ -54,8 +55,6 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       // With setTimeout removed, the race condition should be resolved.
     }
   }, [isVisible, mode, initialTransaction]);
-
-  if (!isVisible) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,133 +135,149 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const amountColor = mode === 'add' ? 'text-green-500' : 'text-red-500';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-zinc-800">
-          <button onClick={onClose} className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Cancel</button>
-          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">{title}</h2>
-          <button 
-            onClick={handleSubmit} 
-            className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-bold disabled:opacity-50"
-            disabled={!amount || parseFloat(amount) <= 0}
-          >
-            Save
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          
-          {/* Amount Input */}
-          <div className="text-center">
-            <label className="block text-sm text-gray-600 dark:text-zinc-400 mb-1">Amount</label>
-            <div className="relative inline-block">
-              <span className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-2xl ${amountColor}`}>$</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={amount}
-                onChange={(e) => {
-                  const rawValue = e.target.value.replace(/\D/g, ''); // Strip non-digits
-                  if (!rawValue) {
-                    setAmount('');
-                    return;
-                  }
-                  const cents = parseInt(rawValue, 10);
-                  const dollars = (cents / 100).toFixed(2);
-                  setAmount(dollars);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
-                    e.preventDefault();
-                  }
-                }}
-                placeholder="0.00"
-                autoFocus
-                className={`bg-transparent text-4xl font-bold text-center w-40 focus:outline-none ${amountColor} placeholder-gray-700`}
-              />
-            </div>
-          </div>
-
-          {/* Merchant Input */}
-          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Merchant</label>
-            <input
-              type="text"
-              value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
-              placeholder="Where did you make this transaction?"
-              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
-            />
-          </div>
-
-          {/* Payment Method */}
-          <CardStack
-            selectedCard={selectedPaymentMethod}
-            onCardSelect={setSelectedPaymentMethod}
+    <AnimatePresence>
+      {isVisible && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
-
-          {/* Note Input */}
-          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-            <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Note</label>
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="What is this for?"
-              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
-            />
-          </div>
-
-          {/* Date Input */}
-          <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs text-gray-500 dark:text-zinc-400">Date</label>
-              {(() => {
-                const selectedDate = new Date(date);
-                const selectedMonthStr = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}`;
-                if (selectedMonthStr !== currentMonth) {
-                  return (
-                    <div className="flex items-center text-amber-500 gap-1" title="Date is outside current budget month">
-                      <AlertTriangle size={14} />
-                      <span className="text-[10px] font-bold uppercase">Budget Mismatch</span>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => {
-                console.log('Date changed to:', e.target.value);
-                setDate(e.target.value);
-              }}
-              required
-              className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
-            />
-          </div>
-
-          {/* Delete Button - Only show in edit mode */}
-          {mode === 'edit' && (
-            <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="w-full py-3 px-4 rounded-lg bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 font-semibold hover:bg-gray-50 dark:hover:bg-zinc-800 transition duration-150 flex items-center justify-center border border-gray-200 dark:border-zinc-800"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-2xl overflow-hidden relative z-10"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-zinc-800">
+              <button onClick={onClose} className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Cancel</button>
+              <h2 className="text-gray-900 dark:text-white font-semibold text-lg">{title}</h2>
+              <button 
+                onClick={handleSubmit} 
+                className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-bold disabled:opacity-50"
+                disabled={!amount || parseFloat(amount) <= 0}
               >
-                <Trash className="w-5 h-5 mr-2" />
-                Delete Transaction
+                Save
               </button>
             </div>
-          )}
 
-        </form>
-      </div>
-    </div>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              
+              {/* Amount Input */}
+              <div className="text-center">
+                <label className="block text-sm text-gray-600 dark:text-zinc-400 mb-1">Amount</label>
+                <div className="relative inline-block">
+                  <span className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-2xl ${amountColor}`}>$</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={amount}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/\D/g, ''); // Strip non-digits
+                      if (!rawValue) {
+                        setAmount('');
+                        return;
+                      }
+                      const cents = parseInt(rawValue, 10);
+                      const dollars = (cents / 100).toFixed(2);
+                      setAmount(dollars);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder="0.00"
+                    autoFocus
+                    className={`bg-transparent text-4xl font-bold text-center w-40 focus:outline-none ${amountColor} placeholder-gray-700`}
+                  />
+                </div>
+              </div>
+
+              {/* Merchant Input */}
+              <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
+                <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Merchant</label>
+                <input
+                  type="text"
+                  value={merchant}
+                  onChange={(e) => setMerchant(e.target.value)}
+                  placeholder="Where did you make this transaction?"
+                  className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+                />
+              </div>
+
+              {/* Payment Method */}
+              <CardStack
+                selectedCard={selectedPaymentMethod}
+                onCardSelect={setSelectedPaymentMethod}
+              />
+
+              {/* Note Input */}
+              <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
+                <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Note</label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="What is this for?"
+                  className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+                />
+              </div>
+
+              {/* Date Input */}
+              <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs text-gray-500 dark:text-zinc-400">Date</label>
+                  {(() => {
+                    const selectedDate = new Date(date);
+                    const selectedMonthStr = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                    if (selectedMonthStr !== currentMonth) {
+                      return (
+                        <div className="flex items-center text-amber-500 gap-1" title="Date is outside current budget month">
+                          <AlertTriangle size={14} />
+                          <span className="text-[10px] font-bold uppercase">Budget Mismatch</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    console.log('Date changed to:', e.target.value);
+                    setDate(e.target.value);
+                  }}
+                  required
+                  className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
+                />
+              </div>
+
+              {/* Delete Button - Only show in edit mode */}
+              {mode === 'edit' && (
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="w-full py-3 px-4 rounded-lg bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 font-semibold hover:bg-gray-50 dark:hover:bg-zinc-800 transition duration-150 flex items-center justify-center border border-gray-200 dark:border-zinc-800"
+                  >
+                    <Trash className="w-5 h-5 mr-2" />
+                    Delete Transaction
+                  </button>
+                </div>
+              )}
+
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

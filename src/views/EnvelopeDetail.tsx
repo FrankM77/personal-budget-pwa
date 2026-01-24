@@ -262,28 +262,24 @@ const EnvelopeDetail: React.FC = () => {
             </div>
 
             {/* Transaction Modal (for Add, Spend, and Edit) */}
-            {(showingAddMoney || showingSpendMoney || editingTransaction) && (
-                <TransactionModal
-                    isVisible={showingAddMoney || showingSpendMoney || !!editingTransaction}
-                    onClose={() => {
-                        setShowingAddMoney(false);
-                        setShowingSpendMoney(false);
-                        setEditingTransaction(null);
-                    }}
-                    mode={showingAddMoney ? 'add' : showingSpendMoney ? 'spend' : 'edit'}
-                    currentEnvelope={currentEnvelope}
-                    initialTransaction={editingTransaction}
-                />
-            )}
+            <TransactionModal
+                isVisible={showingAddMoney || showingSpendMoney || !!editingTransaction}
+                onClose={() => {
+                    setShowingAddMoney(false);
+                    setShowingSpendMoney(false);
+                    setEditingTransaction(null);
+                }}
+                mode={showingAddMoney ? 'add' : showingSpendMoney ? 'spend' : 'edit'}
+                currentEnvelope={currentEnvelope}
+                initialTransaction={editingTransaction}
+            />
 
             {/* Transfer Modal */}
-            {showingTransfer && (
-                <TransferModal
-                    isVisible={showingTransfer}
-                    onClose={() => setShowingTransfer(false)}
-                    sourceEnvelope={currentEnvelope as any}
-                />
-            )}
+            <TransferModal
+                isVisible={showingTransfer}
+                onClose={() => setShowingTransfer(false)}
+                sourceEnvelope={currentEnvelope as any}
+            />
         </div>
     );
 };

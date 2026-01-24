@@ -416,15 +416,13 @@ export const TransactionHistoryView: React.FC = () => {
       </div>
 
       {/* --- Edit Modal --- */}
-      {editingTransaction && activeEnvelope && (
-        <TransactionModal
-          isVisible={!!editingTransaction}
-          onClose={() => setEditingTransaction(null)}
-          mode="edit"
-          currentEnvelope={activeEnvelope}
-          initialTransaction={editingTransaction}
-        />
-      )}
+      <TransactionModal
+        isVisible={!!editingTransaction && !!activeEnvelope}
+        onClose={() => setEditingTransaction(null)}
+        mode="edit"
+        currentEnvelope={activeEnvelope || {} as any}
+        initialTransaction={editingTransaction}
+      />
     </div>
   );
 };
