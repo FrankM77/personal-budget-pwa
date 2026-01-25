@@ -12,9 +12,7 @@ export interface PaymentSource {
 }
 
 const DEFAULT_DATA: PaymentSource[] = [
-  { id: '1', name: 'Amazon Prime', network: 'Visa', last4: '7474', color: '#232f3e' },
-  { id: '2', name: 'Apple Card', network: 'Mastercard', last4: '0274', color: '#e3e3e3' },
-  { id: '3', name: 'AA Credit Union', network: 'Visa', last4: '3386', color: '#5494DA' }
+  // Start with empty array - only show "Add New Card" for new users
 ];
 
 interface Props {
@@ -32,7 +30,15 @@ const CardStack: React.FC<Props> = ({
   disabled = false,
   isUserSelected = false
 }) => {
-  const [internalSelectedCard, setInternalSelectedCard] = useState<PaymentSource>(initialCards[0]);
+  const [internalSelectedCard, setInternalSelectedCard] = useState<PaymentSource>(
+    initialCards.length > 0 ? initialCards[0] : { 
+      id: 'add-new', 
+      name: '+ Add New Card', 
+      network: 'Visa' as const, 
+      last4: '', 
+      color: '#6b7280' 
+    }
+  );
   const [isStackOpen, setIsStackOpen] = useState(false);
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [cards, setCards] = useState<PaymentSource[]>(initialCards);

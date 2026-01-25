@@ -8,7 +8,6 @@ import { AddEnvelopeView } from '../views/AddEnvelopeView';
 import { AddTransactionView } from '../views/AddTransactionView';
 import { TransactionHistoryView } from '../views/TransactionHistoryView';
 import { EmailVerificationView } from '../views/EmailVerificationView';
-import CardStackDemo from '../views/CardStackDemo';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const PageTransition = ({ children }: { children: React.ReactNode }) => {
@@ -97,16 +96,6 @@ export const AppRoutes = () => {
             <PageTransition>
               <ErrorBoundary>
                 <EmailVerificationView />
-              </ErrorBoundary>
-            </PageTransition>
-          }
-        />
-        <Route
-          path="/card-stack"
-          element={
-            <PageTransition>
-              <ErrorBoundary>
-                <CardStackDemo />
               </ErrorBoundary>
             </PageTransition>
           }
