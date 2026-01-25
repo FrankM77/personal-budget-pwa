@@ -47,10 +47,10 @@ export class BudgetService {
       const collectionsToRestore: { name: string; data: any[] }[] = [
         { name: 'envelopes', data: backupData.envelopes || [] },
         { name: 'transactions', data: backupData.transactions || [] },
-        { name: 'incomeSources', data: backupData.incomeSources ? Object.values(backupData.incomeSources).flat() : [] },
         { name: 'envelopeAllocations', data: backupData.allocations ? Object.values(backupData.allocations).flat() : [] },
-        // Handle monthly budgets if present in backup (might need to derive if not)
-        // For now, we'll focus on the core arrays. If monthlyBudgets are in backup, use them.
+        // Handle monthly budgets with embedded income sources
+        { name: 'monthlyBudgets', data: this.prepareMonthlyBudgetsData(backupData.allocations, backupData.incomeSources) },
+        // Handle appSettings if present
         { name: 'appSettings', data: backupData.appSettings ? [backupData.appSettings] : [] }
       ];
 
@@ -61,7 +61,8 @@ export class BudgetService {
         if (!Array.isArray(data)) continue;
 
         for (const item of data) {
-          if (!item.id) continue; // Skip items without ID
+          // Skip items without ID, except for monthly budgets which use month as ID
+          if (!item.id && name !== 'monthlyBudgets') continue;
 
           // Clean up item for Firestore (remove undefined, convert dates if needed)
           // Ideally we'd map these, but for restore we trust the backup structure mostly.
@@ -69,7 +70,12 @@ export class BudgetService {
           const firestoreItem = { ...item, userId };
           
           // Settings special case: usually singleton or specific ID
-          const docId = item.id;
+          let docId = item.id;
+          
+          // For monthly budgets, use the month as the document ID
+          if (name === 'monthlyBudgets' && item.month) {
+            docId = item.month;
+          }
           
           const docRef = doc(db, 'users', userId, name, docId);
           operations.push({ ref: docRef, data: firestoreItem });
@@ -768,6 +774,55 @@ export class BudgetService {
 
       callback({ incomeSources, allocations });
     });
+  }
+
+  /**
+   * Prepare monthly budgets data for restoration with embedded income sources
+   * @param allocations - Budget allocations from backup
+   * @param incomeSources - Income sources from backup
+   * @returns Array of monthly budget documents
+   */
+  private prepareMonthlyBudgetsData(allocations: any, incomeSources: any): any[] {
+    const monthlyBudgets: any[] = [];
+    
+    // Get all unique months from allocations and income sources
+    const allMonths = new Set<string>();
+    
+    if (allocations) {
+      Object.keys(allocations).forEach(month => allMonths.add(month));
+    }
+    
+    if (incomeSources) {
+      Object.keys(incomeSources).forEach(month => allMonths.add(month));
+    }
+    
+    // Create monthly budget documents for each month
+    allMonths.forEach(month => {
+      const monthAllocations = allocations?.[month] || [];
+      const monthIncomeSources = incomeSources?.[month] || [];
+      
+      // Convert allocations to the format expected by monthlyBudgets
+      const allocationsObject: any = {};
+      monthAllocations.forEach((alloc: any) => {
+        allocationsObject[alloc.envelopeId] = alloc.budgetedAmount;
+      });
+      
+      const monthlyBudget = {
+        month,
+        userId: '', // Will be set in the restore function
+        incomeSources: monthIncomeSources,
+        allocations: allocationsObject,
+        totalIncome: monthIncomeSources.reduce((sum: number, source: any) => sum + Number(source.amount || 0), 0),
+        availableToBudget: monthIncomeSources.reduce((sum: number, source: any) => sum + Number(source.amount || 0), 0) - 
+                       monthAllocations.reduce((sum: number, alloc: any) => sum + Number(alloc.budgetedAmount || 0), 0),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      monthlyBudgets.push(monthlyBudget);
+    });
+    
+    return monthlyBudgets;
   }
 
   /**
