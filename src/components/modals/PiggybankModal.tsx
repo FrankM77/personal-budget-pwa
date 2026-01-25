@@ -52,13 +52,17 @@ export const PiggybankModal: React.FC<PiggybankModalProps> = ({
         name: name.trim(),
         isPiggybank: true,
         piggybankConfig: {
-          targetAmount: targetAmount ? parseFloat(targetAmount) : undefined,
           monthlyContribution: parseFloat(monthlyContribution),
           color,
           icon,
           paused
         }
       };
+
+      // Only include targetAmount if it has a value
+      if (targetAmount && parseFloat(targetAmount) > 0) {
+        piggybankData.piggybankConfig!.targetAmount = parseFloat(targetAmount);
+      }
 
       if (existingPiggybank) {
         piggybankData.id = existingPiggybank.id;

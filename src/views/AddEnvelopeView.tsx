@@ -47,12 +47,18 @@ export const AddEnvelopeView: React.FC = () => {
 
     if (isPiggybank) {
       envelopeData.isPiggybank = true;
-      envelopeData.piggybankConfig = {
-        targetAmount: targetAmount ? parseFloat(targetAmount) : undefined,
+      const piggybankConfig: any = {
         monthlyContribution: parseFloat(monthlyContribution || '0'),
         color,
         icon: 'piggy-bank'
       };
+      
+      // Only include targetAmount if it has a value
+      if (targetAmount && parseFloat(targetAmount) > 0) {
+        piggybankConfig.targetAmount = parseFloat(targetAmount);
+      }
+      
+      envelopeData.piggybankConfig = piggybankConfig;
     }
 
     // Start envelope creation (optimistic update happens immediately)

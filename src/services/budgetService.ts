@@ -236,30 +236,14 @@ export class BudgetService {
    */
   async deleteEnvelope(userId: string, envelopeId: string): Promise<void> {
     try {
-      console.log('📡 BudgetService.deleteEnvelope called for envelope:', envelopeId);
-      console.log('📡 User ID:', userId);
-      
       const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
-      console.log('📡 Document path:', docRef.path);
-      
-      // Check if document exists before deleting
-      const docSnap = await getDoc(docRef);
-      console.log('📡 Document exists before deletion:', docSnap.exists());
-      if (docSnap.exists()) {
-        console.log('📡 Document data:', docSnap.data());
-      }
       
       // Properly await the deletion and handle errors
       await deleteDoc(docRef);
       
-      // Verify deletion
-      const docSnapAfter = await getDoc(docRef);
-      console.log('📡 Document exists after deletion:', docSnapAfter.exists());
-      
       console.log('✅ Deleted envelope from Firestore:', envelopeId);
     } catch (error) {
       console.error('❌ BudgetService.deleteEnvelope failed:', error);
-      console.error('❌ Full error details:', error);
       throw new Error(`Failed to delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

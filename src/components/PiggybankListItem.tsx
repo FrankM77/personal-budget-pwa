@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PiggyBank, TrendingUp, Pause, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
+import { PiggyBank, TrendingUp, Pause, Loader2, ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Envelope } from '../models/types';
 import { Decimal } from 'decimal.js';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
+import { PiggybankModal } from './modals/PiggybankModal';
 
 interface PiggybankListItemProps {
   piggybank: Envelope;
@@ -36,7 +37,37 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   isReorderUnlocked
 }) => {
   const updatePiggybankContribution = useBudgetStore(state => state.updatePiggybankContribution);
+  const updateEnvelope = useBudgetStore(state => state.updateEnvelope);
   const showToast = useToastStore(state => state.showToast);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const handleEditPiggybank = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowEditModal(true);
+  };
+
+  const handleSavePiggybank = async (piggybankData: Partial<Envelope>) => {
+    try {
+      // Merge the existing piggybank with the updated data
+      const updatedEnvelope: Envelope = {
+        ...piggybank,
+        ...piggybankData,
+        id: piggybank.id!,
+        userId: piggybank.userId,
+        currentBalance: piggybank.currentBalance,
+        lastUpdated: new Date().toISOString(),
+        isActive: piggybank.isActive,
+        orderIndex: piggybank.orderIndex
+      };
+      
+      await updateEnvelope(updatedEnvelope);
+      showToast('Piggybank updated successfully', 'success');
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Failed to update piggybank:', error);
+      showToast('Failed to update piggybank', 'error');
+    }
+  };
 
   const targetAmount = piggybank.piggybankConfig?.targetAmount;
   const monthlyContribution = piggybank.piggybankConfig?.monthlyContribution ?? 0;
@@ -246,15 +277,24 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
               )}
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-lg font-bold text-gray-900 dark:text-white">
-              ${balanceNum.toFixed(2)}
-            </div>
-            {targetAmount && (
-              <div className="text-xs text-gray-500 dark:text-zinc-400">
-                of ${targetAmount.toFixed(2)}
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                ${balanceNum.toFixed(2)}
               </div>
-            )}
+              {targetAmount && (
+                <div className="text-xs text-gray-500 dark:text-zinc-400">
+                  of ${targetAmount.toFixed(2)}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleEditPiggybank}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              title="Edit piggybank"
+            >
+              <MoreHorizontal size={16} />
+            </button>
           </div>
         </div>
 
@@ -346,7 +386,15 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   );
 
   return (
-    <motion.div
+    <>
+      <PiggybankModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSavePiggybank}
+        existingPiggybank={piggybank}
+      />
+      
+      <motion.div
       layout={!isBeingDragged}
       transition={{
         layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
@@ -364,5 +412,6 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
     >
       {content}
     </motion.div>
+    </>
   );
 };
