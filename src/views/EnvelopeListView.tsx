@@ -10,6 +10,7 @@ import { LoadingScreen } from '../components/ui/LoadingScreen';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
+import NewUserOnboarding from '../components/ui/NewUserOnboarding';
 import { PiggybankListItem } from '../components/PiggybankListItem';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useNavigate } from 'react-router-dom';
@@ -365,6 +366,7 @@ export const EnvelopeListView: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // State for inline budget editing
@@ -383,32 +385,53 @@ export const EnvelopeListView: React.FC = () => {
     localStorage.setItem('envelopeReorderUnlocked', isReorderUnlocked.toString());
   }, [isReorderUnlocked]);
 
-
-
-  // Effect to handle Copy Previous Month Prompt visibility
+  // Effect to handle Copy Previous Month Prompt or Onboarding visibility
   useEffect(() => {
     // Only check for copy prompt after initial loading is complete AND data has had time to load
     if (!isInitialLoading && !isLoading) {
       // Add a small delay to ensure data is loaded from backend
       const timer = setTimeout(() => {
         const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
-        console.log('🔍 Copy prompt check:', { 
+        
+        // Check if user has ANY data in ANY month (to detect truly new users)
+        const hasAnyDataInAnyMonth = Object.keys(incomeSources).some(month => 
+          (incomeSources[month] || []).length > 0
+        ) || Object.keys(allocations).some(month => 
+          (allocations[month] || []).length > 0
+        );
+        
+        console.log('🔍 Prompt check:', { 
           currentMonth, 
           hasIncome: (incomeSources[currentMonth] || []).length > 0,
           hasAllocations: (allocations[currentMonth] || []).length > 0,
-          showPrompt: hasNoData 
+          hasAnyDataInAnyMonth,
+          showPrompt: hasNoData,
+          isNewUser: !hasAnyDataInAnyMonth
         });
-        setShowCopyPrompt(hasNoData);
+        
+        if (hasNoData) {
+          if (!hasAnyDataInAnyMonth) {
+            // Truly new user - show onboarding
+            setShowOnboarding(true);
+            setShowCopyPrompt(false);
+          } else {
+            // Existing user with no data for this month - show copy prompt
+            setShowCopyPrompt(true);
+            setShowOnboarding(false);
+          }
+        } else {
+          setShowCopyPrompt(false);
+          setShowOnboarding(false);
+        }
       }, 500); // 500ms delay to allow data to load
       
       return () => clearTimeout(timer);
     }
-  }, [isInitialLoading, isLoading, incomeSources, allocations, currentMonth]);
+  }, [isInitialLoading, isLoading, currentMonth, incomeSources, allocations]);
 
-  // Effect to auto-focus the input when editing starts
+  // Auto-focus input when editing envelope budget
   useEffect(() => {
     if (editingEnvelopeId && inputRef.current) {
-      inputRef.current.focus();
       inputRef.current.select();
     }
   }, [editingEnvelopeId]);
@@ -973,6 +996,12 @@ export const EnvelopeListView: React.FC = () => {
     await copyFromPreviousMonth(currentMonth);
   };
 
+  const handleOnboardingComplete = () => {
+    // Close onboarding and show the empty budget
+    setShowOnboarding(false);
+    // The user can now manually add income sources and envelopes
+  };
+
 
   // Show loading screen during initial data fetch
   if (isInitialLoading) {
@@ -1061,9 +1090,14 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
 
-    <div className="pt-[calc(7rem+env(safe-area-inset-top))] p-4 max-w-md mx-auto space-y-6">
-      {/* Copy Previous Month Prompt */}
-      {showCopyPrompt ? (
+    <div className="pt-[calc(9.5rem+env(safe-area-inset-top))] p-4 max-w-md mx-auto space-y-6">
+      {/* New User Onboarding */}
+      {showOnboarding ? (
+        <NewUserOnboarding
+          currentMonth={currentMonth}
+          onComplete={handleOnboardingComplete}
+        />
+      ) : showCopyPrompt ? (
         <CopyPreviousMonthPrompt
           currentMonth={currentMonth}
           onCopy={handleCopyPreviousMonth}

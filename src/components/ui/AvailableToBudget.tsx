@@ -21,7 +21,7 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   const safeTotalIncome = typeof totalIncome === 'number' ? totalIncome : parseFloat(totalIncome) || 0;
   const safeAmount = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
   
-  // Calculate progress percentage
+  // Calculate progress percentage - only show progress if there's income
   const progressPercentage = safeTotalIncome > 0 ? ((safeTotalAllocated / safeTotalIncome) * 100) : 0;
 
   // Determine display state
@@ -29,7 +29,8 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   const isZero = Math.abs(safeAmount) < 0.01;
   const isNegative = safeAmount < 0;
 
-  const barWidth = isZero ? 100 : Math.min(progressPercentage, 100);
+  // Bar width should be 0 when there's no income, otherwise show actual progress
+  const barWidth = safeTotalIncome > 0 ? (isZero ? 100 : Math.min(progressPercentage, 100)) : 0;
   const barColor = isNegative ? 'bg-red-500' : 'bg-green-500';
 
   // Legacy variables for compatibility
@@ -95,7 +96,11 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
 
         {variant === 'header' && (
           <div className="flex-1 flex justify-center items-center">
-            {isZero ? (
+            {safeTotalIncome === 0 ? (
+              <div className="text-center">
+                <div className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Add income to start budgeting</div>
+              </div>
+            ) : isZero ? (
               <div className="text-center">
                 <div className="text-xs text-green-600 dark:text-emerald-400 font-medium">Perfect! Every dollar has a job 🎯</div>
               </div>
