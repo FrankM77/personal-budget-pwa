@@ -108,7 +108,7 @@ export const SettingsView: React.FC = () => {
     try {
       console.log(' Creating backup...');
       const backupData = {
-        appVersion: '2.1 (PWA)',
+        appVersion: __APP_VERSION__,
         backupDate: Date.now(),
         appSettings: appSettings || {
           theme: 'system',
