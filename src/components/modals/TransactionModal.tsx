@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Trash, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
-import type { Transaction, Envelope } from '../../models/types';
+import type { Transaction, Envelope, PaymentSource } from '../../models/types';
 import CardStack from '../ui/CardStack';
-import type { PaymentSource } from '../ui/CardStack';
 import '../../styles/CardStack.css';
 
 interface Props {

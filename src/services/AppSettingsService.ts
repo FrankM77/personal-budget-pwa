@@ -1,13 +1,12 @@
-import {
+import { 
+  doc, 
+  setDoc, 
+  getDocs,
+  addDoc,
+  deleteDoc, 
+  onSnapshot,
   collection,
   query,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-  doc,
-  addDoc,
-  getDocs,
-  deleteDoc,
   limit
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -93,7 +92,7 @@ export const AppSettingsService = {
   // 5. UPDATE
   updateAppSettings: async (userId: string, settingsId: string, updates: Partial<AppSettings>) => {
     const docRef = doc(db, 'users', userId, 'appSettings', settingsId);
-    return await updateDoc(docRef, updates);
+    return await setDoc(docRef, updates, { merge: true });
   },
 
   // 6. DELETE (Rarely used, but available)

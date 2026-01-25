@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 import CardStack from '../components/ui/CardStack';
-import type { PaymentSource } from '../components/ui/CardStack';
+import type { PaymentSource } from '../models/types';
 import '../styles/CardStack.css';
 
 interface AddTransactionViewProps {

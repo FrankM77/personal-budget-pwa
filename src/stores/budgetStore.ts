@@ -805,8 +805,21 @@ export const useBudgetStore = create<BudgetState>()(
                     id: state.appSettings?.id || 'default',
                     theme: settings.theme ?? state.appSettings?.theme ?? 'system',
                     enableMoveableReorder: settings.enableMoveableReorder ?? state.appSettings?.enableMoveableReorder ?? true,
-                    userId: settings.userId ?? state.appSettings?.userId
+                    paymentSources: settings.paymentSources ?? state.appSettings?.paymentSources ?? []
                 };
+                
+                // Only include userId if it has a value
+                if (settings.userId || state.appSettings?.userId) {
+                    updatedSettings.userId = settings.userId ?? state.appSettings?.userId;
+                }
+                
+                // Get current user and update in backend
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (currentUser) {
+                    const { AppSettingsService } = await import('../services/AppSettingsService');
+                    await AppSettingsService.updateAppSettings(currentUser.id, updatedSettings.id, updatedSettings);
+                }
                 
                 set({
                     appSettings: updatedSettings,
@@ -831,24 +844,45 @@ export const useBudgetStore = create<BudgetState>()(
                     return; // Already initialized
                 }
                 
+                // Get current user and load from backend
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                
+                if (currentUser) {
+                    const { AppSettingsService } = await import('../services/AppSettingsService');
+                    const appSettings = await AppSettingsService.getAppSettings(currentUser.id);
+                    
+                    if (appSettings) {
+                        set({ appSettings });
+                        console.log('✅ Loaded app settings from Firestore');
+                        return;
+                    }
+                }
+                
+                // Create default settings if none exist
                 const defaultSettings: AppSettings = {
                     id: 'default',
                     theme: 'system',
-                    enableMoveableReorder: true
+                    enableMoveableReorder: true,
+                    paymentSources: []
                 };
+                
+                // Only include userId if we have a current user
+                if (currentUser) {
+                    defaultSettings.userId = currentUser.id;
+                }
                 
                 set({
                     appSettings: defaultSettings
                 });
                 
-                console.log('✅ Initialized app settings');
+                console.log('✅ Initialized default app settings');
                 
             } catch (error) {
                 console.error('❌ initializeAppSettings failed:', error);
                 set({ 
                     error: error instanceof Error ? error.message : 'Failed to initialize settings' 
                 });
-                throw error;
             }
         },
         updatePiggybankContribution: async (envelopeId: string, newAmount: number): Promise<void> => {

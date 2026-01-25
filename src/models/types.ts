@@ -59,11 +59,20 @@ export interface DistributionTemplate {
   userId?: string;
 }
 
+export interface PaymentSource {
+  id: string;
+  name: string;
+  network: 'Visa' | 'Mastercard' | 'Amex';
+  last4: string;
+  color: string;
+}
+
 export interface AppSettings {
   id: string;
   userId?: string;
   theme: 'light' | 'dark' | 'system';
   enableMoveableReorder?: boolean;
+  paymentSources?: PaymentSource[];
 }
 
 // Zero-Based Budgeting Types

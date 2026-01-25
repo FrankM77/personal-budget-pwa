@@ -105,7 +105,26 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Subscribe to app settings
   const unsubscribeSettings = AppSettingsService.subscribeToAppSettings(userId, (firebaseSettings: AppSettings | null) => {
     console.log('🔄 Real-time sync: Settings updated', firebaseSettings ? 'found' : 'null');
-    budgetStore.setState({ appSettings: firebaseSettings });
+    
+    // Get current state to preserve local changes
+    const currentState = budgetStore.getState();
+    
+    if (firebaseSettings) {
+      // Merge Firebase settings with current local state
+      // This preserves any local changes that haven't synced yet
+      const mergedSettings: AppSettings = {
+        ...currentState.appSettings,
+        ...firebaseSettings,
+        // Preserve paymentSources from local state if Firebase doesn't have them
+        paymentSources: firebaseSettings.paymentSources ?? currentState.appSettings?.paymentSources ?? []
+      };
+      
+      budgetStore.setState({ appSettings: mergedSettings });
+    } else {
+      // If Firebase settings are null, keep current local state
+      // This prevents losing local data during sync issues
+      console.log('⚠️ Firebase settings null, preserving local state');
+    }
   });
 
   // Subscribe to monthly budget (Income Sources & Allocations)

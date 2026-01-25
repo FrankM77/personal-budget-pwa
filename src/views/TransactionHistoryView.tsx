@@ -12,7 +12,7 @@ import type { Transaction } from '../models/types';
 export const TransactionHistoryView: React.FC = () => {
   const navigate = useNavigate();
   // Added deleteTransaction to the destructuring
-  const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction, currentMonth } = useBudgetStore(); 
+  const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction, currentMonth, appSettings } = useBudgetStore(); 
   const { showToast } = useToastStore(); 
   
   // --- 1. Filter State (Matching Swift @State) ---
@@ -216,11 +216,7 @@ export const TransactionHistoryView: React.FC = () => {
             className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
           >
             <option value="all">All Payment Methods</option>
-            {[
-              { id: '1', name: 'Amazon Prime', network: 'Visa' as const, last4: '7474', color: '#232f3e' },
-              { id: '2', name: 'Apple Card', network: 'Mastercard' as const, last4: '0274', color: '#e3e3e3' },
-              { id: '3', name: 'AA Credit Union', network: 'Visa' as const, last4: '3386', color: '#5494DA' }
-            ].map(card => (
+            {appSettings?.paymentSources?.map(card => (
               <option key={card.id} value={card.id}>
                 {card.name}
               </option>

@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SwipeableRow } from './SwipeableRow';
+import { useBudgetStore } from '../../stores/budgetStore';
+import type { PaymentSource } from '../../models/types';
 import '../../styles/CardStack.css';
-
-export interface PaymentSource {
-  id: string;
-  name: string;
-  network: 'Visa' | 'Mastercard' | 'Amex';
-  last4: string;
-  color: string;
-}
 
 const DEFAULT_DATA: PaymentSource[] = [
   // Start with empty array - only show "Add New Card" for new users
@@ -30,6 +24,9 @@ const CardStack: React.FC<Props> = ({
   disabled = false,
   isUserSelected = false
 }) => {
+  const appSettings = useBudgetStore(state => state.appSettings);
+  const updateAppSettings = useBudgetStore(state => state.updateAppSettings);
+  
   const [internalSelectedCard, setInternalSelectedCard] = useState<PaymentSource>(
     initialCards.length > 0 ? initialCards[0] : { 
       id: 'add-new', 
@@ -49,6 +46,16 @@ const CardStack: React.FC<Props> = ({
     last4: '',
     color: '#3b82f6'
   });
+
+  // Load cards from app settings on mount and when app settings change
+  useEffect(() => {
+    if (appSettings?.paymentSources) {
+      setCards(appSettings.paymentSources);
+      if (appSettings.paymentSources.length > 0 && !externalSelectedCard) {
+        setInternalSelectedCard(appSettings.paymentSources[0]);
+      }
+    }
+  }, [appSettings, externalSelectedCard]);
 
   // Use external selected card if provided, otherwise use internal state
   const selectedCard = externalSelectedCard || internalSelectedCard;
@@ -85,19 +92,37 @@ const CardStack: React.FC<Props> = ({
     }
   };
 
-  const confirmDeleteCard = () => {
+  const confirmDeleteCard = async () => {
     if (deleteConfirmCard && !disabled) {
       const updatedCards = cards.filter(c => c.id !== deleteConfirmCard.id);
       setCards(updatedCards);
       
-      // If we deleted the selected card, select the first available card
-      if (selectedCard.id === deleteConfirmCard.id && updatedCards.length > 0) {
-        const newSelectedCard = updatedCards[0];
-        setInternalSelectedCard(newSelectedCard);
-        onCardSelect?.(newSelectedCard);
+      // If the deleted card was selected, select the first available card
+      if (selectedCard?.id === deleteConfirmCard.id) {
+        const nextCard = updatedCards.length > 0 ? updatedCards[0] : { 
+          id: 'add-new', 
+          name: '+ Add New Card', 
+          network: 'Visa' as const, 
+          last4: '', 
+          color: '#6b7280' 
+        };
+        setInternalSelectedCard(nextCard);
+        onCardSelect?.(nextCard);
       }
       
       setDeleteConfirmCard(null);
+      setIsStackOpen(false);
+      
+      // Save to app settings
+      try {
+        await updateAppSettings({ paymentSources: updatedCards });
+      } catch (error) {
+        console.error('Failed to delete card from app settings:', error);
+        // Revert the local state if save failed
+        setCards(cards);
+        alert('Failed to delete card. Please try again.');
+        return;
+      }
     }
   };
 
@@ -105,7 +130,7 @@ const CardStack: React.FC<Props> = ({
     setDeleteConfirmCard(null);
   };
 
-  const handleAddCard = () => {
+  const handleAddCard = async () => {
     if (disabled) return;
 
     // Validate last 4 digits
@@ -135,6 +160,18 @@ const CardStack: React.FC<Props> = ({
     onCardSelect?.(card);
     setIsAddCardModalOpen(false);
     setIsStackOpen(false);
+    
+    // Save to app settings
+    try {
+      await updateAppSettings({ paymentSources: updatedCards });
+    } catch (error) {
+      console.error('Failed to save card to app settings:', error);
+      // Revert the local state if save failed
+      setCards(cards);
+      setInternalSelectedCard(selectedCard);
+      alert('Failed to save card. Please try again.');
+      return;
+    }
     
     // Reset form
     setNewCard({
