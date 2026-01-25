@@ -59,7 +59,20 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(userId, (firebaseEnvelopes) => {
     console.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
     const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope);
-    budgetStore.setState({ envelopes });
+    
+    // Get current state to preserve locally deleted envelopes
+    const currentState = budgetStore.getState();
+    const currentEnvelopeIds = new Set(currentState.envelopes.map((env: Envelope) => env.id));
+    const firebaseEnvelopeIds = new Set(envelopes.map((env: Envelope) => env.id));
+    
+    // Only update with envelopes that exist in Firebase and weren't locally deleted
+    // This preserves local deletions until they sync with Firebase
+    const updatedEnvelopes = [
+      ...envelopes.filter((env: Envelope) => currentEnvelopeIds.has(env.id)), // Keep Firebase envelopes that exist locally
+      ...currentState.envelopes.filter((env: Envelope) => !firebaseEnvelopeIds.has(env.id)) // Keep locally deleted envelopes
+    ];
+    
+    budgetStore.setState({ envelopes: updatedEnvelopes });
   });
 
   // Subscribe to transactions

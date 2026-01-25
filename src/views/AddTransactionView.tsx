@@ -108,14 +108,17 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   };
 
   // Sort envelopes by orderIndex (creation order) with name as fallback
-  const sortedEnvelopes = [...envelopes].sort((a, b) => {
-    const aOrder = a.orderIndex ?? 0;
-    const bOrder = b.orderIndex ?? 0;
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-    return a.name.localeCompare(b.name);
-  });
+  // Only show active envelopes (filter out deleted ones)
+  const sortedEnvelopes = [...envelopes]
+    .filter(env => env.isActive !== false)
+    .sort((a, b) => {
+      const aOrder = a.orderIndex ?? 0;
+      const bOrder = b.orderIndex ?? 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return a.name.localeCompare(b.name);
+    });
 
   const amountColor = transactionType === 'income' ? 'text-green-500' : 'text-red-500';
 

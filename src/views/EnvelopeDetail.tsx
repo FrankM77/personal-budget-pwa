@@ -24,7 +24,7 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, removeEnvelopeFromMonth, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance, currentMonth } = useBudgetStore();
+    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance, currentMonth } = useBudgetStore();
     const { showToast } = useToastStore();
 
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
@@ -108,11 +108,9 @@ const EnvelopeDetail: React.FC = () => {
     const handleDeleteEnvelope = () => {
         if (!id) return;
 
-        if (currentEnvelope.isPiggybank) {
-            deleteEnvelope(id);
-        } else {
-            removeEnvelopeFromMonth(id, currentMonth);
-        }
+        // Always call deleteEnvelope to remove from Firestore
+        // The deleteEnvelope function handles both regular envelopes and piggybanks
+        deleteEnvelope(id);
         navigate(-1);
     };
 
