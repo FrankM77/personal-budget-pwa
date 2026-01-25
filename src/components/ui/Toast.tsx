@@ -22,15 +22,15 @@ export const Toast: React.FC = () => {
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ y: 100, opacity: 0 }}
+          initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
+          exit={{ y: -100, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed bottom-0 left-4 right-4 z-50 mb-[calc(env(safe-area-inset-bottom)+20px)]"
+          className="fixed top-4 left-4 right-4 z-[150] mt-[calc(env(safe-area-inset-top)+8px)]"
         >
           <div className={`rounded-xl shadow-lg p-4 flex items-center justify-between ${getToastStyles()}`}>
             <div className="flex items-center flex-1 min-w-0">
-              <span className="text-sm font-medium truncate pr-2">{message}</span>
+              <span className="text-sm font-medium whitespace-pre-line pr-2">{message}</span>
             </div>
 
             <div className="flex items-center gap-2 ml-3 flex-shrink-0">

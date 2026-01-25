@@ -1,16 +1,31 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle, Sparkles } from 'lucide-react';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle, Sparkles, RefreshCw, LogOut } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import { budgetService, type CleanupReport } from '../services/budgetService';
+import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { envelopes, transactions, resetData, importData, getEnvelopeBalance, appSettings, updateAppSettings, initializeAppSettings, incomeSources, allocations, currentMonth } = useBudgetStore();
+  const { 
+    envelopes, 
+    transactions, 
+    resetData, 
+    importData, 
+    getEnvelopeBalance, 
+    appSettings, 
+    updateAppSettings, 
+    initializeAppSettings, 
+    incomeSources, 
+    allocations, 
+    currentMonth,
+    clearMonthData,
+    handleUserLogout
+  } = useBudgetStore();
 
-  const { deleteAccount, currentUser } = useAuthStore();
+  const { deleteAccount, currentUser, logout } = useAuthStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
@@ -21,6 +36,7 @@ export const SettingsView: React.FC = () => {
   const [isExportingCSV, setIsExportingCSV] = useState(false);
   const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
   const [isCleaningData, setIsCleaningData] = useState(false);
+  const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
 
   // Dummy usage to satisfy TypeScript linter (operationResult IS used in JSX)
 
@@ -91,14 +107,6 @@ export const SettingsView: React.FC = () => {
   const handleBackup = () => {
     try {
       console.log(' Creating backup...');
-      console.log(' Envelopes in store:', envelopes.map(env => ({
-        id: env.id,
-        name: env.name,
-        isPiggybank: env.isPiggybank,
-        hasPiggybankConfig: !!env.piggybankConfig,
-        piggybankConfig: env.piggybankConfig
-      })));
-
       const backupData = {
         appVersion: '2.1 (PWA)',
         backupDate: Date.now(),
@@ -117,12 +125,6 @@ export const SettingsView: React.FC = () => {
         allocations,
         incomeSources,
       };
-
-      console.log(' Backup data created:', {
-        envelopeCount: backupData.envelopes.length,
-        piggybankEnvelopes: backupData.envelopes.filter(e => e.isPiggybank).length,
-        sampleEnvelope: backupData.envelopes.find(e => e.isPiggybank) || backupData.envelopes[0]
-      });
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -233,19 +235,11 @@ export const SettingsView: React.FC = () => {
           } catch (error) {
             console.error('Failed to update imported settings:', error);
           }
-        } else if (parsed.appSettings?.isDarkMode !== undefined) {
-          // Backward compatibility with old backups
-          try {
-            const theme = parsed.appSettings.isDarkMode ? 'dark' : 'light';
-            await updateAppSettings({ theme });
-          } catch (error) {
-            console.error('Failed to update imported settings:', error);
-          }
         }
 
         showStatus(
           'success',
-          `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions, ${parsed.allocations ? Object.keys(parsed.allocations).reduce((sum, month) => sum + (parsed.allocations[month]?.length || 0), 0) : 0} allocations, and ${parsed.incomeSources ? Object.keys(parsed.incomeSources).reduce((sum, month) => sum + (parsed.incomeSources[month]?.length || 0), 0) : 0} income sources.`
+          `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions.`
         );
       } catch (error) {
         console.error(error);
@@ -316,7 +310,7 @@ export const SettingsView: React.FC = () => {
       const totalDeleted = report.orphanedAllocationsDeleted + report.orphanedTransactionsDeleted;
       if (totalDeleted > 0) {
         showStatus('success', 
-          `Cleaned ${totalDeleted} orphaned items: ${report.orphanedAllocationsDeleted} allocations and ${report.orphanedTransactionsDeleted} transactions from ${report.details.monthsProcessed.length} months.`
+          `Cleaned ${totalDeleted} orphaned items: ${report.orphanedAllocationsDeleted} allocations and ${report.orphanedTransactionsDeleted} transactions.`
         );
       } else {
         showStatus('success', 'No orphaned data found. Your database is already clean!');
@@ -329,9 +323,39 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleStartFresh = () => {
+    setStartFreshModalVisible(true);
+  };
+
+  const handleStartFreshConfirm = async () => {
+    setStartFreshModalVisible(false);
+    await clearMonthData(currentMonth);
+    showStatus('success', 'Month data has been reset.');
+  };
+
+  const handleLogout = async () => {
+    if (
+      window.confirm(
+        `Are you sure you want to log out? This will clear all your data from the app until you log back in.`
+      )
+    ) {
+      try {
+        handleUserLogout(); // Clear local data first
+        logout(); // Clear auth state
+        navigate('/');
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
+    }
+  };
+
+  const userInitial = currentUser?.displayName?.charAt(0)?.toUpperCase() ||
+                      currentUser?.email?.charAt(0)?.toUpperCase() ||
+                      'U';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
-      {/* ... header ... */}
+      {/* Header */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-center shadow-sm relative">
         <button onClick={() => navigate(-1)} className="absolute left-4 text-blue-600 dark:text-blue-400 font-medium">
           Done
@@ -339,11 +363,11 @@ export const SettingsView: React.FC = () => {
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
       </header>
 
-      <div className="p-4 space-y-6 max-w-2xl mx-auto pb-24">
+      <div className="p-4 space-y-6 max-w-2xl mx-auto pb-[calc(8rem+env(safe-area-inset-bottom))]">
 
         {statusMessage && (
           <div
-            className={`px-4 py-3 rounded-2xl text-sm font-medium flex items-center gap-2 ${
+            className={`px-4 py-3 rounded-2xl text-sm font-medium flex items-center gap-2 ${ 
               statusMessage.type === 'success'
                 ? 'bg-green-50 text-green-700 dark:bg-emerald-900/30 dark:text-emerald-200'
                 : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200'
@@ -353,6 +377,29 @@ export const SettingsView: React.FC = () => {
             {statusMessage.text}
           </div>
         )}
+
+        {/* User Profile */}
+        <section>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm p-4 flex items-center gap-4">
+             <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-semibold shadow-md">
+                {userInitial}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                  {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User'}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-zinc-400 truncate">
+                  {currentUser?.email}
+                </p>
+                <button 
+                  onClick={handleLogout}
+                  className="mt-2 text-sm text-red-600 dark:text-red-400 font-medium flex items-center gap-1 hover:underline"
+                >
+                  <LogOut size={14} /> Log Out
+                </button>
+              </div>
+          </div>
+        </section>
 
         {/* Backup hero */}
         <section>
@@ -400,11 +447,8 @@ export const SettingsView: React.FC = () => {
               </div>
               <span className="text-sm text-gray-500 dark:text-zinc-400 capitalize">{currentTheme}</span>
             </div>
-            <div className="text-xs text-gray-500 dark:text-zinc-500 mb-3">
-              Choose your preferred appearance.
-            </div>
             <div className="flex gap-2">
-              {[
+              {[ 
                 { label: 'Light', value: 'light' as const },
                 { label: 'Dark', value: 'dark' as const },
                 { label: 'System', value: 'system' as const }
@@ -490,30 +534,19 @@ export const SettingsView: React.FC = () => {
           </div>
         </section>
 
-        {/* Tips */}
-        <section>
-          <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Tips</h2>
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm p-4 text-sm text-gray-600 dark:text-zinc-300 space-y-2">
-            <p>Create regular backups before major changes.</p>
-            <p>Store backups in iCloud, Files, or another safe location.</p>
-            <p>Backups are plain JSON files and can be inspected in any text editor.</p>
-            <p>Restoring replaces all current envelopes, transactions, budget allocations, income sources, and settings.</p>
-          </div>
-        </section>
-
         {/* Danger Zone */}
         <section>
           <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Danger Zone</h2>
           <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm">
             <button
-              onClick={handleReset}
-              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800"
+              onClick={handleStartFresh}
+              className="w-full p-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800"
             >
               <div className="flex items-center gap-3">
-                <Trash2 className="text-red-500" size={20} />
+                <RefreshCw className="text-orange-500" size={20} />
                 <div className="flex flex-col items-start">
-                  <span className="text-gray-900 dark:text-white font-medium">Reset All Data</span>
-                  <span className="text-xs text-gray-500 dark:text-zinc-400">Permanently delete all envelopes, transactions, allocations, income sources, and settings</span>
+                  <span className="text-gray-900 dark:text-white font-medium">Start Fresh (This Month)</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">Clear all allocations and data for the current month only</span>
                 </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
@@ -522,19 +555,33 @@ export const SettingsView: React.FC = () => {
             <button
               onClick={handleCleanupOrphanedData}
               disabled={isCleaningData}
-              className="w-full p-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full p-4 flex items-center justify-between hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-3">
                 {isCleaningData ? (
-                  <Loader className="text-orange-500 animate-spin" size={20} />
+                  <Loader className="text-yellow-500 animate-spin" size={20} />
                 ) : (
-                  <Sparkles className="text-orange-500" size={20} />
+                  <Sparkles className="text-yellow-500" size={20} />
                 )}
                 <div className="flex flex-col items-start">
                   <span className="text-gray-900 dark:text-white font-medium">
-                    {isCleaningData ? 'Cleaning Data...' : '🧹 Purge Orphaned Data'}
+                    {isCleaningData ? 'Cleaning Data...' : 'Purge Orphaned Data'}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-zinc-400">Remove allocations and transactions pointing to deleted envelopes</span>
+                </div>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
+
+            <button
+              onClick={handleReset}
+              className="w-full p-4 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="text-red-500" size={20} />
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-900 dark:text-white font-medium">Reset All Data</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">Permanently delete everything</span>
                 </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
@@ -597,6 +644,20 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Start Fresh Confirmation Modal */}
+        <StartFreshConfirmModal 
+          isVisible={startFreshModalVisible} 
+          onClose={() => setStartFreshModalVisible(false)} 
+          onConfirm={handleStartFreshConfirm} 
+          currentMonth={currentMonth} 
+          incomeCount={(incomeSources[currentMonth] || []).length} 
+          totalIncome={(incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0)} 
+          allocationCount={(allocations[currentMonth] || []).filter(a => envelopes.some((env: any) => env.id === a.envelopeId)).length} 
+          totalAllocated={(allocations[currentMonth] || []).filter(a => envelopes.some((env: any) => env.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)}
+          transactionCount={transactions.filter(t => t.month === currentMonth).length}
+          totalTransactionAmount={transactions.filter(t => t.month === currentMonth).reduce((sum, t) => sum + t.amount, 0)}
+        />
 
         {/* Delete Account Dialog */}
         {showDeleteDialog && (

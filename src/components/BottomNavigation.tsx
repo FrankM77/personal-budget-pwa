@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Wallet, List, Settings, Plus, MoreHorizontal, BarChart3, TrendingUp, PieChart } from 'lucide-react';
+import { Wallet, List, Settings, Plus, MoreHorizontal, BarChart3, TrendingUp, PieChart, Lock, Unlock } from 'lucide-react';
+import { useBudgetStore } from '../stores/budgetStore';
 
 interface BottomNavigationProps {
   onAddTransaction?: () => void;
@@ -10,10 +11,31 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
   const navigate = useNavigate();
   const location = useLocation();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { isReorderUnlocked, toggleReorderUnlocked } = useBudgetStore();
 
   const isActive = (path: string) => location.pathname === path;
 
-  // More menu items
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      // Also handle touch events for mobile
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [showMoreMenu]);
+
+  // More menu items definition
   const moreMenuItems = [
     { path: '/reports', icon: <BarChart3 className="w-5 h-5" />, label: 'Reports' },
     { path: '/analytics', icon: <TrendingUp className="w-5 h-5" />, label: 'Analytics' },
@@ -25,7 +47,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
     const active = isActive(path);
     return (
       <button
-        onClick={() => navigate(path)}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent event bubbling to underlying envelopes
+          navigate(path);
+        }}
         className={`
           relative group flex flex-col items-center justify-center
           w-12 h-12 rounded-2xl transition-all duration-300
@@ -50,17 +75,22 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
 
   return (
     // Container: Positions the dock and passes clicks through empty space
-    <div className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none safe-area-inset-bottom">
+    <div className="fixed bottom-6 left-0 right-0 flex justify-center z-[100] pointer-events-none safe-area-inset-bottom">
       
       {/* The Dock Itself */}
-      <nav className="
-        pointer-events-auto
-        flex items-center gap-1 p-2 pl-4 pr-4
-        bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl
-        border border-zinc-200/30 dark:border-zinc-800/30
-        rounded-full shadow-2xl shadow-zinc-900/10
-        transform transition-all duration-500 ease-out
-      ">
+      <nav 
+        className="
+          pointer-events-auto
+          flex items-center gap-1 p-2 pl-4 pr-4
+          bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl
+          border border-zinc-200/30 dark:border-zinc-800/30
+          rounded-full shadow-2xl shadow-zinc-900/10
+          transform transition-all duration-500 ease-out
+        "
+        onClick={(e) => e.stopPropagation()} // Prevent clicks from bubbling to content below
+        onTouchStart={(e) => e.stopPropagation()} // Prevent touch events from bubbling
+        onTouchEnd={(e) => e.stopPropagation()} // Prevent touch events from bubbling
+      >
         
         {/* Left Side */}
         <NavButton path="/" label="Budget" icon={<Wallet className="w-6 h-6" />} />
@@ -71,7 +101,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
 
         {/* CENTRAL ACTION BUTTON (Floating +) */}
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent event bubbling to underlying envelopes
             setShowMoreMenu(false);
             if (onAddTransaction) {
               onAddTransaction();
@@ -98,9 +129,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
 
         {/* Right Side */}
         {/* More Menu Button */}
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <button
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent event bubbling to underlying envelopes
+              setShowMoreMenu(!showMoreMenu);
+            }}
             className={`
               relative group flex flex-col items-center justify-center
               w-12 h-12 rounded-2xl transition-all duration-300
@@ -123,36 +157,59 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
 
           {/* More Menu Dropdown */}
           {showMoreMenu && (
-            <>
-              {/* Backdrop */}
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowMoreMenu(false)}
-              />
-              
-              {/* Menu */}
-              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200/50 dark:border-zinc-800/50 backdrop-blur-xl z-50">
-                <div className="p-2">
-                  {moreMenuItems.map((item, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        navigate(item.path);
-                        setShowMoreMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                    >
-                      <div className="text-zinc-600 dark:text-zinc-400">
-                        {item.icon}
-                      </div>
-                      <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+            <div 
+              className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200/50 dark:border-zinc-800/50 backdrop-blur-xl z-50 overflow-hidden"
+              onClick={(e) => e.stopPropagation()} // Prevent any clicks in the menu from bubbling
+              onTouchStart={(e) => e.stopPropagation()} // Prevent touch events from bubbling
+              onTouchEnd={(e) => e.stopPropagation()} // Prevent touch events from bubbling
+            >
+              <div className="p-2 space-y-1">
+                {moreMenuItems.map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent event bubbling to underlying envelopes
+                      navigate(item.path);
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
+                  >
+                    <div className="text-zinc-600 dark:text-zinc-400">
+                      {item.icon}
+                    </div>
+                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                      {item.label}
+                    </span>
+                  </button>
+                ))}
+                
+                {/* Divider */}
+                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-2 my-1" />
+                
+                {/* Reorder Envelopes Toggle */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling to underlying envelopes
+                    toggleReorderUnlocked();
+                    // Don't close menu to allow toggling back
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
+                >
+                  <div className={isReorderUnlocked ? "text-blue-500" : "text-zinc-600 dark:text-zinc-400"}>
+                    {isReorderUnlocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                      Reorder Envelopes
+                    </span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {isReorderUnlocked ? 'Unlocked' : 'Locked'}
+                    </span>
+                  </div>
+                </button>
+                
               </div>
-            </>
+            </div>
           )}
         </div>
         

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
-import { monthlyBudgetService } from '../services/MonthlyBudgetService';
 import { Decimal } from 'decimal.js';
 import type { IncomeSource } from '../models/types';
 
@@ -268,11 +267,8 @@ export const useEnvelopeList = () => {
     }
 
     try {
-      // Clear allocations and income sources for current month
-      await monthlyBudgetService.clearMonthData(currentUser.id, currentMonth);
-      
-      // Refresh data to reflect changes
-      await fetchData();
+      // Clear allocations and income sources for current month via store action
+      await useBudgetStore.getState().clearMonthData(currentMonth);
       
       showToast(
         `"${currentMonth}" budget and transactions cleared successfully`,
@@ -282,7 +278,33 @@ export const useEnvelopeList = () => {
       console.error('Error clearing month data:', error);
       showToast('Failed to clear month data', 'error');
     }
-  }, [currentUser, currentMonth, fetchData, showToast]);
+  }, [currentUser, currentMonth, showToast]);
+
+  // Wrap setEnvelopeAllocation to add toast logic
+  const setEnvelopeAllocationWithToast = useCallback(async (envelopeId: string, budgetedAmount: number) => {
+    try {
+      await setEnvelopeAllocation(envelopeId, budgetedAmount);
+      
+      // Check if over budget after the update
+      // We use a small timeout to let the store update and recalculate
+      setTimeout(() => {
+        const state = useBudgetStore.getState();
+        const month = state.currentMonth;
+        const sources = state.incomeSources[month] || [];
+        const allocs = state.allocations[month] || [];
+        
+        const totalInc = sources.reduce((sum, s) => sum + s.amount, 0);
+        const totalAlloc = allocs.reduce((sum, a) => sum + a.budgetedAmount, 0);
+        
+        if (totalInc - totalAlloc < -0.01) {
+          showToast("You can't spend more than you make.\nYou're not in Congress!", 'error');
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Failed to set allocation:', error);
+      showToast('Failed to update budget', 'error');
+    }
+  }, [setEnvelopeAllocation, showToast]);
 
   return {
     // Data
@@ -307,7 +329,7 @@ export const useEnvelopeList = () => {
     deleteIncomeSource: deleteIncomeSourceWithToast,
     clearMonthData: clearMonthDataWithToast,
     copyFromPreviousMonth: copyFromPreviousMonthWithToast,
-    setEnvelopeAllocation,
+    setEnvelopeAllocation: setEnvelopeAllocationWithToast,
     
     // Local state refs for reordering
     localOrderRef,

@@ -106,7 +106,7 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
               </div>
             ) : isNegative ? (
               <div className="text-center">
-                <div className="text-xs text-red-600 dark:text-red-400 font-medium">You're not in Congress!</div>
+                <div className="text-xs text-red-600 dark:text-red-400 font-medium">You're not in Congress! Try again.</div>
               </div>
             ) : (
               <div className="w-full h-1.5 bg-gray-200 dark:bg-zinc-700 rounded-full">

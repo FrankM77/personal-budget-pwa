@@ -169,7 +169,7 @@ export const TransactionHistoryView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pb-20 transition-colors duration-200">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pb-[calc(8rem+env(safe-area-inset-bottom))] transition-colors duration-200">
       {/* --- Header --- */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-between shadow-sm">
         <div className="flex items-center">

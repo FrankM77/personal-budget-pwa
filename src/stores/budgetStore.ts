@@ -28,12 +28,14 @@ interface BudgetState {
   // === CONTEXT ===
   currentMonth: string; // "YYYY-MM"
   isOnline: boolean;
+  isReorderUnlocked: boolean; // UI State
   isLoading: boolean;
   error: string | null;
 
   // === ACTIONS ===
   setMonth: (month: string) => void;
   init: () => Promise<void>;
+  toggleReorderUnlocked: () => void; // UI Action
   addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
   updateEnvelope: (envelope: Envelope) => Promise<void>;
   deleteEnvelope: (envelopeId: string) => Promise<void>;
@@ -48,6 +50,7 @@ interface BudgetState {
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
   getEnvelopeBalance: (envelopeId: string, month?: string) => number;
   resetData: () => Promise<void>;
+  clearMonthData: (month: string) => Promise<void>; // Clear specific month data
   importData: (data: any) => Promise<{ success: boolean; message: string }>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
   initializeAppSettings: () => Promise<void>;
@@ -82,10 +85,56 @@ export const useBudgetStore = create<BudgetState>()(
         allocations: {},
         currentMonth: new Date().toISOString().slice(0, 7),
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+        isReorderUnlocked: typeof localStorage !== 'undefined' ? localStorage.getItem('envelopeReorderUnlocked') === 'true' : false,
         isLoading: false,
         error: null,
 
         // Actions
+        toggleReorderUnlocked: () => {
+            const newState = !get().isReorderUnlocked;
+            set({ isReorderUnlocked: newState });
+            localStorage.setItem('envelopeReorderUnlocked', String(newState));
+        },
+
+        clearMonthData: async (month: string) => {
+            try {
+                set({ isLoading: true, error: null });
+                console.log(`🗑️ Clearing all data for month: ${month}`);
+
+                // Get current user
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) {
+                    throw new Error('No authenticated user found');
+                }
+
+                // Call service to clear data
+                // We need to import monthlyBudgetService dynamically or assume it's available via BudgetService
+                // But monthlyBudgetService is a separate service. 
+                // Let's import it at the top or use dynamic import if needed.
+                // Since we can't easily change imports at the top in this replace call, 
+                // let's use the monthlyBudgetService instance if we can, or replicate the logic.
+                // Better yet, let's use dynamic import for the service to be safe.
+                const { monthlyBudgetService } = await import('../services/MonthlyBudgetService');
+                
+                await monthlyBudgetService.clearMonthData(currentUser.id, month);
+                
+                // Refresh data to reflect changes
+                await get().init();
+                
+                console.log(`✅ Cleared month data for ${month}`);
+                set({ isLoading: false });
+
+            } catch (error) {
+                console.error(`❌ clearMonthData failed:`, error);
+                set({ 
+                    isLoading: false, 
+                    error: error instanceof Error ? error.message : 'Failed to clear month data' 
+                });
+                throw error;
+            }
+        },
+
         fetchMonthData: async (month: string) => {
             try {
                 // Get current user

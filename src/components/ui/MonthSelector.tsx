@@ -92,7 +92,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
     } else if (isNegative) {
         statusColor = 'text-red-600 dark:text-red-400';
         barColor = 'bg-red-500';
-        statusText = "You can't spend more than you make. You're not in Congress!";
+        statusText = "You're not in Congress! Try again.";
         barWidth = 100;
     }
 

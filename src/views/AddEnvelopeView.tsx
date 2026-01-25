@@ -81,7 +81,7 @@ export const AddEnvelopeView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pb-28">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pb-[calc(8rem+env(safe-area-inset-bottom))]">
       {/* Header */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-10 flex items-center shadow-sm">
         <button onClick={() => navigate('/')} className="mr-3 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white">

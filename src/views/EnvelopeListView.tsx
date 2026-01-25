@@ -1,18 +1,17 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Wallet, Wifi, WifiOff, RefreshCw, PiggyBank, ChevronUp, ChevronDown, Lock, Unlock } from 'lucide-react';
+import { Plus, Wallet, PiggyBank, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
 import { MonthSelector } from '../components/ui/MonthSelector';
-import { UserMenu } from '../components/ui/UserMenu';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
-import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
 import NewUserOnboarding from '../components/ui/NewUserOnboarding';
 import { PiggybankListItem } from '../components/PiggybankListItem';
 import { useBudgetStore } from '../stores/budgetStore';
+import { useToastStore } from '../stores/toastStore';
 import { useNavigate } from 'react-router-dom';
 import type { IncomeSource } from '../models/types';
 
@@ -76,6 +75,7 @@ const EnvelopeListItem = ({
   isLast: boolean,
   isReorderUnlocked: boolean
 }) => {
+  const { showToast } = useToastStore();
   const isPiggybank = Boolean(env.isPiggybank);
   const piggyColor = env.piggybankConfig?.color || '#3B82F6';
   const piggyBackground = isPiggybank
@@ -109,6 +109,20 @@ const EnvelopeListItem = ({
     if (editingEnvelopeId === env.id) {
       e.preventDefault();
       e.stopPropagation();
+      return;
+    }
+
+    // INTERCEPT clicks/touches on the budget field during reorder unlocked state
+    const target = e.target as HTMLElement;
+    if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isReorderUnlocked) {
+        // Use a small timeout to ensure the toast shows reliably on iOS
+        setTimeout(() => {
+          showToast("Lock envelope order to edit budget", "neutral");
+        }, 10);
+      }
       return;
     }
     
@@ -232,15 +246,35 @@ const EnvelopeListItem = ({
               </div>
             ) : (
               <div
-                onClick={(e) => {
+                onTouchStart={(e) => {
+                  // Handle touch start for mobile reliability
+                  if (isReorderUnlocked) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showToast("Lock envelope order to edit budget", "neutral");
+                    return;
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  // Handle touch end for mobile reliability
                   e.preventDefault();
                   e.stopPropagation();
+                  if (isReorderUnlocked) {
+                    // Already handled in onTouchStart, but just in case
+                    showToast("Lock envelope order to edit budget", "neutral");
+                    return;
+                  }
                   setEditingEnvelopeId(env.id);
                   setEditingAmount(budgetedAmount.toString());
                 }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={(e) => {
+                  // Handle click for desktop and as fallback for mobile
+                  if (isReorderUnlocked) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showToast("Lock envelope order to edit budget", "neutral");
+                    return;
+                  }
                   setEditingEnvelopeId(env.id);
                   setEditingAmount(budgetedAmount.toString());
                 }}
@@ -309,6 +343,7 @@ const EnvelopeListItem = ({
       transition={{
         layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
       }}
+      data-envelope-id={env.id}
       ref={(el) => {
         setMoveableRef(env.id)(el);
         moveableItemRef.current = el;
@@ -341,12 +376,10 @@ export const EnvelopeListView: React.FC = () => {
     transactions,
     isLoading,
     isInitialLoading,
-    isOnline,
     showTimeoutMessage,
     getEnvelopeBalance,
     reorderEnvelopes,
     deleteIncomeSource,
-    clearMonthData,
     copyFromPreviousMonth,
     setEnvelopeAllocation,
     localOrderRef,
@@ -356,7 +389,8 @@ export const EnvelopeListView: React.FC = () => {
   } = useEnvelopeList();
 
   // Get setCurrentMonth directly from store for month selector
-  const { setMonth } = useBudgetStore();
+  const { setMonth, isReorderUnlocked } = useBudgetStore();
+  const { showToast } = useToastStore();
   const navigate = useNavigate();
 
   // Local state for modals and UI
@@ -364,7 +398,6 @@ export const EnvelopeListView: React.FC = () => {
   const [incomeModalMode, setIncomeModalMode] = useState<'add' | 'edit'>('add');
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -373,17 +406,6 @@ export const EnvelopeListView: React.FC = () => {
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // State for reorder lock/unlock - persist in localStorage
-  const [isReorderUnlocked, setIsReorderUnlocked] = useState(() => {
-    const stored = localStorage.getItem('envelopeReorderUnlocked');
-    return stored === 'true';
-  });
-
-  // Persist reorder unlock state to localStorage
-  useEffect(() => {
-    localStorage.setItem('envelopeReorderUnlocked', isReorderUnlocked.toString());
-  }, [isReorderUnlocked]);
 
   // Effect to handle Copy Previous Month Prompt or Onboarding visibility
   useEffect(() => {
@@ -506,10 +528,11 @@ export const EnvelopeListView: React.FC = () => {
   }, []);
 
   const handleEnvelopeClick = useCallback((envelopeId: string) => {
+    if (isReorderUnlocked) return;
     if (editingEnvelopeId !== envelopeId) {
       navigate(`/envelope/${envelopeId}`);
     }
-  }, [editingEnvelopeId, navigate]);
+  }, [editingEnvelopeId, navigate, isReorderUnlocked]);
 
   // Piggybank Drag Handlers
   const handlePiggybankDragStart = useCallback(() => setIsReordering(true), []);
@@ -569,7 +592,7 @@ export const EnvelopeListView: React.FC = () => {
           clickable: true,
           preventClickDefault: false,
           preventClickEventOnDrag: true,
-          checkInput: false,
+          checkInput: true, // Allow input elements to be clicked
           dragArea: true,
           hideDefaultLines: true,
           hideChildMoveableDefaultLines: true,
@@ -577,6 +600,18 @@ export const EnvelopeListView: React.FC = () => {
         });
 
         moveable.on('dragStart', (e: any) => {
+          const target = e.inputEvent.target as HTMLElement;
+          
+          // Check if user is trying to interact with budget field
+          if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
+            showToast("Lock envelope order to edit budget", "neutral");
+            e.stop();
+            return;
+          }
+
+          // Don't show toast for drag operations - allow reordering to work
+          // The toast will be shown by the click handler for budget field interactions
+
           const startIndex = localPiggybankOrderRef.current.findIndex(p => p.id === piggybank.id);
           const targetEl = e.target as HTMLElement;
           const rect = targetEl.getBoundingClientRect();
@@ -709,6 +744,12 @@ export const EnvelopeListView: React.FC = () => {
           // Check if the click originated from interaction elements
           const target = e.inputEvent.target as HTMLElement;
           if (target.closest('.js-budget-target') || target.tagName === 'INPUT' || target.tagName === 'BUTTON') {
+            if (target.closest('.js-budget-target') && isReorderUnlocked) {
+              // Use a small timeout to ensure the toast shows reliably on iOS
+              setTimeout(() => {
+                showToast("Lock envelope order to edit budget", "neutral");
+              }, 10);
+            }
             return;
           }
           handleEnvelopeClick(piggybank.id);
@@ -724,7 +765,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick, isReorderUnlocked]);
+  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick, isReorderUnlocked, showToast]);
 
 
   // Initialize Moveable instances
@@ -774,7 +815,7 @@ export const EnvelopeListView: React.FC = () => {
           clickable: true,
           preventClickDefault: false,
           preventClickEventOnDrag: true,
-          checkInput: false,
+          checkInput: true, // Allow input elements to be clicked
           dragArea: true,
           hideDefaultLines: true,
           hideChildMoveableDefaultLines: true,
@@ -782,6 +823,17 @@ export const EnvelopeListView: React.FC = () => {
         });
 
         moveable.on('dragStart', (e: any) => {
+          const target = e.inputEvent.target as HTMLElement;
+          
+          // Check if user is trying to interact with budget field
+          if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
+            e.stop();
+            return;
+          }
+
+          // Don't show toast for drag operations - allow reordering to work
+          // The toast will be shown by the click handler for budget field interactions
+
           const startIndex = localOrderRef.current.findIndex(env => env.id === envelope.id);
           const targetEl = e.target as HTMLElement;
           const rect = targetEl.getBoundingClientRect();
@@ -915,6 +967,12 @@ export const EnvelopeListView: React.FC = () => {
           // Check if the click originated from the budget field
           const target = e.inputEvent.target as HTMLElement;
           if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
+            if (target.closest('.js-budget-target') && isReorderUnlocked) {
+              // Use a small timeout to ensure the toast shows reliably on iOS
+              setTimeout(() => {
+                showToast("Lock envelope order to edit budget", "neutral");
+              }, 10);
+            }
             return; // Don't navigate if clicking budget field
           }
           handleEnvelopeClick(envelope.id);
@@ -930,7 +988,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick, isReorderUnlocked]);
+  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick, isReorderUnlocked, showToast]);
 
 
 
@@ -982,15 +1040,6 @@ export const EnvelopeListView: React.FC = () => {
     setSelectedIncomeSource(null);
   };
 
-  const handleStartFresh = () => {
-    setStartFreshModalVisible(true);
-  };
-
-  const handleStartFreshConfirm = async () => {
-    setStartFreshModalVisible(false);
-    await clearMonthData();
-  };
-
   const handleCopyPreviousMonth = async () => {
     setShowCopyPrompt(false);
     await copyFromPreviousMonth(currentMonth);
@@ -1023,55 +1072,7 @@ export const EnvelopeListView: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+4px)] pb-1">
-        <div className="flex justify-between items-center">
-          {/* Sync Status */}
-          <div className="flex items-center gap-2">
-            {isOnline ? (
-              isLoading ? (
-                <div className="flex items-center gap-1 text-blue-500">
-                  <RefreshCw size={16} className="animate-spin" />
-                  <span className="text-sm font-medium">Syncing...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-green-500">
-                  <Wifi size={16} />
-                  <span className="text-sm font-medium">Online</span>
-                </div>
-              )
-            ) : (
-              <div className="flex items-center gap-1 text-gray-500">
-                <WifiOff size={16} />
-                <span className="text-sm font-medium">
-                  {isLoading ? 'Saving...' : 'Offline'}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsReorderUnlocked(!isReorderUnlocked)}
-              className={`transition-colors ${
-                isReorderUnlocked
-                  ? 'text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300'
-                  : 'text-gray-500 hover:text-gray-600 dark:text-zinc-400 dark:hover:text-zinc-300'
-              }`}
-              title={isReorderUnlocked ? 'Lock envelope order' : 'Unlock to reorder envelopes'}
-            >
-              {isReorderUnlocked ? <Unlock size={22} /> : <Lock size={22} />}
-            </button>
-            <button
-              onClick={handleStartFresh}
-              className="text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-              title="Start Fresh - Clear current month budget"
-            >
-              <RefreshCw size={22} />
-            </button>
-            <UserMenu />
-          </div>
-        </div>
-
+        
         {/* Combined Month Selector & Budget Status */}
         <MonthSelector
           currentMonth={currentMonth}
@@ -1090,7 +1091,7 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
 
-    <div className="pt-[calc(9.5rem+env(safe-area-inset-top))] p-4 max-w-md mx-auto space-y-6">
+    <div className="pt-[calc(7.5rem+env(safe-area-inset-top))] pb-[calc(8rem+env(safe-area-inset-bottom))] p-4 max-w-md mx-auto space-y-4">
       {/* New User Onboarding */}
       {showOnboarding ? (
         <NewUserOnboarding
@@ -1281,22 +1282,6 @@ export const EnvelopeListView: React.FC = () => {
       )}
 
       <IncomeSourceModal isVisible={incomeModalVisible} onClose={handleCloseModal} mode={incomeModalMode} initialIncomeSource={selectedIncomeSource} />
-      
-      {/* This modal is no longer used for editing, but we'll leave it for now in case it's needed elsewhere. */}
-      {/* <EnvelopeAllocationModal isVisible={envelopeAllocationModalVisible} onClose={handleCloseEnvelopeAllocationModal} initialAllocation={selectedEnvelopeAllocation} getEnvelopeName={(envelopeId: string) => visibleEnvelopes.find((e: any) => e.id === envelopeId)?.name || ''} /> */}
-
-        <StartFreshConfirmModal 
-          isVisible={startFreshModalVisible} 
-          onClose={() => setStartFreshModalVisible(false)} 
-          onConfirm={handleStartFreshConfirm} 
-          currentMonth={currentMonth} 
-          incomeCount={(incomeSources[currentMonth] || []).length} 
-          totalIncome={(incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0)} 
-          allocationCount={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).length} 
-          totalAllocated={(allocations[currentMonth] || []).filter(a => visibleEnvelopes.some((env: any) => env.id === a.envelopeId) || piggybanks.some((piggybank: any) => piggybank.id === a.envelopeId)).reduce((sum, a) => sum + a.budgetedAmount, 0)}
-          transactionCount={transactions.filter(t => t.month === currentMonth).length}
-          totalTransactionAmount={transactions.filter(t => t.month === currentMonth).reduce((sum, t) => sum + t.amount, 0)}
-        />
       </div>
     </div>
     </>
