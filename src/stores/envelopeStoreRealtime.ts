@@ -79,7 +79,20 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   const unsubscribeTransactions = TransactionService.subscribeToTransactions(userId, (firebaseTransactions) => {
     console.log('🔄 Real-time sync: Transactions updated', firebaseTransactions.length);
     const transactions = firebaseTransactions.map(convertFirebaseTransaction);
-    budgetStore.setState({ transactions });
+    
+    // Get current state to preserve locally deleted transactions
+    const currentState = budgetStore.getState();
+    const currentTransactionIds = new Set(currentState.transactions.map((tx: any) => `${tx.id}-${tx.month}`));
+    const firebaseTransactionIds = new Set(transactions.map((tx: any) => `${tx.id}-${tx.month}`));
+    
+    // Only update with transactions that exist in Firebase and weren't locally deleted
+    // This preserves local deletions until they sync with Firebase
+    const updatedTransactions = [
+      ...transactions.filter((tx: any) => currentTransactionIds.has(`${tx.id}-${tx.month}`)), // Keep Firebase transactions that exist locally
+      ...currentState.transactions.filter((tx: any) => !firebaseTransactionIds.has(`${tx.id}-${tx.month}`)) // Keep locally deleted transactions
+    ];
+    
+    budgetStore.setState({ transactions: updatedTransactions });
   });
 
   // Subscribe to distribution templates

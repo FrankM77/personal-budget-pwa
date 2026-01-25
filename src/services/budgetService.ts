@@ -1,4 +1,4 @@
-import { collection, query, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, onSnapshot, arrayUnion, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch, onSnapshot, arrayUnion, getDoc, deleteField } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation } from '../models/types';
@@ -238,10 +238,22 @@ export class BudgetService {
     try {
       const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
       
-      // Properly await the deletion and handle errors
-      await deleteDoc(docRef);
+      // Delete all transactions associated with this envelope
+      const transactionsQuery = query(
+        collection(db, 'users', userId, 'transactions'),
+        where('envelopeId', '==', envelopeId)
+      );
       
-      console.log('✅ Deleted envelope from Firestore:', envelopeId);
+      const transactionSnapshot = await getDocs(transactionsQuery);
+      const deletePromises = transactionSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      
+      // Delete the envelope and all its transactions
+      await Promise.all([
+        deleteDoc(docRef),
+        ...deletePromises
+      ]);
+      
+      console.log('✅ Deleted envelope and associated transactions from Firestore:', envelopeId);
     } catch (error) {
       console.error('❌ BudgetService.deleteEnvelope failed:', error);
       throw new Error(`Failed to delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
