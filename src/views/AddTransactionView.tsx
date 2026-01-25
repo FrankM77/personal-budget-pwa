@@ -139,7 +139,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
         </button>
       </header>
 
-      <div className="p-4 max-w-md mx-auto pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      <div className="p-4 max-w-4xl mx-auto pb-[calc(8rem+env(safe-area-inset-bottom))]">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Transaction Type Toggle */}
           <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden">

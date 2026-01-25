@@ -1091,7 +1091,7 @@ export const EnvelopeListView: React.FC = () => {
       </header>
 
 
-    <div className="pt-[calc(7.5rem+env(safe-area-inset-top))] pb-[calc(8rem+env(safe-area-inset-bottom))] p-4 max-w-md mx-auto space-y-4">
+    <div className="pt-[calc(7.5rem+env(safe-area-inset-top))] pb-[calc(8rem+env(safe-area-inset-bottom))] p-4 max-w-4xl mx-auto space-y-4">
       {/* New User Onboarding */}
       {showOnboarding ? (
         <NewUserOnboarding

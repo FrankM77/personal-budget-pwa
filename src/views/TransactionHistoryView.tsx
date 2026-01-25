@@ -362,7 +362,7 @@ export const TransactionHistoryView: React.FC = () => {
       </div>
 
       {/* --- Transaction List --- */}
-      <div className="p-4 max-w-2xl mx-auto">
+      <div className="p-4 max-w-4xl mx-auto">
         <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
           {filteredTransactions.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-zinc-500">

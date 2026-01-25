@@ -363,7 +363,7 @@ export const SettingsView: React.FC = () => {
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
       </header>
 
-      <div className="p-4 space-y-6 max-w-2xl mx-auto pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      <div className="p-4 space-y-6 max-w-4xl mx-auto pb-[calc(8rem+env(safe-area-inset-bottom))]">
 
         {statusMessage && (
           <div
