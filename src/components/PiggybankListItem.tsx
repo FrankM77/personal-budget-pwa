@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PiggyBank, TrendingUp, Pause, Loader2, ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
+import { PiggyBank, TrendingUp, Pause, Loader2, MoreHorizontal, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLongPress, LongPressEventType } from 'use-long-press';
 import type { Envelope } from '../models/types';
 import { Decimal } from 'decimal.js';
 import { useBudgetStore } from '../stores/budgetStore';
@@ -15,11 +16,7 @@ interface PiggybankListItemProps {
   isReorderingActive?: boolean;
   activelyDraggingId?: string | null;
   onItemDragStart?: (id: string) => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
-  isFirst?: boolean;
-  isLast?: boolean;
-  isReorderUnlocked?: boolean;
+  onLongPressTrigger: (e: any, id: string) => void;
 }
 
 export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
@@ -30,16 +27,23 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   isReorderingActive,
   activelyDraggingId,
   onItemDragStart,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-  isReorderUnlocked
+  onLongPressTrigger
 }) => {
   const updatePiggybankContribution = useBudgetStore(state => state.updatePiggybankContribution);
   const updateEnvelope = useBudgetStore(state => state.updateEnvelope);
   const showToast = useToastStore(state => state.showToast);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // long press for mobile reordering
+  const bind = useLongPress((event) => {
+    // Vibrate to indicate grab
+    if (navigator.vibrate) navigator.vibrate(50);
+    onLongPressTrigger(event, piggybank.id);
+  }, {
+    threshold: 600, // Slightly increased threshold
+    cancelOnMovement: 10, // Stricter movement cancellation
+    detect: LongPressEventType.Touch
+  });
 
   const handleEditPiggybank = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -217,43 +221,13 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 
   const content = (
     <div className="flex items-center gap-2 w-full">
-      {/* Reorder Buttons - only show when unlocked and handler provided */}
-      {isReorderUnlocked && onMoveUp && onMoveDown && (
-      <div className="flex flex-col gap-1 mr-1">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveUp();
-          }}
-          disabled={isFirst}
-          className={`p-1 rounded transition-colors ${
-            isFirst
-              ? 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'
-              : 'text-gray-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-          }`}
-          title="Move up"
-          aria-label="Move piggybank up"
-        >
-          <ChevronUp size={18} />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveDown();
-          }}
-          disabled={isLast}
-          className={`p-1 rounded transition-colors ${
-            isLast
-              ? 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'
-              : 'text-gray-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-          }`}
-          title="Move down"
-          aria-label="Move piggybank down"
-        >
-          <ChevronDown size={18} />
-        </button>
+      {/* Drag Handle - visible on hover for desktop */}
+      <div 
+        className="hidden md:flex items-center justify-center p-1 text-gray-400 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-all duration-200"
+        onMouseDown={(e) => onLongPressTrigger(e, piggybank.id)}
+      >
+        <GripVertical size={20} />
       </div>
-      )}
       
       {/* Content Wrapper */}
       <div className="flex-1">
@@ -395,6 +369,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
       />
       
       <motion.div
+      {...bind()}
       layout={!isBeingDragged}
       transition={{
         layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
@@ -406,9 +381,12 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
       onClick={handleMoveableClick}
       style={{
         background: accentBackground, 
-        borderColor: accentBorder
+        borderColor: accentBorder,
+        boxShadow: isBeingDragged ? '0 18px 45px rgba(15,23,42,0.35)' : '0 1px 2px rgba(15,23,42,0.08)',
+        zIndex: isBeingDragged ? 50 : 1,
+        scale: isBeingDragged ? 1.02 : 1
       }}
-      className="rounded-xl p-4 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99]"
+      className="rounded-xl p-4 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99] group"
     >
       {content}
     </motion.div>

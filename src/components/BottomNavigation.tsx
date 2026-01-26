@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Wallet, List, Settings, Plus, MoreHorizontal, BarChart3, TrendingUp, PieChart, Lock, Unlock } from 'lucide-react';
-import { useBudgetStore } from '../stores/budgetStore';
+import { Wallet, List, Settings, Plus, MoreHorizontal, BarChart3, TrendingUp, PieChart } from 'lucide-react';
 
 interface BottomNavigationProps {
   onAddTransaction?: () => void;
@@ -12,7 +11,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
   const location = useLocation();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { isReorderUnlocked, toggleReorderUnlocked } = useBudgetStore();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -182,32 +180,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
                     </span>
                   </button>
                 ))}
-                
-                {/* Divider */}
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-2 my-1" />
-                
-                {/* Reorder Envelopes Toggle */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent event bubbling to underlying envelopes
-                    toggleReorderUnlocked();
-                    // Don't close menu to allow toggling back
-                  }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                >
-                  <div className={isReorderUnlocked ? "text-blue-500" : "text-zinc-600 dark:text-zinc-400"}>
-                    {isReorderUnlocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                      Reorder Envelopes
-                    </span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {isReorderUnlocked ? 'Unlocked' : 'Locked'}
-                    </span>
-                  </div>
-                </button>
-                
               </div>
             </div>
           )}

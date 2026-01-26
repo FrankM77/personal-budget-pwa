@@ -28,7 +28,6 @@ interface BudgetState {
   // === CONTEXT ===
   currentMonth: string; // "YYYY-MM"
   isOnline: boolean;
-  isReorderUnlocked: boolean; // UI State
   isOnboardingActive: boolean; // UI State for guide
   isOnboardingCompleted: boolean; // Persistent State
   isLoading: boolean;
@@ -37,7 +36,6 @@ interface BudgetState {
   // === ACTIONS ===
   setMonth: (month: string) => void;
   init: () => Promise<void>;
-  toggleReorderUnlocked: () => void; // UI Action
   setIsOnboardingActive: (active: boolean) => void; // UI Action
   completeOnboarding: () => void; // Action to mark onboarding as complete
   resetOnboarding: () => void; // Action to reset onboarding status
@@ -90,19 +88,12 @@ export const useBudgetStore = create<BudgetState>()(
         allocations: {},
         currentMonth: new Date().toISOString().slice(0, 7),
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-        isReorderUnlocked: typeof localStorage !== 'undefined' ? localStorage.getItem('envelopeReorderUnlocked') === 'true' : false,
         isOnboardingActive: false,
         isOnboardingCompleted: typeof localStorage !== 'undefined' ? localStorage.getItem('onboardingCompleted') === 'true' : false,
         isLoading: false,
         error: null,
 
         // Actions
-        toggleReorderUnlocked: () => {
-            const newState = !get().isReorderUnlocked;
-            set({ isReorderUnlocked: newState });
-            localStorage.setItem('envelopeReorderUnlocked', String(newState));
-        },
-
         setIsOnboardingActive: (active: boolean) => {
             set({ isOnboardingActive: active });
         },

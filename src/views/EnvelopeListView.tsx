@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Wallet, PiggyBank, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Wallet, PiggyBank, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
+import { useLongPress, LongPressEventType } from 'use-long-press';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
 import { MonthSelector } from '../components/ui/MonthSelector';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
@@ -47,11 +48,7 @@ const EnvelopeListItem = ({
   isReorderingActive,
   activelyDraggingId,
   onItemDragStart,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-  isReorderUnlocked
+  onLongPressTrigger
   }: {
   env: any,
   budgetedAmount: number,
@@ -69,13 +66,8 @@ const EnvelopeListItem = ({
   isReorderingActive: boolean,
   activelyDraggingId: string | null,
   onItemDragStart: (id: string) => void,
-  onMoveUp: () => void,
-  onMoveDown: () => void,
-  isFirst: boolean,
-  isLast: boolean,
-  isReorderUnlocked: boolean
+  onLongPressTrigger: (e: any, id: string) => void
 }) => {
-  const { showToast } = useToastStore();
   const isPiggybank = Boolean(env.isPiggybank);
   const piggyColor = env.piggybankConfig?.color || '#3B82F6';
   const piggyBackground = isPiggybank
@@ -84,6 +76,17 @@ const EnvelopeListItem = ({
   const piggyBorder = isPiggybank ? hexToRgba(piggyColor, 0.5) : undefined;
   const moveableItemRef = useRef<HTMLDivElement>(null);
   const [didDragThisItem, setDidDragThisItem] = useState(false);
+
+  // long press for mobile reordering
+  const bind = useLongPress((event) => {
+    // Vibrate to indicate grab
+    if (navigator.vibrate) navigator.vibrate(50);
+    onLongPressTrigger(event, env.id);
+  }, {
+    threshold: 600, // Slightly increased threshold
+    cancelOnMovement: 10, // Stricter movement cancellation
+    detect: LongPressEventType.Touch
+  });
 
   // Calculate percentage for both background color and progress bar
   const envelopeTransactions = transactions.filter(t => 
@@ -112,17 +115,11 @@ const EnvelopeListItem = ({
       return;
     }
 
-    // INTERCEPT clicks/touches on the budget field during reorder unlocked state
+    // INTERCEPT clicks/touches on the budget field
     const target = e.target as HTMLElement;
     if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
       e.preventDefault();
       e.stopPropagation();
-      if (isReorderUnlocked) {
-        // Use a small timeout to ensure the toast shows reliably on iOS
-        setTimeout(() => {
-          showToast("Lock envelope order to edit budget", "neutral");
-        }, 10);
-      }
       return;
     }
     
@@ -157,43 +154,14 @@ const EnvelopeListItem = ({
 
   const content = (
     <div className="flex items-center gap-2 w-full">
-      {/* Reorder Buttons - only show when unlocked */}
-      {isReorderUnlocked && (
-      <div className="flex flex-col gap-1">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveUp();
-          }}
-          disabled={isFirst}
-          className={`p-1 rounded transition-colors ${
-            isFirst
-              ? 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'
-              : 'text-gray-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-          }`}
-          title="Move up"
-          aria-label="Move envelope up"
-        >
-          <ChevronUp size={18} />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveDown();
-          }}
-          disabled={isLast}
-          className={`p-1 rounded transition-colors ${
-            isLast
-              ? 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'
-              : 'text-gray-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-          }`}
-          title="Move down"
-          aria-label="Move envelope down"
-        >
-          <ChevronDown size={18} />
-        </button>
+      {/* Drag Handle - visible on hover for desktop */}
+      <div 
+        className="hidden md:flex items-center justify-center p-1 text-gray-400 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-all duration-200"
+        onMouseDown={(e) => onLongPressTrigger(e, env.id)}
+      >
+        <GripVertical size={20} />
       </div>
-      )}
+
       {/* Content Wrapper */}
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-1">
@@ -246,35 +214,15 @@ const EnvelopeListItem = ({
               </div>
             ) : (
               <div
-                onTouchStart={(e) => {
-                  // Handle touch start for mobile reliability
-                  if (isReorderUnlocked) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showToast("Lock envelope order to edit budget", "neutral");
-                    return;
-                  }
-                }}
                 onTouchEnd={(e) => {
                   // Handle touch end for mobile reliability
                   e.preventDefault();
                   e.stopPropagation();
-                  if (isReorderUnlocked) {
-                    // Already handled in onTouchStart, but just in case
-                    showToast("Lock envelope order to edit budget", "neutral");
-                    return;
-                  }
                   setEditingEnvelopeId(env.id);
                   setEditingAmount(budgetedAmount.toString());
                 }}
-                onClick={(e) => {
+                onClick={() => {
                   // Handle click for desktop and as fallback for mobile
-                  if (isReorderUnlocked) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showToast("Lock envelope order to edit budget", "neutral");
-                    return;
-                  }
                   setEditingEnvelopeId(env.id);
                   setEditingAmount(budgetedAmount.toString());
                 }}
@@ -339,6 +287,7 @@ const EnvelopeListItem = ({
   
   return (
     <motion.div
+      {...bind()}
       layout={!isBeingDragged}
       transition={{
         layout: { type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }
@@ -350,12 +299,14 @@ const EnvelopeListItem = ({
       }}
       onClick={handleMoveableClick}
       style={{
-        boxShadow: '0 1px 2px rgba(15,23,42,0.08)',
+        boxShadow: isBeingDragged ? '0 18px 45px rgba(15,23,42,0.35)' : '0 1px 2px rgba(15,23,42,0.08)',
         background: piggyBackground,
         borderColor: piggyBorder,
-        cursor: 'pointer'
+        cursor: isBeingDragged ? 'grabbing' : 'pointer',
+        zIndex: isBeingDragged ? 50 : 1,
+        scale: isBeingDragged ? 1.02 : 1
       }}
-      className={`p-4 rounded-xl active:scale-[0.99] transition-all select-none border ${
+      className={`p-4 rounded-xl active:scale-[0.99] transition-all select-none border group ${
         isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
       }`}
     >
@@ -389,7 +340,7 @@ export const EnvelopeListView: React.FC = () => {
   } = useEnvelopeList();
 
   // Get setCurrentMonth directly from store for month selector
-  const { setMonth, isReorderUnlocked, setIsOnboardingActive, isOnboardingCompleted, completeOnboarding } = useBudgetStore();
+  const { setMonth, setIsOnboardingActive, isOnboardingCompleted, completeOnboarding } = useBudgetStore();
   const { showToast } = useToastStore();
   const navigate = useNavigate();
 
@@ -447,16 +398,6 @@ export const EnvelopeListView: React.FC = () => {
         ) || Object.keys(allocations).some(month => 
           (allocations[month] || []).length > 0
         );
-        
-        console.log('🔍 Prompt check:', { 
-          currentMonth, 
-          hasIncome: (incomeSources[currentMonth] || []).length > 0,
-          hasAllocations: (allocations[currentMonth] || []).length > 0,
-          hasAnyDataInAnyMonth,
-          showPrompt: hasNoData,
-          isNewUser: !hasAnyDataInAnyMonth,
-          isOnboardingCompleted
-        });
         
         if (hasNoData) {
           if (!hasAnyDataInAnyMonth) {
@@ -538,34 +479,48 @@ export const EnvelopeListView: React.FC = () => {
 
   const [isReordering, setIsReordering] = useState(false);
   const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
-  const lastDragEndTime = useRef<number>(0);
+  const isManualDrag = useRef(false);
   
 
   const handleDragStart = useCallback(() => setIsReordering(true), []);
 
   const handleDragEnd = useCallback(() => {
     setIsReordering(false);
+    isManualDrag.current = false; // Reset flag
     if (localOrderRef.current.length) {
       reorderEnvelopes(localOrderRef.current);
     }
   }, [reorderEnvelopes]);
 
   const handleItemDragStart = useCallback((_id: string) => {
-    // Item-specific drag start handler (currently just for tracking)
+    // Item-specific drag start handler
   }, []);
 
   const handleEnvelopeClick = useCallback((envelopeId: string) => {
-    if (isReorderUnlocked) return;
+    if (isReordering) return;
     if (editingEnvelopeId !== envelopeId) {
       navigate(`/envelope/${envelopeId}`);
     }
-  }, [editingEnvelopeId, navigate, isReorderUnlocked]);
+  }, [editingEnvelopeId, navigate, isReordering]);
+
+  const handleLongPressTrigger = useCallback((e: any, id: string) => {
+    const instance = moveableInstances.current[id] || piggybankMoveableInstances.current[id];
+    if (instance) {
+      // Set manual flag to allow drag
+      isManualDrag.current = true;
+      // Trigger Moveable's drag programmatically
+      // use-long-press provides the event, we need the underlying UI event
+      const event = e.nativeEvent || e;
+      instance.dragStart(event);
+    }
+  }, []);
 
   // Piggybank Drag Handlers
   const handlePiggybankDragStart = useCallback(() => setIsReordering(true), []);
 
   const handlePiggybankDragEnd = useCallback(() => {
     setIsReordering(false);
+    isManualDrag.current = false; // Reset flag
     if (localPiggybankOrderRef.current.length) {
       reorderEnvelopes(localPiggybankOrderRef.current);
     }
@@ -583,9 +538,6 @@ export const EnvelopeListView: React.FC = () => {
     }
 
     const initializeMoveable = () => {
-      // Only initialize Moveable if reordering is unlocked
-      if (!isReorderUnlocked) return;
-
       piggybanks.forEach((piggybank) => {
         const element = piggybankMoveableRefs.current[piggybank.id];
         if (!element) return;
@@ -599,7 +551,7 @@ export const EnvelopeListView: React.FC = () => {
         // Use piggybankReorderConstraintsRef as container
         const moveable = new Moveable(piggybankReorderConstraintsRef.current!, {
           target: element,
-          draggable: isReorderUnlocked,
+          draggable: true,
           throttleDrag: 0,
           edgeDraggable: false,
           startDragRotate: 0,
@@ -619,14 +571,20 @@ export const EnvelopeListView: React.FC = () => {
           clickable: true,
           preventClickDefault: false,
           preventClickEventOnDrag: true,
-          checkInput: true, // Allow input elements to be clicked
-          dragArea: true,
+          checkInput: true,
+          dragArea: false, // Don't start drag on area, only on dragStart() call or handle
           hideDefaultLines: true,
           hideChildMoveableDefaultLines: true,
           renderDirections: [],
         });
 
         moveable.on('dragStart', (e: any) => {
+          // GUARD: Only allow drag if triggered manually (long press or handle)
+          if (!isManualDrag.current) {
+             e.stop();
+             return;
+          }
+
           const target = e.inputEvent.target as HTMLElement;
           
           // Check if user is trying to interact with budget field
@@ -771,12 +729,6 @@ export const EnvelopeListView: React.FC = () => {
           // Check if the click originated from interaction elements
           const target = e.inputEvent.target as HTMLElement;
           if (target.closest('.js-budget-target') || target.tagName === 'INPUT' || target.tagName === 'BUTTON') {
-            if (target.closest('.js-budget-target') && isReorderUnlocked) {
-              // Use a small timeout to ensure the toast shows reliably on iOS
-              setTimeout(() => {
-                showToast("Lock envelope order to edit budget", "neutral");
-              }, 10);
-            }
             return;
           }
           handleEnvelopeClick(piggybank.id);
@@ -792,7 +744,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick, isReorderUnlocked, showToast]);
+  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick]);
 
 
   // Initialize Moveable instances
@@ -807,9 +759,6 @@ export const EnvelopeListView: React.FC = () => {
     }
 
     const initializeMoveable = () => {
-      // Only initialize Moveable if reordering is unlocked
-      if (!isReorderUnlocked) return;
-
       visibleEnvelopes.forEach((envelope) => {
         const element = moveableRefs.current[envelope.id];
         if (!element) return;
@@ -822,7 +771,7 @@ export const EnvelopeListView: React.FC = () => {
 
         const moveable = new Moveable(reorderConstraintsRef.current!, {
           target: element,
-          draggable: isReorderUnlocked,
+          draggable: true,
           throttleDrag: 0,
           edgeDraggable: false,
           startDragRotate: 0,
@@ -842,14 +791,20 @@ export const EnvelopeListView: React.FC = () => {
           clickable: true,
           preventClickDefault: false,
           preventClickEventOnDrag: true,
-          checkInput: true, // Allow input elements to be clicked
-          dragArea: true,
+          checkInput: true,
+          dragArea: false, // Important: don't start drag on area, wait for handle or longpress
           hideDefaultLines: true,
           hideChildMoveableDefaultLines: true,
           renderDirections: [],
         });
 
         moveable.on('dragStart', (e: any) => {
+          // GUARD: Only allow drag if triggered manually (long press or handle)
+          if (!isManualDrag.current) {
+             e.stop();
+             return;
+          }
+
           const target = e.inputEvent.target as HTMLElement;
           
           // Check if user is trying to interact with budget field
@@ -857,9 +812,6 @@ export const EnvelopeListView: React.FC = () => {
             e.stop();
             return;
           }
-
-          // Don't show toast for drag operations - allow reordering to work
-          // The toast will be shown by the click handler for budget field interactions
 
           const startIndex = localOrderRef.current.findIndex(env => env.id === envelope.id);
           const targetEl = e.target as HTMLElement;
@@ -985,21 +937,14 @@ export const EnvelopeListView: React.FC = () => {
           }, 300);
           
           moveableDragState.current = { activeId: null, startIndex: 0, currentIndex: 0, itemHeight: 0 };
-          lastDragEndTime.current = Date.now();
           handleDragEnd();
         });
 
         // Handle click events from Moveable
-        moveable.on('click', (e: any) => {
+        moveable.on('click', () => {
           // Check if the click originated from the budget field
-          const target = e.inputEvent.target as HTMLElement;
-          if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
-            if (target.closest('.js-budget-target') && isReorderUnlocked) {
-              // Use a small timeout to ensure the toast shows reliably on iOS
-              setTimeout(() => {
-                showToast("Lock envelope order to edit budget", "neutral");
-              }, 10);
-            }
+          const target = window.event?.target as HTMLElement;
+          if (target && (target.closest('.js-budget-target') || target.tagName === 'INPUT')) {
             return; // Don't navigate if clicking budget field
           }
           handleEnvelopeClick(envelope.id);
@@ -1015,7 +960,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick, isReorderUnlocked, showToast]);
+  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick]);
 
 
 
@@ -1191,28 +1136,10 @@ export const EnvelopeListView: React.FC = () => {
               <div ref={reorderConstraintsRef}>
                 <AnimatePresence initial={false}>
                   <div className="space-y-3">
-                    {visibleEnvelopes.map((env: any, index: number) => {
+                    {visibleEnvelopes.map((env: any) => {
                       const allocation = (allocations[currentMonth] || []).find(alloc => alloc.envelopeId === env.id);
                       const budgetedAmount = allocation?.budgetedAmount || 0;
                       const remainingBalance = getEnvelopeBalance(env.id);
-
-                      const handleMoveUp = () => {
-                        if (index === 0) return;
-                        const newOrder = [...localOrderRef.current];
-                        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-                        localOrderRef.current = newOrder;
-                        setLocalEnvelopes(newOrder);
-                        reorderEnvelopes(newOrder);
-                      };
-
-                      const handleMoveDown = () => {
-                        if (index === visibleEnvelopes.length - 1) return;
-                        const newOrder = [...localOrderRef.current];
-                        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-                        localOrderRef.current = newOrder;
-                        setLocalEnvelopes(newOrder);
-                        reorderEnvelopes(newOrder);
-                      };
 
                       return (
                         <EnvelopeListItem
@@ -1233,11 +1160,7 @@ export const EnvelopeListView: React.FC = () => {
                           isReorderingActive={isReordering}
                           activelyDraggingId={activelyDraggingId}
                           onItemDragStart={handleItemDragStart}
-                          onMoveUp={handleMoveUp}
-                          onMoveDown={handleMoveDown}
-                          isFirst={index === 0}
-                          isLast={index === visibleEnvelopes.length - 1}
-                          isReorderUnlocked={isReorderUnlocked}
+                          onLongPressTrigger={handleLongPressTrigger}
                         />
                       );
                     })}
@@ -1262,25 +1185,7 @@ export const EnvelopeListView: React.FC = () => {
                <div ref={piggybankReorderConstraintsRef} className="relative">
                  <AnimatePresence initial={false}>
                    <div className="space-y-3">
-                     {piggybanks.map((piggybank: any, index: number) => {
-                       const handleMoveUp = () => {
-                         if (index === 0) return;
-                         const newOrder = [...localPiggybankOrderRef.current];
-                         [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-                         localPiggybankOrderRef.current = newOrder;
-                         setLocalPiggybanks(newOrder);
-                         reorderEnvelopes(newOrder);
-                       };
-
-                       const handleMoveDown = () => {
-                         if (index === piggybanks.length - 1) return;
-                         const newOrder = [...localPiggybankOrderRef.current];
-                         [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-                         localPiggybankOrderRef.current = newOrder;
-                         setLocalPiggybanks(newOrder);
-                         reorderEnvelopes(newOrder);
-                       };
-
+                     {piggybanks.map((piggybank: any) => {
                        return (
                          <PiggybankListItem
                            key={piggybank.id}
@@ -1291,11 +1196,7 @@ export const EnvelopeListView: React.FC = () => {
                            isReorderingActive={isReordering}
                            activelyDraggingId={activelyDraggingPiggybankId}
                            onItemDragStart={() => {}}
-                           onMoveUp={handleMoveUp}
-                           onMoveDown={handleMoveDown}
-                           isFirst={index === 0}
-                           isLast={index === piggybanks.length - 1}
-                           isReorderUnlocked={isReorderUnlocked}
+                           onLongPressTrigger={handleLongPressTrigger}
                          />
                        );
                      })}
