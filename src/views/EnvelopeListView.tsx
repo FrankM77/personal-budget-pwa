@@ -389,7 +389,7 @@ export const EnvelopeListView: React.FC = () => {
   } = useEnvelopeList();
 
   // Get setCurrentMonth directly from store for month selector
-  const { setMonth, isReorderUnlocked } = useBudgetStore();
+  const { setMonth, isReorderUnlocked, setIsOnboardingActive, isOnboardingCompleted, completeOnboarding } = useBudgetStore();
   const { showToast } = useToastStore();
   const navigate = useNavigate();
 
@@ -402,6 +402,12 @@ export const EnvelopeListView: React.FC = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sync onboarding state with global store to control navigation visibility
+  useEffect(() => {
+    setIsOnboardingActive(showOnboarding);
+    return () => setIsOnboardingActive(false);
+  }, [showOnboarding, setIsOnboardingActive]);
+
   // State for inline budget editing
   const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
   const [editingAmount, setEditingAmount] = useState('');
@@ -413,6 +419,26 @@ export const EnvelopeListView: React.FC = () => {
     if (!isInitialLoading && !isLoading) {
       // Add a small delay to ensure data is loaded from backend
       const timer = setTimeout(() => {
+        // If onboarding is already completed, never show it again automatically
+        if (isOnboardingCompleted) {
+           setShowOnboarding(false);
+           
+           // Still check for copy prompt logic for existing users
+           const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
+           const hasAnyDataInAnyMonth = Object.keys(incomeSources).some(month => 
+             (incomeSources[month] || []).length > 0
+           ) || Object.keys(allocations).some(month => 
+             (allocations[month] || []).length > 0
+           );
+           
+           if (hasNoData && hasAnyDataInAnyMonth) {
+               setShowCopyPrompt(true);
+           } else {
+               setShowCopyPrompt(false);
+           }
+           return;
+        }
+
         const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
         
         // Check if user has ANY data in ANY month (to detect truly new users)
@@ -428,7 +454,8 @@ export const EnvelopeListView: React.FC = () => {
           hasAllocations: (allocations[currentMonth] || []).length > 0,
           hasAnyDataInAnyMonth,
           showPrompt: hasNoData,
-          isNewUser: !hasAnyDataInAnyMonth
+          isNewUser: !hasAnyDataInAnyMonth,
+          isOnboardingCompleted
         });
         
         if (hasNoData) {
@@ -449,7 +476,7 @@ export const EnvelopeListView: React.FC = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [isInitialLoading, isLoading, currentMonth, incomeSources, allocations]);
+  }, [isInitialLoading, isLoading, currentMonth, incomeSources, allocations, isOnboardingCompleted]);
 
   // Auto-focus input when editing envelope budget
   useEffect(() => {
@@ -1046,6 +1073,9 @@ export const EnvelopeListView: React.FC = () => {
   };
 
   const handleOnboardingComplete = () => {
+    // Mark onboarding as complete in store so it doesn't show again
+    completeOnboarding();
+    
     // Close onboarding and show the empty budget
     setShowOnboarding(false);
     // The user can now manually add income sources and envelopes
@@ -1070,7 +1100,8 @@ export const EnvelopeListView: React.FC = () => {
         .moveable-line { display: none !important; }
       ` }} />
       <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
-      {/* Navbar */}
+      {/* Navbar - Hide during onboarding */}
+      {!showOnboarding && (
       <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+4px)] pb-1">
         
         {/* Combined Month Selector & Budget Status */}
@@ -1089,9 +1120,10 @@ export const EnvelopeListView: React.FC = () => {
           }}
         />
       </header>
+      )}
 
 
-    <div className="pt-[calc(7.5rem+env(safe-area-inset-top))] pb-[calc(8rem+env(safe-area-inset-bottom))] p-4 max-w-4xl mx-auto space-y-4">
+    <div className={`pt-[calc(${showOnboarding ? '0rem' : '7.5rem'}+env(safe-area-inset-top))] pb-[calc(8rem+env(safe-area-inset-bottom))] p-4 max-w-4xl mx-auto space-y-4`}>
       {/* New User Onboarding */}
       {showOnboarding ? (
         <NewUserOnboarding

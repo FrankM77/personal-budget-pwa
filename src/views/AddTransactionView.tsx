@@ -123,9 +123,9 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const amountColor = transactionType === 'income' ? 'text-green-500' : 'text-red-500';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="h-screen overflow-y-auto bg-gray-50 dark:bg-black overscroll-contain">
       {/* Header */}
-      <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+6px)] pb-2 sticky top-0 z-10 flex items-center justify-between">
+      <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+6px)] pb-2 sticky top-0 z-20 flex items-center justify-between">
         <button
           onClick={handleClose}
           className="text-blue-600 dark:text-blue-400 font-medium"

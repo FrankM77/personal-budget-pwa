@@ -29,6 +29,8 @@ interface BudgetState {
   currentMonth: string; // "YYYY-MM"
   isOnline: boolean;
   isReorderUnlocked: boolean; // UI State
+  isOnboardingActive: boolean; // UI State for guide
+  isOnboardingCompleted: boolean; // Persistent State
   isLoading: boolean;
   error: string | null;
 
@@ -36,6 +38,9 @@ interface BudgetState {
   setMonth: (month: string) => void;
   init: () => Promise<void>;
   toggleReorderUnlocked: () => void; // UI Action
+  setIsOnboardingActive: (active: boolean) => void; // UI Action
+  completeOnboarding: () => void; // Action to mark onboarding as complete
+  resetOnboarding: () => void; // Action to reset onboarding status
   addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
   updateEnvelope: (envelope: Envelope) => Promise<void>;
   deleteEnvelope: (envelopeId: string) => Promise<void>;
@@ -86,6 +91,8 @@ export const useBudgetStore = create<BudgetState>()(
         currentMonth: new Date().toISOString().slice(0, 7),
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         isReorderUnlocked: typeof localStorage !== 'undefined' ? localStorage.getItem('envelopeReorderUnlocked') === 'true' : false,
+        isOnboardingActive: false,
+        isOnboardingCompleted: typeof localStorage !== 'undefined' ? localStorage.getItem('onboardingCompleted') === 'true' : false,
         isLoading: false,
         error: null,
 
@@ -94,6 +101,20 @@ export const useBudgetStore = create<BudgetState>()(
             const newState = !get().isReorderUnlocked;
             set({ isReorderUnlocked: newState });
             localStorage.setItem('envelopeReorderUnlocked', String(newState));
+        },
+
+        setIsOnboardingActive: (active: boolean) => {
+            set({ isOnboardingActive: active });
+        },
+
+        completeOnboarding: () => {
+            set({ isOnboardingCompleted: true, isOnboardingActive: false });
+            localStorage.setItem('onboardingCompleted', 'true');
+        },
+
+        resetOnboarding: () => {
+            set({ isOnboardingCompleted: false, isOnboardingActive: true });
+            localStorage.removeItem('onboardingCompleted');
         },
 
         clearMonthData: async (month: string) => {

@@ -22,7 +22,8 @@ export const SettingsView: React.FC = () => {
     allocations, 
     currentMonth,
     clearMonthData,
-    handleUserLogout
+    handleUserLogout,
+    resetOnboarding
   } = useBudgetStore();
 
   const { deleteAccount, currentUser, logout } = useAuthStore();
@@ -479,6 +480,31 @@ export const SettingsView: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Help & Guide */}
+        <section>
+          <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Help & Guide</h2>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm divide-y divide-gray-100 dark:divide-zinc-800">
+            <button
+              onClick={() => {
+                if (window.confirm("Restart the onboarding guide? This will take you back to the main screen to view the tutorial.")) {
+                    resetOnboarding();
+                    navigate('/');
+                }
+              }}
+              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="text-purple-500" size={20} />
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-900 dark:text-white font-medium">Restart Onboarding Guide</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">View the welcome tutorial again</span>
+                </div>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
           </div>
         </section>
 

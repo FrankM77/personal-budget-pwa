@@ -15,7 +15,7 @@ function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
-  const { appSettings } = useBudgetStore();
+  const { appSettings, isOnboardingActive } = useBudgetStore();
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
@@ -126,8 +126,10 @@ function App() {
           </div>
         )}
 
-        {/* Bottom Navigation - Only show on main app pages */}
-        <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
+        {/* Bottom Navigation - Only show on main app pages and when not onboarding */}
+        {!isOnboardingActive && (
+          <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
+        )}
       </HashRouter>
 
       {/* Global Toast Notifications */}
