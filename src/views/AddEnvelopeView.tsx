@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, FolderPlus, PiggyBank } from 'lucide-react';
+import { ArrowLeft, Folder, PiggyBank } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 
@@ -100,7 +100,7 @@ export const AddEnvelopeView: React.FC = () => {
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
           <div className="p-6 bg-blue-50 dark:bg-zinc-800 border-b border-blue-100 dark:border-zinc-700 flex justify-center py-8">
             <div className="w-20 h-20 bg-blue-100 dark:bg-zinc-700 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
-              {isPiggybank ? <PiggyBank size={40} /> : <FolderPlus size={40} />}
+              {isPiggybank ? <PiggyBank size={40} /> : <Folder size={40} />}
             </div>
           </div>
 
