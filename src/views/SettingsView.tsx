@@ -160,12 +160,18 @@ export const SettingsView: React.FC = () => {
     setIsExportingCSV(true);
     setOperationResult(null);
     try {
-      const headers = ['Date', 'Merchant', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
+      const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
 
       const rows = transactions.map((t) => {
         const envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
         const safeMerchant = (t.merchant || '').replace(/"/g, '""');
         const safeNotes = (t.description || '').replace(/"/g, '""');
+        
+        let paymentMethodStr = '';
+        if (t.paymentMethod) {
+          paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
+        }
+        const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
 
         let dateStr = 'Invalid Date';
         if (t.date) {
@@ -179,6 +185,7 @@ export const SettingsView: React.FC = () => {
         return [
           dateStr,
           `"${safeMerchant}"`, 
+          `"${safePaymentMethod}"`,
           `"${safeNotes}"`, 
           (t.amount as number).toFixed(2),
           t.type,
