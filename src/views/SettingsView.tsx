@@ -489,10 +489,8 @@ export const SettingsView: React.FC = () => {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm divide-y divide-gray-100 dark:divide-zinc-800">
             <button
               onClick={() => {
-                if (window.confirm("Restart the onboarding guide? This will take you back to the main screen to view the tutorial.")) {
-                    resetOnboarding();
-                    navigate('/');
-                }
+                resetOnboarding();
+                navigate('/');
               }}
               className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
             >

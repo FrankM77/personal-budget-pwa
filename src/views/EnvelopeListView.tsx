@@ -340,7 +340,7 @@ export const EnvelopeListView: React.FC = () => {
   } = useEnvelopeList();
 
   // Get setCurrentMonth directly from store for month selector
-  const { setMonth, setIsOnboardingActive, isOnboardingCompleted, completeOnboarding } = useBudgetStore();
+  const { setMonth, setIsOnboardingActive, isOnboardingCompleted, completeOnboarding, isOnboardingActive } = useBudgetStore();
   const { showToast } = useToastStore();
   const navigate = useNavigate();
 
@@ -350,7 +350,8 @@ export const EnvelopeListView: React.FC = () => {
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  // Initialize from global state to support "Restart Onboarding" from settings
+  const [showOnboarding, setShowOnboarding] = useState(isOnboardingActive);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync onboarding state with global store to control navigation visibility
@@ -370,6 +371,9 @@ export const EnvelopeListView: React.FC = () => {
     if (!isInitialLoading && !isLoading) {
       // Add a small delay to ensure data is loaded from backend
       const timer = setTimeout(() => {
+        // If onboarding is already active (e.g. from Restart), don't override
+        if (showOnboarding) return;
+
         // If onboarding is already completed, never show it again automatically
         if (isOnboardingCompleted) {
            setShowOnboarding(false);
