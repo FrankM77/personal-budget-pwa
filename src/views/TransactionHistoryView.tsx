@@ -24,6 +24,7 @@ export const TransactionHistoryView: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all'); 
   const [showAllTime, setShowAllTime] = useState(false);
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('all');
+  const [isDateFilterActive, setIsDateFilterActive] = useState(false);
   // Default Dates: Start = 1 month ago, End = Today
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -115,11 +116,8 @@ export const TransactionHistoryView: React.FC = () => {
         }
         const tDate = t.date.split('T')[0];
         
-        // Date Range filter is currently disabled because default values (Last 30 Days)
-        // conflict with both "Specific Month" view (hiding past months)
-        // and "All Time" view (hiding older data).
-        // To restore this, we would need 'isDateFilterActive' state.
-        if (false) { 
+        // Only filter by date if enabled by user
+        if (isDateFilterActive) { 
           if (tDate < startDate || tDate > endDate) {
             return false;
           }
@@ -143,7 +141,7 @@ export const TransactionHistoryView: React.FC = () => {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth]);
+  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth, isDateFilterActive]);
 
   console.log('✅ Final filtered transactions:', {
     count: filteredTransactions.length,
@@ -206,48 +204,48 @@ export const TransactionHistoryView: React.FC = () => {
         </button>
       </div>
 
-      {/* --- Payment Method Filter (Top of List) --- */}
+      {/* --- Quick Search Box (Always visible) --- */}
       <div className="px-4 py-3 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800">
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-500 uppercase">Payment Method</label>
-          <select
-            value={selectedPaymentMethodId}
-            onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
-            className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
-          >
-            <option value="all">All Payment Methods</option>
-            {appSettings?.paymentSources?.map(card => (
-              <option key={card.id} value={card.id}>
-                {card.name}
-              </option>
-            ))}
-          </select>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+          />
+          {searchText && (
+            <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* --- Collapsible Filter Panel --- */}
       <div 
         className={`overflow-hidden transition-all duration-300 ease-in-out bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 ${
-          showFilters ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+          showFilters ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         <div className="p-4 space-y-4">
           
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
-            />
-            {searchText && (
-              <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <X size={16} />
-              </button>
-            )}
+          {/* Payment Method Filter */}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase">Payment Method</label>
+            <select
+              value={selectedPaymentMethodId}
+              onChange={(e) => setSelectedPaymentMethodId(e.target.value)}
+              className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
+            >
+              <option value="all">All Payment Methods</option>
+              {appSettings?.paymentSources?.map(card => (
+                <option key={card.id} value={card.id}>
+                  {card.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Envelope Picker */}
@@ -300,27 +298,45 @@ export const TransactionHistoryView: React.FC = () => {
           </div>
 
           {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">From</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full p-2 bg-gray-100 dark:bg-zinc-800 rounded-lg text-sm dark:text-white outline-none [color-scheme:light] dark:[color-scheme:dark]"
-                />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-500 uppercase">Date Range</span>
+              <div className="flex items-center gap-2">
+                 <label className="text-xs text-gray-600 dark:text-zinc-400">Enable</label>
+                 <button
+                    onClick={() => setIsDateFilterActive(!isDateFilterActive)}
+                    className={`w-9 h-5 rounded-full transition-colors relative ${
+                      isDateFilterActive ? 'bg-blue-500' : 'bg-gray-300 dark:bg-zinc-700'
+                    }`}
+                  >
+                    <span className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${
+                      isDateFilterActive ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase">To</label>
-              <div className="relative">
-                 <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full p-2 bg-gray-100 dark:bg-zinc-800 rounded-lg text-sm dark:text-white outline-none [color-scheme:light] dark:[color-scheme:dark]"
-                />
+            <div className={`grid grid-cols-2 gap-4 transition-opacity ${isDateFilterActive ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-500 uppercase">From</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full p-2 bg-gray-100 dark:bg-zinc-800 rounded-lg text-sm dark:text-white outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-500 uppercase">To</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full p-2 bg-gray-100 dark:bg-zinc-800 rounded-lg text-sm dark:text-white outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                  />
+                </div>
               </div>
             </div>
           </div>

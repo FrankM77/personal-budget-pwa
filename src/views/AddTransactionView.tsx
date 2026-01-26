@@ -20,7 +20,13 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  // Initialize with LOCAL date string to ensure "today" is actually today for the user
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getTime() - (now.getTimezoneOffset() * 60000))
+      .toISOString()
+      .split('T')[0];
+  });
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
