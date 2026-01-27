@@ -396,21 +396,25 @@ export const TransactionHistoryView: React.FC = () => {
                     transition={{ duration: 0.2 }}
                   >
                     {/* WRAPPER 3: SwipeableRow handles the gesture */}
-                    <SwipeableRow onDelete={() => {
-                      if (!transaction.id) return;
-                      const transactionToDelete = { ...transaction }; // Create a copy
-                      deleteTransaction(transaction.id);
-                      showToast(
-                        'Transaction deleted',
-                        'neutral',
-                        () => restoreTransaction(transactionToDelete)
-                      );
-                    }}>
+                    <SwipeableRow 
+                      disabled={transaction.isAutomatic}
+                      onDelete={() => {
+                        if (!transaction.id) return;
+                        const transactionToDelete = { ...transaction }; // Create a copy
+                        deleteTransaction(transaction.id);
+                        showToast(
+                          'Transaction deleted',
+                          'neutral',
+                          () => restoreTransaction(transactionToDelete)
+                        );
+                      }}
+                    >
                       <EnvelopeTransactionRow
                         transaction={transaction}
                         envelopeName={env?.name || 'Unknown Envelope'}
                         onReconcile={() => handleReconcile(transaction)}
                         onEdit={() => {
+                          if (transaction.isAutomatic) return;
                           if (env) {
                             setEditingTransaction(transaction);
                           } else {

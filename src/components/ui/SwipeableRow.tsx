@@ -7,18 +7,21 @@ interface SwipeableRowProps {
   children: React.ReactNode;
   onDelete: () => void | boolean | Promise<void | boolean>;
   threshold?: number; // Drag distance to trigger delete (e.g., -100)
+  disabled?: boolean;
 }
 
 export const SwipeableRow: React.FC<SwipeableRowProps> = ({
   children,
   onDelete,
   threshold = -100,
+  disabled = false,
 }) => {
   const controls = useAnimation();
   const [isDragging, setIsDragging] = useState(false);
   const dragStartTime = useRef<number>(0);
 
   const handleDragStart = () => {
+    if (disabled) return;
     setIsDragging(true);
     dragStartTime.current = Date.now();
   };
@@ -27,6 +30,7 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
     _: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo
   ) => {
+    if (disabled) return;
     const offset = info.offset.x;
     const velocity = info.velocity.x;
 
@@ -62,7 +66,7 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
 
       {/* 2. Foreground Layer (Draggable Content) */}
       <motion.div
-        drag="x"
+        drag={disabled ? false : "x"}
         dragConstraints={{ left: -500, right: 0 }} // Cannot drag right
         dragElastic={0.1} // iOS-like resistance
         onDragStart={handleDragStart}

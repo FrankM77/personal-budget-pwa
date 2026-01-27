@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
+import { toDate } from '../utils/dateUtils';
 import type { Transaction } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
@@ -86,9 +87,12 @@ const EnvelopeDetail: React.FC = () => {
                 }
                 
                 if (!currentEnvelope.createdAt) return true; // Legacy piggybanks with no creation date
-                const createdDate = new Date(currentEnvelope.createdAt);
-                const transactionDate = new Date(t.date);
-                return transactionDate >= createdDate;
+                
+                // Use the safe toDate parser to avoid "Invalid Time Value"
+                const createdDateStr = toDate(currentEnvelope.createdAt).toISOString().split('T')[0];
+                const transactionDateStr = toDate(t.date).toISOString().split('T')[0];
+                
+                return transactionDateStr >= createdDateStr;
             }
             // For regular envelopes, filter by current month
             return t.month === currentMonth || !t.month;
@@ -217,20 +221,26 @@ const EnvelopeDetail: React.FC = () => {
                                     exit={{ opacity: 0, height: 0 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    <SwipeableRow onDelete={() => {
-                                      if (!transaction.id) return;
-                                      const transactionToDelete = { ...transaction }; // Create a copy
-                                      deleteTransaction(transaction.id);
-                                      showToast(
-                                        'Transaction deleted',
-                                        'neutral',
-                                        () => restoreTransaction(transactionToDelete)
-                                      );
-                                    }}>
+                                    <SwipeableRow 
+                                      disabled={transaction.isAutomatic}
+                                      onDelete={() => {
+                                        if (!transaction.id) return;
+                                        const transactionToDelete = { ...transaction }; // Create a copy
+                                        deleteTransaction(transaction.id);
+                                        showToast(
+                                          'Transaction deleted',
+                                          'neutral',
+                                          () => restoreTransaction(transactionToDelete)
+                                        );
+                                      }}
+                                    >
                                         <EnvelopeTransactionRow
                                             transaction={transaction}
                                             onReconcile={() => handleReconcile(transaction)}
-                                            onEdit={() => setEditingTransaction(transaction)}
+                                            onEdit={() => {
+                                              if (transaction.isAutomatic) return;
+                                              setEditingTransaction(transaction);
+                                            }}
                                         />
                                     </SwipeableRow>
                                 </motion.div>

@@ -158,9 +158,9 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
               <button 
                 onClick={handleSubmit} 
                 className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-bold disabled:opacity-50"
-                disabled={!amount || parseFloat(amount) <= 0}
+                disabled={!amount || parseFloat(amount) <= 0 || initialTransaction?.isAutomatic}
               >
-                Save
+                {initialTransaction?.isAutomatic ? '' : 'Save'}
               </button>
             </div>
 
@@ -193,7 +193,8 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                     }}
                     placeholder="0.00"
                     autoFocus
-                    className={`bg-transparent text-4xl font-bold text-center w-40 focus:outline-none ${amountColor} placeholder-gray-700`}
+                    disabled={initialTransaction?.isAutomatic}
+                    className={`bg-transparent text-4xl font-bold text-center w-40 focus:outline-none ${amountColor} placeholder-gray-700 ${initialTransaction?.isAutomatic ? 'cursor-not-allowed opacity-80' : ''}`}
                   />
                 </div>
               </div>
@@ -207,14 +208,17 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                   onChange={(e) => setMerchant(e.target.value)}
                   placeholder="Where did you make this transaction?"
                   className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+                  disabled={initialTransaction?.isAutomatic}
                 />
               </div>
 
-              {/* Payment Method */}
-              <CardStack
-                selectedCard={selectedPaymentMethod}
-                onCardSelect={setSelectedPaymentMethod}
-              />
+              {/* Payment Method - Hide for automatic transactions */}
+              {!initialTransaction?.isAutomatic && (
+                <CardStack
+                  selectedCard={selectedPaymentMethod}
+                  onCardSelect={setSelectedPaymentMethod}
+                />
+              )}
 
               {/* Note Input */}
               <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
@@ -225,6 +229,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="What is this for?"
                   className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none"
+                  disabled={initialTransaction?.isAutomatic}
                 />
               </div>
 
@@ -254,12 +259,13 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                     setDate(e.target.value);
                   }}
                   required
-                  className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
+                  disabled={initialTransaction?.isAutomatic}
+                  className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark] disabled:opacity-80"
                 />
               </div>
 
-              {/* Delete Button - Only show in edit mode */}
-              {mode === 'edit' && (
+              {/* Delete Button - Only show in edit mode and NOT for automatic transactions */}
+              {mode === 'edit' && !initialTransaction?.isAutomatic && (
                 <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
                   <button
                     type="button"

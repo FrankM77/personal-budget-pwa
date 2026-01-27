@@ -232,6 +232,6 @@ npm run deploy
     *   **Write:** Optimistic updates + Custom "Nervous System" sync queue for resilience.
 *   **Styling:** Tailwind CSS is used for styling.
 *   **Version Control:** Semantic versioning. **CRITICAL: STOP AND ASK.** You are FORBIDDEN from committing or pushing changes to GitHub without explicit, verbal permission from the user for *each specific commit*. Do not assume permission carries over. Always ask: "Shall I commit and push these changes?" **IMPORTANT:** When executing Git commands (add, commit, push), run them as separate, individual commands. Do NOT use `&&` to chain them, as it is not supported by default in PowerShell on Windows.
-*   **Mandatory Build Check:** After applying any code changes and *before* asking to commit, you MUST run `npm run build` to verify there are no TypeScript or compilation errors.
+*   **Mandatory Build & Test Check:** After applying any code changes and *before* asking to commit, you MUST run `npm run build` to verify there are no TypeScript or compilation errors. Additionally, if the user asks to "test before commit", you must provide clear manual testing steps or execute automated tests if available.
 
 run git commands sequentially, one at a time, and wait for each to complete before moving on to the next. Do NOT use `&&` to chain them, as it is not supported by default in PowerShell on Windows.
