@@ -41,8 +41,8 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
     triggerHaptic();
     onLongPressTrigger(event, piggybank.id);
   }, {
-    threshold: 600, // Slightly increased threshold
-    cancelOnMovement: 10, // Stricter movement cancellation
+    threshold: 500, // Standard threshold
+    cancelOnMovement: 25, // More forgiving movement cancellation
     detect: LongPressEventType.Touch
   });
 
