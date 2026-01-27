@@ -25,9 +25,9 @@ export const AvailableToBudget: React.FC<AvailableToBudgetProps> = ({
   const progressPercentage = safeTotalIncome > 0 ? ((safeTotalAllocated / safeTotalIncome) * 100) : 0;
 
   // Determine display state
-  const isPositive = safeAmount > 0;
-  const isZero = Math.abs(safeAmount) < 0.01;
-  const isNegative = safeAmount < 0;
+  const isPositive = safeAmount > 0.005;
+  const isZero = Math.abs(safeAmount) < 0.005;
+  const isNegative = safeAmount < -0.005;
 
   // Bar width should be 0 when there's no income, otherwise show actual progress
   const barWidth = safeTotalIncome > 0 ? (isZero ? 100 : Math.min(progressPercentage, 100)) : 0;

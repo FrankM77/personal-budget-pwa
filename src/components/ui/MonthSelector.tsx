@@ -66,8 +66,8 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
     const safeTotalIncome = typeof totalIncome === 'number' ? totalIncome : 0;
     const safeTotalAllocated = typeof totalAllocated === 'number' ? totalAllocated : 0;
 
-    const isZero = Math.abs(safeAmount) <= 0.01;
-    const isNegative = safeAmount < -0.01;
+    const isZero = Math.abs(safeAmount) < 0.005;
+    const isNegative = safeAmount < -0.005;
 
     // Calculate progress (how much of income is allocated)
     const progressPercentage = safeTotalIncome > 0 ? ((safeTotalAllocated / safeTotalIncome) * 100) : 0;

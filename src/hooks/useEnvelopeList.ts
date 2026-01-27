@@ -291,12 +291,35 @@ export const useEnvelopeList = () => {
         const state = useBudgetStore.getState();
         const month = state.currentMonth;
         const sources = state.incomeSources[month] || [];
-        const allocs = state.allocations[month] || [];
+        const rawAllocs = state.allocations[month] || [];
+        
+        // Filter allocations to match UI logic (exclude inactive/hidden envelopes)
+        const activeEnvelopeIds = new Set(
+            state.envelopes
+                .filter(e => {
+                    // Piggybank Logic
+                    if (e.isPiggybank) {
+                        if (!e.isActive) return false; // Must be explicitly active
+                        if (e.createdAt) {
+                             const createdDate = safeDateConversion(e.createdAt);
+                             if (!createdDate) return false;
+                             const createdMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`;
+                             return month >= createdMonth;
+                        }
+                        return true;
+                    }
+                    // Regular Envelope Logic
+                    return e.isActive !== false; // Default to true
+                })
+                .map(e => e.id)
+        );
+
+        const allocs = rawAllocs.filter(a => activeEnvelopeIds.has(a.envelopeId));
         
         const totalInc = sources.reduce((sum, s) => sum + s.amount, 0);
         const totalAlloc = allocs.reduce((sum, a) => sum + a.budgetedAmount, 0);
         
-        if (totalInc - totalAlloc < -0.01) {
+        if (totalInc - totalAlloc < -0.005) {
           showToast("You can't spend more than you make.\nYou're not in Congress!", 'error');
         }
       }, 100);
