@@ -22,36 +22,36 @@ export const Toast: React.FC = () => {
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ y: -100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -100, opacity: 0 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed top-4 left-4 right-4 z-[150] mt-[calc(env(safe-area-inset-top)+8px)]"
+          className="fixed bottom-24 right-6 z-[110] max-w-xs"
         >
-          <div className={`rounded-xl shadow-lg p-4 flex items-center justify-between ${getToastStyles()}`}>
+          <div className={`rounded-lg shadow-lg p-3 flex items-center justify-between ${getToastStyles()}`}>
             <div className="flex items-center flex-1 min-w-0">
-              <span className="text-sm font-medium whitespace-pre-line pr-2">{message}</span>
+              <span className="text-xs font-medium whitespace-pre-line pr-2">{message}</span>
             </div>
 
-            <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
               {undoAction && (
                 <button
                   onClick={() => {
                     undoAction();
                     hideToast();
                   }}
-                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition-colors"
+                  className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-xs font-bold transition-colors"
                 >
-                  <Undo2 size={14} className="inline mr-1" />
+                  <Undo2 size={12} className="inline mr-1" />
                   Undo
                 </button>
               )}
 
               <button
                 onClick={hideToast}
-                className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
+                className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
           </div>

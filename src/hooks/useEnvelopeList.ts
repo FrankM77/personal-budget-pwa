@@ -321,6 +321,8 @@ export const useEnvelopeList = () => {
         
         if (totalInc - totalAlloc < -0.005) {
           showToast("You can't spend more than you make.\nYou're not in Congress!", 'error');
+        } else if (Math.abs(totalInc - totalAlloc) < 0.005 && totalInc > 0) {
+          showToast("Every dollar has a job 🎯", 'success');
         }
       }, 100);
     } catch (error) {
