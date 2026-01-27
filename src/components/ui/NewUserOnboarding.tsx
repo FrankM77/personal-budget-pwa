@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet,
@@ -24,6 +24,63 @@ interface NewUserOnboardingProps {
 const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [animationKey, setAnimationKey] = useState(0);
+  const [currentBudgetAmount, setCurrentBudgetAmount] = useState(2500);
+
+  // Animate budget amount when animation key changes or when entering Step 4
+  useEffect(() => {
+    console.log('Animation effect triggered:', { currentStep, animationKey });
+    if (currentStep === 3) { // Only animate on Step 4 (index 3) - Allocate Your Budget
+      console.log('Starting animation from $2500 to $0');
+      setCurrentBudgetAmount(2500);
+      
+      // Phase 1: Animate to perfect budget (0-2 seconds)
+      const phase1Duration = 2000;
+      const phase1Steps = 20;
+      const phase1Interval = phase1Duration / phase1Steps;
+      const decrement = 2500 / phase1Steps;
+      
+      let currentStep = 0;
+      const phase1Timer = setInterval(() => {
+        currentStep++;
+        const newAmount = Math.max(0, 2500 - (decrement * currentStep));
+        console.log('Phase 1 - Animation step:', currentStep, 'New amount:', newAmount);
+        setCurrentBudgetAmount(newAmount);
+        
+        if (currentStep >= phase1Steps) {
+          clearInterval(phase1Timer);
+          console.log('Phase 1 completed - Perfect budget reached');
+          
+          // Phase 2: Pause for 1 second, then show over-budget scenario
+          setTimeout(() => {
+            console.log('Starting Phase 2 - Over budget demonstration');
+            
+            // Phase 2: Animate to over budget (-$500) with red bar (3-5 seconds)
+            let overBudgetStep = 0;
+            const overBudgetSteps = 10;
+            const overBudgetInterval = 200; // 2 seconds total
+            const overBudgetDecrement = 500 / overBudgetSteps;
+            
+            const phase2Timer = setInterval(() => {
+              overBudgetStep++;
+              const overBudgetAmount = -(overBudgetDecrement * overBudgetStep);
+              console.log('Phase 2 - Over budget step:', overBudgetStep, 'Over budget amount:', overBudgetAmount);
+              setCurrentBudgetAmount(overBudgetAmount);
+              
+              if (overBudgetStep >= overBudgetSteps) {
+                clearInterval(phase2Timer);
+                console.log('Animation completed - Over budget scenario demonstrated');
+              }
+            }, overBudgetInterval);
+          }, 1000); // 1 second pause
+        }
+      }, phase1Interval);
+      
+      return () => {
+        console.log('Cleaning up animation timers');
+        clearInterval(phase1Timer);
+      };
+    }
+  }, [animationKey, currentStep]);
 
   const formatMonth = (monthStr: string) => {
     const [year, month] = monthStr.split('-');
@@ -150,23 +207,37 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
             <div key={animationKey} className="space-y-2">
               <div className="flex justify-between text-xs text-blue-700 dark:text-blue-300 font-medium">
                 <span>Left to Budget</span>
-                <span className="font-bold">$0.00</span>
+                <span className={`font-bold ${currentBudgetAmount < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                  ${currentBudgetAmount.toFixed(2)}
+                </span>
               </div>
               <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 overflow-hidden">
                 <motion.div
-                  className="h-full bg-green-500 rounded-full"
-                  initial={{ width: '100%' }}
-                  animate={{ width: '0%' }}
-                  transition={{ duration: 2, ease: 'easeInOut' }}
+                  className={`h-full rounded-full ${currentBudgetAmount < 0 ? 'bg-red-500' : 'bg-green-500'}`}
+                  initial={{ width: '0%' }}
+                  animate={{ 
+                    width: currentBudgetAmount < 0 
+                      ? '100%' 
+                      : `${(2500 - currentBudgetAmount) / 2500 * 100}%`
+                  }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
                 />
               </div>
               <motion.div
-                className="text-xs text-green-700 dark:text-green-300 font-medium text-center mt-1"
+                className={`text-xs font-medium text-center mt-1 ${
+                  currentBudgetAmount === 0 
+                    ? 'text-green-600 dark:text-emerald-400' 
+                    : currentBudgetAmount < 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-blue-700 dark:text-blue-300'
+                }`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 2, duration: 0.5 }}
               >
-                🎯 Perfect! Every dollar has a job.
+                {currentBudgetAmount === 0 && 'Perfect! Every dollar has a job 🎯'}
+                {currentBudgetAmount < 0 && "You're not in Congress! Try again."}
+                {currentBudgetAmount > 0 && 'Keep allocating until you reach $0'}
               </motion.div>
             </div>
           </div>
