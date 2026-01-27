@@ -315,6 +315,7 @@ const CardStack: React.FC<Props> = ({
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Card</h2>
               <button
+                type="button"
                 onClick={() => setIsAddCardModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
@@ -376,6 +377,7 @@ const CardStack: React.FC<Props> = ({
                 <div className="grid grid-cols-6 gap-2">
                   {colorOptions.map((color) => (
                     <button
+                      type="button"
                       key={color}
                       onClick={() => setNewCard({ ...newCard, color })}
                       className={`w-full h-10 rounded-lg border-2 transition-all ${
@@ -410,12 +412,14 @@ const CardStack: React.FC<Props> = ({
               {/* Buttons */}
               <div className="flex gap-3 pt-4">
                 <button
+                  type="button"
                   onClick={() => setIsAddCardModalOpen(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleAddCard}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
                 >
@@ -448,12 +452,14 @@ const CardStack: React.FC<Props> = ({
               
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={cancelDelete}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={confirmDeleteCard}
                   className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
                 >
