@@ -7,6 +7,7 @@ import { Decimal } from 'decimal.js';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { PiggybankModal } from './modals/PiggybankModal';
+import { triggerHaptic } from '../utils/haptics';
 
 interface PiggybankListItemProps {
   piggybank: Envelope;
@@ -37,7 +38,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   // long press for mobile reordering
   const bind = useLongPress((event) => {
     // Vibrate to indicate grab
-    if (navigator.vibrate) navigator.vibrate(50);
+    triggerHaptic();
     onLongPressTrigger(event, piggybank.id);
   }, {
     threshold: 600, // Slightly increased threshold

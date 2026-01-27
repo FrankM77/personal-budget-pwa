@@ -3,6 +3,7 @@ import { Plus, Wallet, PiggyBank, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useLongPress, LongPressEventType } from 'use-long-press';
+import { triggerHaptic } from '../utils/haptics';
 import { useEnvelopeList } from '../hooks/useEnvelopeList';
 import { MonthSelector } from '../components/ui/MonthSelector';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
@@ -80,7 +81,7 @@ const EnvelopeListItem = ({
   // long press for mobile reordering
   const bind = useLongPress((event) => {
     // Vibrate to indicate grab
-    if (navigator.vibrate) navigator.vibrate(50);
+    triggerHaptic();
     onLongPressTrigger(event, env.id);
   }, {
     threshold: 600, // Slightly increased threshold
@@ -485,6 +486,11 @@ export const EnvelopeListView: React.FC = () => {
   const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
   const isManualDrag = useRef(false);
   
+  // Use ref for isReordering to avoid recreating handleEnvelopeClick on state change
+  const isReorderingRef = useRef(isReordering);
+  useEffect(() => {
+    isReorderingRef.current = isReordering;
+  }, [isReordering]);
 
   const handleDragStart = useCallback(() => setIsReordering(true), []);
 
@@ -501,11 +507,11 @@ export const EnvelopeListView: React.FC = () => {
   }, []);
 
   const handleEnvelopeClick = useCallback((envelopeId: string) => {
-    if (isReordering) return;
+    if (isReorderingRef.current) return;
     if (editingEnvelopeId !== envelopeId) {
       navigate(`/envelope/${envelopeId}`);
     }
-  }, [editingEnvelopeId, navigate, isReordering]);
+  }, [editingEnvelopeId, navigate]);
 
   const handleLongPressTrigger = useCallback((e: any, id: string) => {
     const instance = moveableInstances.current[id] || piggybankMoveableInstances.current[id];

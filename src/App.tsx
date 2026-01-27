@@ -87,8 +87,17 @@ function App() {
 
   // Main App View
   return (
-    <ErrorBoundary>
-      {/* Offline Grace Period Banner */}
+    <>
+      {/* iOS Haptic Trigger - Invisible & Non-interactive */}
+      <div className="fixed opacity-0 pointer-events-none -z-50">
+        <label id="ios-haptic-trigger" htmlFor="ios-haptic-checkbox">
+          {/* @ts-ignore - 'switch' is a non-standard iOS attribute for system haptics */}
+          <input type="checkbox" id="ios-haptic-checkbox" switch="true" />
+        </label>
+      </div>
+
+      <ErrorBoundary>
+        {/* Offline Grace Period Banner */}
       {isUsingGracePeriod && (
         <div className="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-200 p-4">
           <div className="flex">
@@ -135,6 +144,7 @@ function App() {
       {/* Global Toast Notifications */}
       <Toast />
     </ErrorBoundary>
+    </>
   );
 }
 
