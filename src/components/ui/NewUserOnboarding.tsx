@@ -10,8 +10,11 @@ import {
   CheckCircle2,
   Sparkles,
   Plus,
-  Target
+  Target,
+  RotateCcw
 } from 'lucide-react';
+import appIcon from '/icon-512.png';
+import budgetBalancedIcon from '/images/budget-balanced.png';
 
 interface NewUserOnboardingProps {
   currentMonth: string;
@@ -20,6 +23,7 @@ interface NewUserOnboardingProps {
 
 const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [animationKey, setAnimationKey] = useState(0);
 
   const formatMonth = (monthStr: string) => {
     const [year, month] = monthStr.split('-');
@@ -32,12 +36,12 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
   const steps = [
     {
       icon: Sparkles,
-      title: 'Welcome to House Budget!',
+      title: 'Welcome to Dollars At Work!',
       description: `Let's set up your budget for ${formattedMonth}`,
       content: (
         <div className="space-y-4 text-left">
           <p className="text-gray-600 dark:text-zinc-400">
-            House Budget helps you take control of your money using the <strong>zero-based budgeting</strong> method.
+            Dollars At Work helps you take control of your money using the <strong>zero-based budgeting</strong> method.
           </p>
           <p className="text-gray-600 dark:text-zinc-400">
             Every dollar gets a job, and you'll know exactly where your money is going.
@@ -128,13 +132,43 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
           <p className="text-gray-600 dark:text-zinc-400">
             Now comes the fun part - giving every dollar a job!
           </p>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-r-xl p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-r-xl p-4 relative">
+            <button
+              onClick={() => setAnimationKey(prev => prev + 1)}
+              className="absolute top-2 right-2 p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-lg transition-colors"
+              title="Replay animation"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
             <p className="text-sm text-blue-900 dark:text-blue-200 font-medium mb-2">
-              The "Available to Budget" amount shows unassigned money
+              The "Left to Budget" amount shows unassigned money
             </p>
-            <p className="text-sm text-blue-900 dark:text-blue-200">
+            <p className="text-sm text-blue-900 dark:text-blue-200 mb-3">
               Your goal is to get this to <strong>$0.00</strong> by allocating all your income to envelopes.
             </p>
+            {/* Animated Left to Budget Bar */}
+            <div key={animationKey} className="space-y-2">
+              <div className="flex justify-between text-xs text-blue-700 dark:text-blue-300 font-medium">
+                <span>Left to Budget</span>
+                <span className="font-bold">$0.00</span>
+              </div>
+              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 overflow-hidden">
+                <motion.div
+                  className="h-full bg-green-500 rounded-full"
+                  initial={{ width: '100%' }}
+                  animate={{ width: '0%' }}
+                  transition={{ duration: 2, ease: 'easeInOut' }}
+                />
+              </div>
+              <motion.div
+                className="text-xs text-green-700 dark:text-green-300 font-medium text-center mt-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2, duration: 0.5 }}
+              >
+                🎯 Perfect! Every dollar has a job.
+              </motion.div>
+            </div>
           </div>
           <p className="text-gray-600 dark:text-zinc-400">
             <strong>To allocate money:</strong> Tap the budget amount on any envelope and enter how much you want to assign to it.
@@ -196,13 +230,13 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
       color: 'pink'
     },
     {
-      icon: CheckCircle2,
+      icon: budgetBalancedIcon,
       title: 'You\'re Ready to Budget!',
       description: 'Start taking control of your money',
       content: (
         <div className="space-y-4 text-left">
           <p className="text-gray-600 dark:text-zinc-400">
-            That's it! You now know the basics of House Budget:
+            That's it! You now know the basics of Dollars At Work:
           </p>
           <div className="space-y-3">
             <div className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
@@ -221,7 +255,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 dark:text-green-400 font-bold">3</span>
               </div>
-              <span>Allocate until Available to Budget = $0</span>
+              <span>Allocate until Left to Budget = $0</span>
             </div>
             <div className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
@@ -237,12 +271,13 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
           </div>
         </div>
       ),
-      color: 'green'
+      color: 'green',
+      useCustomIcon: true
     }
   ];
 
   const currentStepData = steps[currentStep];
-  const Icon = currentStepData.icon;
+  const Icon = currentStepData.useCustomIcon ? budgetBalancedIcon : currentStepData.icon;
   const isLastStep = currentStep === steps.length - 1;
   const isFirstStep = currentStep === 0;
 
@@ -284,26 +319,35 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
             className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-gray-200 dark:border-zinc-800 overflow-hidden"
           >
             {/* Header */}
-            <div className="p-6 pb-4">
-              <div className="flex items-center justify-between mb-6">
-                <div className={`${colors.bg} p-3 rounded-xl`}>
-                  <Icon className={`w-8 h-8 ${colors.text}`} />
+            <div className="p-6 pb-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    {currentStepData.title}
+                  </h2>
+                  <p className="text-gray-600 dark:text-zinc-400">
+                    {currentStepData.description}
+                  </p>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-zinc-400">
+                <div className="flex flex-col items-center mx-4">
+                  {currentStep === 0 ? (
+                    <img src={appIcon} alt="Dollars At Work" className={`w-20 h-20 ${colors.text}`} />
+                  ) : currentStepData.useCustomIcon ? (
+                    <img src={budgetBalancedIcon} alt="Budget Balanced" className={`w-32 h-32 ${colors.text}`} />
+                  ) : (
+                    <div className={`${colors.bg} p-3 rounded-xl`}>
+                      <Icon className={`w-8 h-8 ${colors.text}`} />
+                    </div>
+                  )}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-zinc-400 whitespace-nowrap">
                   Step {currentStep + 1} of {steps.length}
                 </div>
               </div>
-
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                {currentStepData.title}
-              </h2>
-              <p className="text-gray-600 dark:text-zinc-400">
-                {currentStepData.description}
-              </p>
             </div>
 
             {/* Content */}
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-6 pt-2">
               {currentStepData.content}
             </div>
 
