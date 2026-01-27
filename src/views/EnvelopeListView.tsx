@@ -507,6 +507,14 @@ export const EnvelopeListView: React.FC = () => {
   const reorderConstraintsRef = useRef<HTMLDivElement | null>(null);
   const isManualDrag = useRef(false);
   
+  // Reset reordering state when component mounts
+  useEffect(() => {
+    setIsReordering(false);
+    isManualDrag.current = false;
+    setActivelyDraggingId(null);
+    setActivelyDraggingPiggybankId(null);
+  }, []);
+
   // Use ref for isReordering to avoid recreating handleEnvelopeClick on state change
   const isReorderingRef = useRef(isReordering);
   useEffect(() => {
@@ -563,6 +571,13 @@ export const EnvelopeListView: React.FC = () => {
       Object.values(piggybankMoveableInstances.current).forEach(instance => instance?.destroy());
       piggybankMoveableInstances.current = {};
     };
+
+    // While onboarding is shown, the reorder container isn't mounted.
+    // Destroy instances so we can re-initialize cleanly when onboarding closes.
+    if (showOnboarding) {
+      destroyMoveables();
+      return;
+    }
 
     if (!piggybanks.length) {
       return;
@@ -775,7 +790,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick]);
+  }, [piggybanks, handlePiggybankDragStart, handlePiggybankDragEnd, handleEnvelopeClick, showOnboarding]);
 
 
   // Initialize Moveable instances
@@ -784,6 +799,13 @@ export const EnvelopeListView: React.FC = () => {
       Object.values(moveableInstances.current).forEach(instance => instance?.destroy());
       moveableInstances.current = {};
     };
+
+    // While onboarding is shown, the reorder container isn't mounted.
+    // Destroy instances so we can re-initialize cleanly when onboarding closes.
+    if (showOnboarding) {
+      destroyMoveables();
+      return;
+    }
 
     if (!visibleEnvelopes.length) {
       return;
@@ -991,7 +1013,7 @@ export const EnvelopeListView: React.FC = () => {
       clearTimeout(timeoutId);
       destroyMoveables();
     };
-  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick]);
+  }, [visibleEnvelopes, handleDragStart, handleDragEnd, handleEnvelopeClick, showOnboarding]);
 
 
 
