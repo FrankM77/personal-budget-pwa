@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useLayoutEffect } from 'react';
 import { Plus, Wallet, PiggyBank, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
@@ -354,6 +354,27 @@ export const EnvelopeListView: React.FC = () => {
   // Initialize from global state to support "Restart Onboarding" from settings
   const [showOnboarding, setShowOnboarding] = useState(isOnboardingActive);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    if (showOnboarding) return;
+    const el = headerRef.current;
+    if (!el) return;
+
+    const update = () => setHeaderHeight(el.getBoundingClientRect().height);
+    update();
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      ro.disconnect();
+    };
+  }, [showOnboarding, currentMonth, incomeSources, allocations, visibleEnvelopes, piggybanks, availableToBudget]);
 
   // Sync onboarding state with global store to control navigation visibility
   useEffect(() => {
@@ -1057,7 +1078,7 @@ export const EnvelopeListView: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
       {/* Navbar - Hide during onboarding */}
       {!showOnboarding && (
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+4px)] pb-1">
+      <header ref={headerRef as any} className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+4px)] pb-1">
         
         {/* Combined Month Selector & Budget Status */}
         <MonthSelector
@@ -1078,7 +1099,20 @@ export const EnvelopeListView: React.FC = () => {
       )}
 
 
-    <div className={`pt-[calc(${showOnboarding ? '0rem' : '7.5rem'}+env(safe-area-inset-top))] pb-[calc(8rem+env(safe-area-inset-bottom))] p-4 max-w-4xl mx-auto space-y-4`}>
+    <div
+      className={
+        showOnboarding
+          ? 'pb-[calc(8rem+env(safe-area-inset-bottom))] px-4 max-w-4xl mx-auto space-y-4'
+          : 'pb-[calc(8rem+env(safe-area-inset-bottom))] px-4 max-w-4xl mx-auto space-y-4'
+      }
+      style={
+        showOnboarding
+          ? undefined
+          : {
+              paddingTop: Math.max(0, headerHeight + 16)
+            }
+      }
+    >
       {/* New User Onboarding */}
       {showOnboarding ? (
         <NewUserOnboarding
