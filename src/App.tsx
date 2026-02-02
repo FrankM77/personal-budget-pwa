@@ -58,6 +58,23 @@ function App() {
     return undefined;
   }, [appSettings]);
 
+  // Font Size effect: Adjust root font size based on settings
+  useEffect(() => {
+    const root = document.documentElement;
+    const size = appSettings?.fontSize ?? 'medium';
+    
+    switch (size) {
+      case 'small':
+        root.style.fontSize = '87.5%'; // 14px
+        break;
+      case 'large':
+        root.style.fontSize = '112.5%'; // 18px
+        break;
+      default:
+        root.style.fontSize = '100%'; // 16px
+    }
+  }, [appSettings?.fontSize]);
+
   // Splash Screen View - Show loading screen during initialization
   if (showingLaunchScreen || !isInitialized) {
     return <LoadingScreen message="Initializing Personal Budget..." />;

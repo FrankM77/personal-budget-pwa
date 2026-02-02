@@ -71,6 +71,7 @@ export interface AppSettings {
   id: string;
   userId?: string;
   theme: 'light' | 'dark' | 'system';
+  fontSize?: 'small' | 'medium' | 'large';
   enableMoveableReorder?: boolean;
   paymentSources?: PaymentSource[];
 }

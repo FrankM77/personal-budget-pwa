@@ -3,10 +3,11 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { toDate } from '../utils/dateUtils';
-import type { Transaction } from '../models/types';
+import type { Transaction, Envelope } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
 import TransactionModal from '../components/modals/TransactionModal';
 import TransferModal from '../components/modals/TransferModal';
+import { PiggybankModal } from '../components/modals/PiggybankModal';
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -40,7 +41,8 @@ const EnvelopeDetail: React.FC = () => {
         allocations,
         incomeSources,
         setEnvelopeAllocation,
-        updatePiggybankContribution
+        updatePiggybankContribution,
+        updateEnvelope
     } = useBudgetStore();
     const { showToast } = useToastStore();
 
@@ -51,6 +53,7 @@ const EnvelopeDetail: React.FC = () => {
     const [showingSpendMoney, setShowingSpendMoney] = useState(false);
     const [showingTransfer, setShowingTransfer] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [isPiggybankModalOpen, setIsPiggybankModalOpen] = useState(false);
     
     // Budget Editing State
     const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -67,6 +70,30 @@ const EnvelopeDetail: React.FC = () => {
 
     // Filter and sort transactions (similar to the envelopeTransactions computed property)
     const currentEnvelope = envelopes.find(e => e.id === id);
+
+    const handleSavePiggybank = async (piggybankData: Partial<Envelope>) => {
+        if (!currentEnvelope) return;
+        try {
+            // Merge the existing piggybank with the updated data
+            const updatedEnvelope: Envelope = {
+                ...currentEnvelope,
+                ...piggybankData,
+                id: currentEnvelope.id!,
+                userId: currentEnvelope.userId,
+                currentBalance: currentEnvelope.currentBalance,
+                lastUpdated: new Date().toISOString(),
+                isActive: currentEnvelope.isActive,
+                orderIndex: currentEnvelope.orderIndex
+            };
+            
+            await updateEnvelope(updatedEnvelope);
+            showToast('Piggybank updated successfully', 'success');
+            setIsPiggybankModalOpen(false);
+        } catch (error) {
+            console.error('Failed to update piggybank:', error);
+            showToast('Failed to update piggybank', 'error');
+        }
+    };
 
     // Determine Budgeted Amount
     const budgetedAmount = currentEnvelope?.isPiggybank 
@@ -245,14 +272,18 @@ const EnvelopeDetail: React.FC = () => {
             <header className="flex justify-between items-center pt-[calc(env(safe-area-inset-top)+6px)] pb-2 sticky top-0 bg-white dark:bg-black z-10 border-b border-gray-100 dark:border-zinc-800">
                 <button 
                     onClick={() => { 
-                        const newName = prompt('Rename envelope:', currentEnvelope.name);
-                        if (newName && newName.trim() && id) {
-                            renameEnvelope(id, newName);
+                        if (currentEnvelope.isPiggybank) {
+                            setIsPiggybankModalOpen(true);
+                        } else {
+                            const newName = prompt('Rename envelope:', currentEnvelope.name);
+                            if (newName && newName.trim() && id) {
+                                renameEnvelope(id, newName);
+                            }
                         }
                     }} 
                     className="text-blue-600 dark:text-blue-400 font-medium"
                 >
-                    Rename
+                    {currentEnvelope.isPiggybank ? 'Edit' : 'Rename'}
                 </button>
                 <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{currentEnvelope.name}</h1>
                 <button 
@@ -444,6 +475,14 @@ const EnvelopeDetail: React.FC = () => {
                 isVisible={showingTransfer}
                 onClose={() => setShowingTransfer(false)}
                 sourceEnvelope={currentEnvelope as any}
+            />
+
+            {/* Piggybank Edit Modal */}
+            <PiggybankModal
+                isOpen={isPiggybankModalOpen}
+                onClose={() => setIsPiggybankModalOpen(false)}
+                onSave={handleSavePiggybank}
+                existingPiggybank={currentEnvelope}
             />
         </div>
     );

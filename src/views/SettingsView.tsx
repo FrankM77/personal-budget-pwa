@@ -45,6 +45,7 @@ export const SettingsView: React.FC = () => {
 
   // Use appSettings theme, fallback to system
   const currentTheme = appSettings?.theme ?? 'system';
+  const currentFontSize = appSettings?.fontSize ?? 'medium';
 
   // Initialize app settings if they don't exist
   useEffect(() => {
@@ -445,41 +446,84 @@ export const SettingsView: React.FC = () => {
         {/* Appearance */}
         <section>
           <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Appearance</h2>
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                {currentTheme === 'light' && <span className="text-orange-500 text-lg">☀️</span>}
-                {currentTheme === 'dark' && <span className="text-purple-500 text-lg">🌙</span>}
-                {currentTheme === 'system' && <span className="text-gray-500 text-lg">⚙️</span>}
-                <span className="text-gray-900 dark:text-white font-medium">Theme</span>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm p-4 space-y-4">
+            
+            {/* Theme Selector */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {currentTheme === 'light' && <span className="text-orange-500 text-lg">☀️</span>}
+                  {currentTheme === 'dark' && <span className="text-purple-500 text-lg">🌙</span>}
+                  {currentTheme === 'system' && <span className="text-gray-500 text-lg">⚙️</span>}
+                  <span className="text-gray-900 dark:text-white font-medium">Theme</span>
+                </div>
+                <span className="text-sm text-gray-500 dark:text-zinc-400 capitalize">{currentTheme}</span>
               </div>
-              <span className="text-sm text-gray-500 dark:text-zinc-400 capitalize">{currentTheme}</span>
+              <div className="flex gap-2">
+                {[ 
+                  { label: 'Light', value: 'light' as const },
+                  { label: 'Dark', value: 'dark' as const },
+                  { label: 'System', value: 'system' as const }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={async () => {
+                      try {
+                        await updateAppSettings({ theme: option.value });
+                      } catch (error) {
+                        console.error('Failed to update theme setting:', error);
+                      }
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${ 
+                      currentTheme === option.value
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-200'
+                        : 'border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {[ 
-                { label: 'Light', value: 'light' as const },
-                { label: 'Dark', value: 'dark' as const },
-                { label: 'System', value: 'system' as const }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={async () => {
-                    try {
-                      await updateAppSettings({ theme: option.value });
-                    } catch (error) {
-                      console.error('Failed to update theme setting:', error);
-                    }
-                  }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${ 
-                    currentTheme === option.value
-                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-200'
-                      : 'border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+
+            <div className="h-px bg-gray-100 dark:bg-zinc-800" />
+
+            {/* Font Size Selector */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500 text-lg">Aa</span>
+                  <span className="text-gray-900 dark:text-white font-medium">Font Size</span>
+                </div>
+                <span className="text-sm text-gray-500 dark:text-zinc-400 capitalize">{currentFontSize}</span>
+              </div>
+              <div className="flex gap-2">
+                {[ 
+                  { label: 'A', value: 'small' as const, sizeClass: 'text-xs' },
+                  { label: 'A', value: 'medium' as const, sizeClass: 'text-base' },
+                  { label: 'A', value: 'large' as const, sizeClass: 'text-xl' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={async () => {
+                      try {
+                        await updateAppSettings({ fontSize: option.value });
+                      } catch (error) {
+                        console.error('Failed to update font size setting:', error);
+                      }
+                    }}
+                    className={`flex-1 py-2 rounded-lg font-medium border transition-colors flex items-center justify-center ${ 
+                      currentFontSize === option.value
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-200'
+                        : 'border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    <span className={option.sizeClass}>{option.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
+
           </div>
         </section>
 

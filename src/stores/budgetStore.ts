@@ -816,6 +816,7 @@ export const useBudgetStore = create<BudgetState>()(
                 const updatedSettings: AppSettings = { 
                     id: state.appSettings?.id || 'default',
                     theme: settings.theme ?? state.appSettings?.theme ?? 'system',
+                    fontSize: settings.fontSize ?? state.appSettings?.fontSize ?? 'medium',
                     enableMoveableReorder: settings.enableMoveableReorder ?? state.appSettings?.enableMoveableReorder ?? true,
                     paymentSources: settings.paymentSources ?? state.appSettings?.paymentSources ?? []
                 };
@@ -875,6 +876,7 @@ export const useBudgetStore = create<BudgetState>()(
                 const defaultSettings: AppSettings = {
                     id: 'default',
                     theme: 'system',
+                    fontSize: 'medium',
                     enableMoveableReorder: true,
                     paymentSources: []
                 };

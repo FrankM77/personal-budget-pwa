@@ -8,6 +8,10 @@
   - **"Unknown Envelope" Bug Fix**: Fixed a critical logic flaw in `copyPreviousMonthAllocations` where deleted envelopes were being copied as "ghost" allocations, spawning transactions for non-existent envelopes. Added strict existence checks (`!!envelope`) to prevent this.
   - **Transaction Race Condition Fix**: Implemented a `isSavingRef` lock in Envelope Detail to prevent duplicate transactions caused by rapid double-submission (e.g., Enter + Blur).
   - **Allocation Safety**: Added validation in `budgetStore` to ensure allocations are never created for non-existent envelopes.
+  - **Start Fresh UX Improvement**: Simplified the "Start Fresh" confirmation process. Replaced the tedious text typing requirement with a streamlined two-step confirmation dialog ("Continue" -> "Are you sure?") for a faster yet safe user experience.
+  - **Income Sources UI Polish**: Removed redundant "Monthly income" subtitle from the main view to reduce visual noise and further simplify the interface.
+  - **Typography Standardization**: Implemented global font size control (Small, Medium, Large) via Settings. Standardized font sizes across list items for a more compact and consistent interface.
+  - **Piggybank Editing Polish**: Replaced the "More" menu on piggybank list items with a direct "Edit" button in the detail view header, unifying the interaction pattern with regular envelopes.
 - **2026-01-23**: **Enhanced Navigation Dock with Floating Action Button**: Replaced traditional bottom navigation bar with modern floating dock design featuring glassmorphism effect, hierarchical "More" menu, and prominent central FAB for transaction entry.
   - Implemented semi-transparent floating dock with backdrop blur
   - Added hierarchical navigation with overflow menu for Reports/Analytics

@@ -1,12 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PiggyBank, TrendingUp, Pause, MoreHorizontal, GripVertical } from 'lucide-react';
+import { PiggyBank, TrendingUp, Pause, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLongPress, LongPressEventType } from 'use-long-press';
 import type { Envelope } from '../models/types';
 import { Decimal } from 'decimal.js';
-import { useBudgetStore } from '../stores/budgetStore';
-import { useToastStore } from '../stores/toastStore';
-import { PiggybankModal } from './modals/PiggybankModal';
 import { triggerHaptic } from '../utils/haptics';
 
 interface PiggybankListItemProps {
@@ -30,10 +27,6 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   onItemDragStart,
   onLongPressTrigger
 }) => {
-  const updateEnvelope = useBudgetStore(state => state.updateEnvelope);
-  const showToast = useToastStore(state => state.showToast);
-  const [showEditModal, setShowEditModal] = useState(false);
-
   // long press for mobile reordering
   const bind = useLongPress((event) => {
     // Vibrate to indicate grab
@@ -44,34 +37,6 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
     cancelOnMovement: 25, // More forgiving movement cancellation
     detect: LongPressEventType.Touch
   });
-
-  const handleEditPiggybank = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowEditModal(true);
-  };
-
-  const handleSavePiggybank = async (piggybankData: Partial<Envelope>) => {
-    try {
-      // Merge the existing piggybank with the updated data
-      const updatedEnvelope: Envelope = {
-        ...piggybank,
-        ...piggybankData,
-        id: piggybank.id!,
-        userId: piggybank.userId,
-        currentBalance: piggybank.currentBalance,
-        lastUpdated: new Date().toISOString(),
-        isActive: piggybank.isActive,
-        orderIndex: piggybank.orderIndex
-      };
-      
-      await updateEnvelope(updatedEnvelope);
-      showToast('Piggybank updated successfully', 'success');
-      setShowEditModal(false);
-    } catch (error) {
-      console.error('Failed to update piggybank:', error);
-      showToast('Failed to update piggybank', 'error');
-    }
-  };
 
   const targetAmount = piggybank.piggybankConfig?.targetAmount;
   const monthlyContribution = piggybank.piggybankConfig?.monthlyContribution ?? 0;
@@ -187,14 +152,6 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
               of ${targetAmount?.toFixed(0) || '0'}
             </div>
           </div>
-          
-          <button
-            onClick={handleEditPiggybank}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ml-1"
-            title="Edit piggybank"
-          >
-            <MoreHorizontal size={14} />
-          </button>
         </div>
 
         {/* Thinner Progress Bar */}
@@ -220,15 +177,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   );
 
   return (
-    <>
-      <PiggybankModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleSavePiggybank}
-        existingPiggybank={piggybank}
-      />
-      
-      <motion.div
+    <motion.div
       {...bind()}
       layout={!isBeingDragged}
       transition={{
@@ -250,6 +199,5 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
     >
       {content}
     </motion.div>
-    </>
   );
 };
