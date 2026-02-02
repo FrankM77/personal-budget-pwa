@@ -153,7 +153,7 @@ const EnvelopeListItem = ({
               </span>
             )}
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white leading-tight">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
                 {env.name}
               </h3>
               <div className="flex items-center gap-1 mt-0.5">
@@ -164,7 +164,7 @@ const EnvelopeListItem = ({
           </div>
 
           <div className="text-right">
-            <span className={`text-lg font-bold leading-none ${
+            <span className={`text-sm font-bold leading-none ${
                 (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                   ? 'text-red-500'
                   : (100 - percentage) <= 5
@@ -181,8 +181,8 @@ const EnvelopeListItem = ({
 
         {/* Simplified Progress Bar - much thinner */}
         {budgetedAmount > 0 && (
-          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-            <div className="w-full bg-gray-200 dark:bg-zinc-700/50 rounded-full h-1 overflow-hidden">
+          <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full bg-gray-200 dark:bg-zinc-700/50 rounded-full h-0.5 overflow-hidden">
               <div
                 className={`h-full transition-all duration-300 ease-out ${
                   (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
@@ -225,7 +225,7 @@ const EnvelopeListItem = ({
         zIndex: isBeingDragged ? 50 : 1,
         scale: isBeingDragged ? 1.02 : 1
       }}
-      className={`p-3 rounded-xl active:scale-[0.99] transition-all select-none border group ${
+      className={`py-2 px-3 rounded-xl active:scale-[0.99] transition-all select-none border group ${
         isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
       }`}
     >
@@ -1057,10 +1057,9 @@ export const EnvelopeListView: React.FC = () => {
                       <SwipeableRow onDelete={() => handleDeleteIncome(source)}>
                         <div className="flex justify-between items-center py-3 px-4 bg-gray-50 dark:bg-zinc-800 rounded-xl cursor-pointer" onClick={() => handleEditIncome(source)}>
                           <div className="flex-1">
-                            <p className="font-medium text-gray-900 dark:text-white">{source.name}</p>
-                            <p className="text-sm text-gray-600 dark:text-zinc-400">Monthly income</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{source.name}</p>
                           </div>
-                          <p className="font-semibold text-green-600 dark:text-emerald-400">${source.amount.toFixed(2)}</p>
+                          <p className="text-sm font-semibold text-green-600 dark:text-emerald-400">${source.amount.toFixed(2)}</p>
                         </div>
                       </SwipeableRow>
                     </motion.div>

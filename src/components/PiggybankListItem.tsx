@@ -162,7 +162,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
               <PiggyBank size={16} style={{ color }} />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-white truncate leading-tight">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate leading-tight">
                 {piggybank.name}
               </h3>
               <div className="flex items-center gap-1 mt-0.5">
@@ -180,7 +180,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
           </div>
           
           <div className="text-right flex-shrink-0">
-            <div className="text-base font-bold text-gray-900 dark:text-white leading-none">
+            <div className="text-sm font-bold text-gray-900 dark:text-white leading-none">
               ${balanceNum.toFixed(2)}
             </div>
             <div className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">
@@ -246,7 +246,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
         zIndex: isBeingDragged ? 50 : 1,
         scale: isBeingDragged ? 1.02 : 1
       }}
-      className="rounded-xl p-3 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99] group"
+      className="rounded-xl py-2 px-3 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99] group"
     >
       {content}
     </motion.div>
