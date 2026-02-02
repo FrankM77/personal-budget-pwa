@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
@@ -25,7 +25,23 @@ const EnvelopeDetail: React.FC = () => {
     // Rule #4: Get the ID from the route params
     const { id } = useParams<{ id: string }>();
     // Rule #2: Map @ObservedObject (viewModel) to Zustand store
-    const { envelopes, transactions, fetchData, isLoading, deleteEnvelope, renameEnvelope, updateTransaction, deleteTransaction, restoreTransaction, getEnvelopeBalance, currentMonth } = useBudgetStore();
+    const { 
+        envelopes, 
+        transactions, 
+        fetchData, 
+        isLoading, 
+        deleteEnvelope, 
+        renameEnvelope, 
+        updateTransaction, 
+        deleteTransaction, 
+        restoreTransaction, 
+        getEnvelopeBalance, 
+        currentMonth,
+        allocations,
+        incomeSources,
+        setEnvelopeAllocation,
+        updatePiggybankContribution
+    } = useBudgetStore();
     const { showToast } = useToastStore();
 
     // Rule #2: Map @State (envelope, showingAddMoney, etc.) to useState
@@ -35,6 +51,12 @@ const EnvelopeDetail: React.FC = () => {
     const [showingSpendMoney, setShowingSpendMoney] = useState(false);
     const [showingTransfer, setShowingTransfer] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    
+    // Budget Editing State
+    const [isEditingBudget, setIsEditingBudget] = useState(false);
+    const [budgetInput, setBudgetInput] = useState('');
+    const budgetInputRef = useRef<HTMLInputElement>(null);
+    const isSavingRef = useRef(false);
 
     // Load data from Firebase on mount (only if no data exists)
     useEffect(() => {
@@ -45,6 +67,94 @@ const EnvelopeDetail: React.FC = () => {
 
     // Filter and sort transactions (similar to the envelopeTransactions computed property)
     const currentEnvelope = envelopes.find(e => e.id === id);
+
+    // Determine Budgeted Amount
+    const budgetedAmount = currentEnvelope?.isPiggybank 
+        ? (currentEnvelope.piggybankConfig?.monthlyContribution || 0)
+        : (allocations[currentMonth]?.find(a => a.envelopeId === id)?.budgetedAmount || 0);
+
+    // Initialize budget input when opening edit mode
+    useEffect(() => {
+        if (isEditingBudget) {
+            setBudgetInput(budgetedAmount.toString());
+            // Focus input after render
+            setTimeout(() => {
+                budgetInputRef.current?.focus();
+                budgetInputRef.current?.select();
+            }, 50);
+        }
+    }, [isEditingBudget, budgetedAmount]);
+
+    // Calculate Available to Budget
+    const calculateAvailableToBudget = (projectedAmount?: number) => {
+        const monthIncome = (incomeSources[currentMonth] || []).reduce((sum, s) => sum + s.amount, 0);
+        const monthAllocations = (allocations[currentMonth] || []);
+        
+        // Filter allocations for active envelopes only
+        // AND map to use projected amount for current envelope if provided
+        const activeAllocations = monthAllocations.map(alloc => {
+            // Check if this allocation belongs to the current envelope
+            if (currentEnvelope && alloc.envelopeId === currentEnvelope.id && projectedAmount !== undefined) {
+                return { ...alloc, budgetedAmount: projectedAmount };
+            }
+            return alloc;
+        }).filter(alloc => {
+            // If we are projecting a NEW allocation for this envelope (it didn't exist before)
+            // we need to make sure we don't double count or miss it.
+            // Actually, if it didn't exist, it won't be in monthAllocations to be mapped.
+            // So we need to handle "new allocation" case separately.
+            
+            const env = envelopes.find(e => e.id === alloc.envelopeId);
+            if (!env) return false;
+            return env.isActive !== false;
+        });
+
+        // Calculate total from existing (potentially modified) allocations
+        let totalAllocated = activeAllocations.reduce((sum, a) => sum + a.budgetedAmount, 0);
+
+        // If we are editing, and the current envelope didn't have an allocation in the list yet
+        // (e.g. it was 0 or just created), we need to add the projected amount to the total
+        if (projectedAmount !== undefined && currentEnvelope) {
+            const hasExistingAllocation = monthAllocations.some(a => a.envelopeId === currentEnvelope.id);
+            if (!hasExistingAllocation) {
+                totalAllocated += projectedAmount;
+            }
+        }
+
+        return monthIncome - totalAllocated;
+    };
+
+    // Use projected amount if editing, otherwise use stored data
+    const projectedAvailableToBudget = isEditingBudget 
+        ? calculateAvailableToBudget(parseFloat(budgetInput) || 0)
+        : calculateAvailableToBudget();
+
+    const availableToBudget = projectedAvailableToBudget;
+
+    const handleBudgetSave = async () => {
+        if (!currentEnvelope || isSavingRef.current) return;
+        
+        const newAmount = parseFloat(budgetInput);
+        if (isNaN(newAmount) || newAmount < 0) {
+            showToast("Please enter a valid positive number", "error");
+            return;
+        }
+
+        isSavingRef.current = true;
+        try {
+            if (currentEnvelope.isPiggybank) {
+                await updatePiggybankContribution(currentEnvelope.id, newAmount);
+            } else {
+                await setEnvelopeAllocation(currentEnvelope.id, newAmount);
+            }
+            setIsEditingBudget(false);
+        } catch (error) {
+            console.error("Failed to save budget:", error);
+            showToast("Failed to update budget", "error");
+        } finally {
+            isSavingRef.current = false;
+        }
+    };
 
 
     // Handle case where envelope is not found (404 equivalent)
@@ -174,6 +284,53 @@ const EnvelopeDetail: React.FC = () => {
                         </span>
                       );
                     })()}
+                </div>
+                
+                {/* --- Budgeted Amount & Available Banner (New Requirement) --- */}
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-500 dark:text-zinc-400">
+                            {currentEnvelope.isPiggybank ? 'Monthly Contribution' : 'Budgeted This Month'}
+                        </span>
+                        
+                        {isEditingBudget ? (
+                            <form 
+                                onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}
+                                className="flex items-center gap-2"
+                            >
+                                <input
+                                    ref={budgetInputRef}
+                                    type="number"
+                                    step="0.01"
+                                    value={budgetInput}
+                                    onChange={(e) => setBudgetInput(e.target.value)}
+                                    onBlur={handleBudgetSave}
+                                    className="w-24 px-2 py-1 text-right font-semibold bg-gray-100 dark:bg-zinc-800 rounded border border-blue-500 focus:outline-none"
+                                />
+                            </form>
+                        ) : (
+                            <div 
+                                onClick={() => setIsEditingBudget(true)}
+                                className="px-2 py-1 -mr-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
+                            >
+                                <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                                    {formatCurrency(budgetedAmount)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Left to Budget Banner */}
+                    <div className={`mt-3 py-1.5 px-3 rounded-md flex justify-between items-center text-xs font-medium transition-colors ${
+                        availableToBudget < 0 
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' 
+                            : availableToBudget === 0
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    }`}>
+                        <span>Left to Budget:</span>
+                        <span>{formatCurrency(availableToBudget)}</span>
+                    </div>
                 </div>
             </section>
 

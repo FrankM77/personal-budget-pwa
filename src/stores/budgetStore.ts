@@ -1129,9 +1129,10 @@ export const useBudgetStore = create<BudgetState>()(
                 console.log(`📋 Found ${previousAllocations.length} allocations from ${prevMonthString}`);
                 
                 // Filter out allocations for piggybanks as they are handled separately
+                // AND ensure we don't copy allocations for deleted envelopes
                 const regularAllocations = previousAllocations.filter(alloc => {
                     const envelope = get().envelopes.find(e => e.id === alloc.envelopeId);
-                    return !envelope?.isPiggybank;
+                    return !!envelope && !envelope.isPiggybank;
                 });
 
                 if (regularAllocations.length > 0) {
@@ -1211,7 +1212,14 @@ export const useBudgetStore = create<BudgetState>()(
                 
                 // Check if this is a piggybank
                 const envelope = get().envelopes.find(e => e.id === envelopeId);
-                const isPiggybank = envelope?.isPiggybank;
+                
+                if (!envelope) {
+                    console.error(`❌ setEnvelopeAllocation: Envelope ${envelopeId} not found in store! Aborting.`);
+                    set({ isLoading: false });
+                    return;
+                }
+
+                const isPiggybank = !!envelope.isPiggybank;
                 
                 console.log(`🔍 setEnvelopeAllocation called: envelopeId=${envelopeId}, amount=${budgetedAmount}, currentMonth=${currentMonth}, isPiggybank=${isPiggybank}`);
                 

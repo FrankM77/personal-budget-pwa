@@ -36,13 +36,7 @@ const EnvelopeListItem = ({
   env,
   budgetedAmount,
   remainingBalance,
-  editingEnvelopeId,
-  setEditingEnvelopeId,
-  editingAmount,
-  setEditingAmount,
-  handleBudgetSave,
   navigate,
-  inputRef,
   transactions,
   currentMonth,
   setMoveableRef,
@@ -54,13 +48,7 @@ const EnvelopeListItem = ({
   env: any,
   budgetedAmount: number,
   remainingBalance: any,
-  editingEnvelopeId: string | null,
-  setEditingEnvelopeId: (id: string | null) => void,
-  editingAmount: string,
-  setEditingAmount: (amount: string) => void,
-  handleBudgetSave: () => void,
   navigate: (path: string) => void,
-  inputRef: React.RefObject<HTMLInputElement | null>,
   transactions: any[],
   currentMonth: string,
   setMoveableRef: (envelopeId: string) => (el: HTMLDivElement | null) => void,
@@ -109,21 +97,6 @@ const EnvelopeListItem = ({
       return;
     }
     
-    // Don't navigate if editing this envelope's budget
-    if (editingEnvelopeId === env.id) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-
-    // INTERCEPT clicks/touches on the budget field
-    const target = e.target as HTMLElement;
-    if (target.closest('.js-budget-target') || target.tagName === 'INPUT') {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    
     // Navigate to envelope details
     navigate(`/envelope/${env.id}`);
   };
@@ -154,7 +127,7 @@ const EnvelopeListItem = ({
   }, [activelyDraggingId, didDragThisItem]);
 
   const content = (
-    <div className="flex items-center gap-2 w-full">
+    <div className="flex items-center gap-3 w-full">
       {/* Drag Handle - visible on hover for desktop */}
       <div 
         className="hidden md:flex items-center justify-center p-1 text-gray-400 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-all duration-200"
@@ -165,79 +138,33 @@ const EnvelopeListItem = ({
 
       {/* Content Wrapper */}
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          {isPiggybank && (
-            <span
-              className="w-8 h-8 rounded-full flex items-center justify-center border"
-              style={{
-                borderColor: hexToRgba(piggyColor, 0.4),
-                backgroundColor: hexToRgba(piggyColor, 0.15),
-                color: piggyColor
-              }}
-            >
-              <PiggyBank size={16} />
-            </span>
-          )}
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">
-              {env.name}
-            </h3>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-2">
             {isPiggybank && (
               <span
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: piggyColor }}
+                className="w-6 h-6 rounded-full flex items-center justify-center border"
+                style={{
+                  borderColor: hexToRgba(piggyColor, 0.4),
+                  backgroundColor: hexToRgba(piggyColor, 0.15),
+                  color: piggyColor
+                }}
               >
-                Piggybank
+                <PiggyBank size={12} />
               </span>
             )}
-          </div>
-        </div>
-        <div className="flex justify-between items-center">
-          <div
-            className="flex items-center gap-x-4"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {editingEnvelopeId === env.id ? (
-              <div className="flex items-center gap-x-1">
-                <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
-                <form onSubmit={(e) => { e.preventDefault(); handleBudgetSave(); }}>
-                  <input
-                    ref={inputRef}
-                    type="number"
-                    value={editingAmount}
-                    onChange={(e) => setEditingAmount(e.target.value)}
-                    onBlur={handleBudgetSave}
-                    className="w-24 px-2 py-1 text-sm border rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white"
-                    step="0.01"
-                    autoFocus
-                  />
-                </form>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white leading-tight">
+                {env.name}
+              </h3>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-xs text-gray-500 dark:text-zinc-400">Budgeted:</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-zinc-300">${budgetedAmount.toFixed(2)}</span>
               </div>
-            ) : (
-              <div
-                onTouchEnd={(e) => {
-                  // Handle touch end for mobile reliability
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setEditingEnvelopeId(env.id);
-                  setEditingAmount(budgetedAmount.toString());
-                }}
-                onClick={() => {
-                  // Handle click for desktop and as fallback for mobile
-                  setEditingEnvelopeId(env.id);
-                  setEditingAmount(budgetedAmount.toString());
-                }}
-                className="flex items-center gap-x-1 hover:bg-gray-200 dark:hover:bg-zinc-700 px-3 py-2 rounded transition-colors cursor-pointer js-budget-target"
-              >
-                <span className="text-sm text-gray-500 dark:text-zinc-400">Budgeted:</span>
-                <span className="font-medium text-gray-900 dark:text-white">${budgetedAmount.toFixed(2)}</span>
-              </div>
-            )}
+            </div>
           </div>
 
           <div className="text-right">
-            <span className="text-sm text-gray-500 dark:text-zinc-400 block">Remaining</span>
-            <span className={`font-bold ${
+            <span className={`text-lg font-bold leading-none ${
                 (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                   ? 'text-red-500'
                   : (100 - percentage) <= 5
@@ -248,36 +175,27 @@ const EnvelopeListItem = ({
               }`}>
               ${(typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()).toFixed(2)}
             </span>
+            <span className="text-[10px] text-gray-400 dark:text-zinc-500 block uppercase tracking-wider mt-0.5">Remaining</span>
           </div>
         </div>
 
-        {/* Budget Progress Bar */}
+        {/* Simplified Progress Bar - much thinner */}
         {budgetedAmount > 0 && (
-          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-            {(() => {
-              return (
-                <>
-                  <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400 mb-1">
-                    <span>Budget Used</span>
-                    <span>{percentage.toFixed(0)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ease-out ${
-                        (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
-                          ? 'bg-red-500'
-                          : (100 - percentage) <= 5
-                            ? 'bg-red-500'
-                            : percentage >= 80
-                              ? 'bg-yellow-500'
-                              : 'bg-green-400'
-                      }`}
-                      style={{ width: `${Math.max(100 - percentage, 2)}%` }}
-                    />
-                  </div>
-                </>
-              );
-            })()}
+          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full bg-gray-200 dark:bg-zinc-700/50 rounded-full h-1 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ease-out ${
+                  (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
+                    ? 'bg-red-500'
+                    : (100 - percentage) <= 5
+                      ? 'bg-red-500'
+                      : percentage >= 80
+                        ? 'bg-yellow-500'
+                        : 'bg-green-400'
+                }`}
+                style={{ width: `${Math.max(100 - percentage, 2)}%` }}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -307,7 +225,7 @@ const EnvelopeListItem = ({
         zIndex: isBeingDragged ? 50 : 1,
         scale: isBeingDragged ? 1.02 : 1
       }}
-      className={`p-4 rounded-xl active:scale-[0.99] transition-all select-none border group ${
+      className={`p-3 rounded-xl active:scale-[0.99] transition-all select-none border group ${
         isPiggybank ? 'bg-white/70 dark:bg-zinc-800/80' : 'bg-gray-50 dark:bg-zinc-800 border-transparent'
       }`}
     >
@@ -315,6 +233,8 @@ const EnvelopeListItem = ({
     </motion.div>
   );
 };
+
+
 
 export const EnvelopeListView: React.FC = () => {
   // Use the new hook that contains all business logic
@@ -333,7 +253,6 @@ export const EnvelopeListView: React.FC = () => {
     reorderEnvelopes,
     deleteIncomeSource,
     copyFromPreviousMonth,
-    setEnvelopeAllocation,
     localOrderRef,
     setLocalEnvelopes,
     localPiggybankOrderRef,
@@ -381,11 +300,6 @@ export const EnvelopeListView: React.FC = () => {
     setIsOnboardingActive(showOnboarding);
     return () => setIsOnboardingActive(false);
   }, [showOnboarding, setIsOnboardingActive]);
-
-  // State for inline budget editing
-  const [editingEnvelopeId, setEditingEnvelopeId] = useState<string | null>(null);
-  const [editingAmount, setEditingAmount] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // Effect to handle Copy Previous Month Prompt or Onboarding visibility
   useEffect(() => {
@@ -445,12 +359,7 @@ export const EnvelopeListView: React.FC = () => {
     }
   }, [isInitialLoading, isLoading, currentMonth, incomeSources, allocations, isOnboardingCompleted]);
 
-  // Auto-focus input when editing envelope budget
-  useEffect(() => {
-    if (editingEnvelopeId && inputRef.current) {
-      inputRef.current.select();
-    }
-  }, [editingEnvelopeId]);
+
 
   // Callback ref for Moveable elements
   const setMoveableRef = useCallback((envelopeId: string) => (el: HTMLDivElement | null) => {
@@ -537,10 +446,8 @@ export const EnvelopeListView: React.FC = () => {
 
   const handleEnvelopeClick = useCallback((envelopeId: string) => {
     if (isReorderingRef.current) return;
-    if (editingEnvelopeId !== envelopeId) {
-      navigate(`/envelope/${envelopeId}`);
-    }
-  }, [editingEnvelopeId, navigate]);
+    navigate(`/envelope/${envelopeId}`);
+  }, [navigate]);
 
   const handleLongPressTrigger = useCallback((e: any, id: string) => {
     const instance = moveableInstances.current[id] || piggybankMoveableInstances.current[id];
@@ -1017,23 +924,7 @@ export const EnvelopeListView: React.FC = () => {
 
 
 
-  
-    // Handler to save the inline budget edit
-    const handleBudgetSave = async () => {
-      if (!editingEnvelopeId) return;
-  
-      try {
-          const newAmount = parseFloat(editingAmount) || 0;
-          await setEnvelopeAllocation(editingEnvelopeId, newAmount);
-      } catch (error) {
-          console.error("Failed to save budget amount:", error);
-          // showToast is now handled in the hook
-      } finally {
-          // ALWAYS exit edit mode, even if save fails, to prevent getting stuck.
-          setEditingEnvelopeId(null);
-          setEditingAmount('');
-      }
-    };
+
   
     // Income Management Handlers
     const handleAddIncome = () => {
@@ -1213,13 +1104,7 @@ export const EnvelopeListView: React.FC = () => {
                           env={env}
                           budgetedAmount={budgetedAmount}
                           remainingBalance={remainingBalance}
-                          editingEnvelopeId={editingEnvelopeId}
-                          setEditingEnvelopeId={setEditingEnvelopeId}
-                          editingAmount={editingAmount}
-                          setEditingAmount={setEditingAmount}
-                          handleBudgetSave={handleBudgetSave}
                           navigate={navigate}
-                          inputRef={inputRef}
                           transactions={transactions}
                           currentMonth={currentMonth}
                           setMoveableRef={setMoveableRef}
