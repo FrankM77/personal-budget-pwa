@@ -825,6 +825,17 @@ export const useBudgetStore = create<BudgetState>()(
                 if (settings.userId || state.appSettings?.userId) {
                     updatedSettings.userId = settings.userId ?? state.appSettings?.userId;
                 }
+
+                // Sanitize paymentSources to remove undefined values (Firestore doesn't like them)
+                if (updatedSettings.paymentSources) {
+                    updatedSettings.paymentSources = updatedSettings.paymentSources.map(source => {
+                        const cleanSource = { ...source };
+                        if (cleanSource.last4 === undefined) {
+                            delete cleanSource.last4;
+                        }
+                        return cleanSource;
+                    });
+                }
                 
                 // Get current user and update in backend
                 const authStore = await import('./authStore').then(m => m.useAuthStore.getState());

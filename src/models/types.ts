@@ -23,8 +23,8 @@ export interface Transaction {
   paymentMethod?: {
     id: string;
     name: string;
-    network: 'Visa' | 'Mastercard' | 'Amex';
-    last4: string;
+    network: 'Visa' | 'Mastercard' | 'Amex' | 'Cash' | 'Venmo';
+    last4?: string;
     color: string;
   };
 }
@@ -62,8 +62,8 @@ export interface DistributionTemplate {
 export interface PaymentSource {
   id: string;
   name: string;
-  network: 'Visa' | 'Mastercard' | 'Amex';
-  last4: string;
+  network: 'Visa' | 'Mastercard' | 'Amex' | 'Cash' | 'Venmo';
+  last4?: string;
   color: string;
 }
 

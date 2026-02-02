@@ -12,6 +12,10 @@
   - **Income Sources UI Polish**: Removed redundant "Monthly income" subtitle from the main view to reduce visual noise and further simplify the interface.
   - **Typography Standardization**: Implemented global font size control (Small, Medium, Large) via Settings. Standardized font sizes across list items for a more compact and consistent interface.
   - **Piggybank Editing Polish**: Replaced the "More" menu on piggybank list items with a direct "Edit" button in the detail view header, unifying the interaction pattern with regular envelopes.
+  - **Expanded Payment Methods**: Added native support for **Cash** and **Venmo** in the Card Stack.
+    - Updated validation logic to make "Last 4 Digits" optional for non-card methods.
+    - Implemented specific UI indicators ('$$$' for Cash, '@' for Venmo) in the card visualizer.
+    - **Critical Fix**: Sanitized data payload to prevent Firestore errors ("Unsupported field value: undefined") by stripping undefined optional fields before saving.
 - **2026-01-23**: **Enhanced Navigation Dock with Floating Action Button**: Replaced traditional bottom navigation bar with modern floating dock design featuring glassmorphism effect, hierarchical "More" menu, and prominent central FAB for transaction entry.
   - Implemented semi-transparent floating dock with backdrop blur
   - Added hierarchical navigation with overflow menu for Reports/Analytics

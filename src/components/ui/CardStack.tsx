@@ -42,7 +42,7 @@ const CardStack: React.FC<Props> = ({
   const [deleteConfirmCard, setDeleteConfirmCard] = useState<PaymentSource | null>(null);
   const [newCard, setNewCard] = useState({
     name: '',
-    network: 'Visa' as 'Visa' | 'Mastercard' | 'Amex',
+    network: 'Visa' as 'Visa' | 'Mastercard' | 'Amex' | 'Cash' | 'Venmo',
     last4: '',
     color: '#3b82f6'
   });
@@ -133,14 +133,15 @@ const CardStack: React.FC<Props> = ({
   const handleAddCard = async () => {
     if (disabled) return;
 
-    // Validate last 4 digits
-    if (newCard.last4.length !== 4 || !/^\d{4}$/.test(newCard.last4)) {
+    // Validate last 4 digits (only for cards)
+    const isCard = !['Cash', 'Venmo'].includes(newCard.network);
+    if (isCard && (newCard.last4.length !== 4 || !/^\d{4}$/.test(newCard.last4))) {
       alert('Please enter exactly 4 digits for the last 4 digits');
       return;
     }
 
     if (!newCard.name.trim()) {
-      alert('Please enter a card name');
+      alert('Please enter a name');
       return;
     }
 
@@ -149,7 +150,7 @@ const CardStack: React.FC<Props> = ({
       id: `custom-${Date.now()}`,
       name: newCard.name.trim(),
       network: newCard.network,
-      last4: newCard.last4,
+      last4: isCard ? newCard.last4 : undefined,
       color: newCard.color
     };
 
@@ -176,7 +177,7 @@ const CardStack: React.FC<Props> = ({
     // Reset form
     setNewCard({
       name: '',
-      network: 'Visa' as 'Visa' | 'Mastercard' | 'Amex',
+      network: 'Visa',
       last4: '',
       color: '#3b82f6'
     });
@@ -224,7 +225,9 @@ const CardStack: React.FC<Props> = ({
               {selectedCard.network}
             </span>
             <span className="text-left text-[9px] leading-none">
-              •••• {selectedCard.last4}
+              {['Cash', 'Venmo'].includes(selectedCard.network) 
+                ? (selectedCard.network === 'Cash' ? '$$$' : '@') 
+                : `•••• ${selectedCard.last4 || '••••'}`}
             </span>
           </div>
           <div className="flex-1">
@@ -232,7 +235,9 @@ const CardStack: React.FC<Props> = ({
               {selectedCard.name}
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              (...{selectedCard.last4})
+              {['Cash', 'Venmo'].includes(selectedCard.network) 
+                ? selectedCard.network 
+                : `(...${selectedCard.last4})`}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -253,6 +258,7 @@ const CardStack: React.FC<Props> = ({
                 {[...cards, { id: 'add-new', name: '+ Add New Card', network: 'Visa' as const, last4: '', color: '#6b7280' }].map((card, index) => {
                   const isSelected = selectedCard.id === card.id;
                   const isAddNew = card.id === 'add-new';
+                  const isNonCard = ['Cash', 'Venmo'].includes(card.network);
                   
                   return (
                     <motion.div 
@@ -286,7 +292,9 @@ const CardStack: React.FC<Props> = ({
                           
                           <div className="card-details">
                             <div className="card-name">{card.name}</div>
-                            <div className="card-number">{isAddNew ? '' : `•••• ${card.last4}`}</div>
+                            <div className="card-number">
+                              {isAddNew ? '' : (isNonCard ? (card.network === 'Cash' ? '$$$' : '@') : `•••• ${card.last4}`)}
+                            </div>
                           </div>
                           
                           {isAddNew && (
@@ -313,7 +321,7 @@ const CardStack: React.FC<Props> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 shadow-xl p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Card</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Payment Method</h2>
               <button
                 type="button"
                 onClick={() => setIsAddCardModalOpen(false)}
@@ -327,13 +335,13 @@ const CardStack: React.FC<Props> = ({
               {/* Card Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Card Name
+                  Name
                 </label>
                 <input
                   type="text"
                   value={newCard.name}
                   onChange={(e) => setNewCard({ ...newCard, name: e.target.value })}
-                  placeholder="e.g., My Chase Card"
+                  placeholder="e.g., Wallet Cash, My Venmo"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
@@ -341,38 +349,42 @@ const CardStack: React.FC<Props> = ({
               {/* Network */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Network
+                  Type
                 </label>
                 <select
                   value={newCard.network}
-                  onChange={(e) => setNewCard({ ...newCard, network: e.target.value as 'Visa' | 'Mastercard' | 'Amex' })}
+                  onChange={(e) => setNewCard({ ...newCard, network: e.target.value as any })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="Visa">Visa</option>
                   <option value="Mastercard">Mastercard</option>
                   <option value="Amex">Amex</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Venmo">Venmo</option>
                 </select>
               </div>
 
               {/* Last 4 Digits */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Last 4 Digits
-                </label>
-                <input
-                  type="text"
-                  value={newCard.last4}
-                  onChange={(e) => setNewCard({ ...newCard, last4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                  placeholder="1234"
-                  maxLength={4}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
+              {!['Cash', 'Venmo'].includes(newCard.network) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Last 4 Digits
+                  </label>
+                  <input
+                    type="text"
+                    value={newCard.last4}
+                    onChange={(e) => setNewCard({ ...newCard, last4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                    placeholder="1234"
+                    maxLength={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              )}
 
               {/* Color Picker */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Card Color
+                  Color
                 </label>
                 <div className="grid grid-cols-6 gap-2">
                   {colorOptions.map((color) => (
@@ -404,7 +416,9 @@ const CardStack: React.FC<Props> = ({
                     {newCard.network}
                   </span>
                   <span className="text-left text-[9px] leading-none">
-                    •••• {newCard.last4 || '0000'}
+                    {['Cash', 'Venmo'].includes(newCard.network) 
+                      ? (newCard.network === 'Cash' ? '$$$' : '@') 
+                      : `•••• ${newCard.last4 || '0000'}`}
                   </span>
                 </div>
               </div>
@@ -423,7 +437,7 @@ const CardStack: React.FC<Props> = ({
                   onClick={handleAddCard}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
                 >
-                  Add Card
+                  Add
                 </button>
               </div>
             </div>

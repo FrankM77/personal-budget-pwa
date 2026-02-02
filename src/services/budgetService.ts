@@ -300,6 +300,15 @@ export class BudgetService {
       const docRef = doc(collectionRef);
       const now = Timestamp.now();
 
+      // Sanitize nested paymentMethod object
+      if (transaction.paymentMethod) {
+        const cleanPaymentMethod = { ...transaction.paymentMethod };
+        if (cleanPaymentMethod.last4 === undefined) {
+          delete cleanPaymentMethod.last4;
+        }
+        transaction.paymentMethod = cleanPaymentMethod;
+      }
+
       // Filter out undefined fields
       const cleanTransaction = Object.fromEntries(
         Object.entries(transaction).filter(([_, value]) => value !== undefined)
@@ -336,6 +345,15 @@ export class BudgetService {
     try {
       console.log('📡 BudgetService.updateTransaction called for transaction:', transaction.id);
       
+      // Sanitize nested paymentMethod object
+      if (transaction.paymentMethod) {
+        const cleanPaymentMethod = { ...transaction.paymentMethod };
+        if (cleanPaymentMethod.last4 === undefined) {
+          delete cleanPaymentMethod.last4;
+        }
+        transaction.paymentMethod = cleanPaymentMethod;
+      }
+
       // Filter out undefined fields to avoid Firestore errors
       const cleanTransaction = Object.fromEntries(
         Object.entries(transaction).filter(([_, value]) => value !== undefined)
