@@ -21,6 +21,7 @@ dist-ssr
 
 # Firebase config (contains API keys)
 src/firebase.ts
+src/firebase.ts.backup
 
 # Editor directories and files
 .vscode/*
