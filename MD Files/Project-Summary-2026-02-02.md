@@ -1,6 +1,10 @@
-# House Budget PWA: Project Summary - 2026-02-01
+# House Budget PWA: Project Summary - 2026-02-02
 
 ## Changelog (Highlights)
+- **2026-02-02**: **UX Refinement: Envelope List Add Buttons**: Improved the usability of adding new items to the budget.
+  - **Bottom-Aligned Add Buttons**: Moved the '+' add buttons for Income Sources, Spending Envelopes, and Piggybanks from the section headers to the bottom-right of each respective section.
+  - **Improved Ergonomics**: This change reduces scrolling friction when adding multiple items sequentially, as the button now appears naturally at the end of the list.
+  - **Visual Consistency**: Unified the visual language for adding items across all three main sections of the Envelope List view.
 - **2026-02-01**: **UI & Data Integrity Overhaul**: Major refactor of Envelope List/Detail views and resolution of critical data corruption bugs.
   - **Budget Editing UX**: Moved "Budgeted" amount editing from the list view to the Envelope Detail view for a cleaner, native-app feel.
   - **Simplified List Items**: Redesigned `EnvelopeListItem` and `PiggybankListItem` to be vertically shorter with a thinner progress bar, removing inline editing clutter.

@@ -1043,9 +1043,6 @@ export const EnvelopeListView: React.FC = () => {
           <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income Sources</h2>
-              <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
-                <Plus size={20} />
-              </button>
             </div>
             {(incomeSources[currentMonth] || []).length === 0 ? (
               <div className="text-center py-6"><p className="text-gray-500 dark:text-zinc-400 text-sm">No income sources yet. Add your monthly income.</p></div>
@@ -1068,15 +1065,17 @@ export const EnvelopeListView: React.FC = () => {
               </div>
             )
           }
+            <div className="flex justify-end mt-4">
+              <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
+                <Plus size={24} />
+              </button>
+            </div>
           </section>
 
           {/* Spending Envelopes Section */}
           <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Envelopes</h2>
-              <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Envelope">
-                <Plus size={20} />
-              </button>
             </div>
             {visibleEnvelopes.length === 0 ? (
               <div className="text-center py-6">
@@ -1118,6 +1117,11 @@ export const EnvelopeListView: React.FC = () => {
                 </AnimatePresence>
               </div>
             )}
+            <div className="flex justify-end mt-4">
+              <button onClick={() => navigate('/add-envelope')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800" title="Create New Envelope">
+                <Plus size={24} />
+              </button>
+            </div>
           </section>
 
           {/* Piggybanks Section */}
@@ -1127,9 +1131,6 @@ export const EnvelopeListView: React.FC = () => {
                 <PiggyBank size={20} className="text-blue-600 dark:text-blue-400" />
                 Piggybanks
               </h2>
-              <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors" title="Create New Piggybank">
-                <Plus size={20} />
-              </button>
             </div>
              {piggybanks.length > 0 ? (
                <div ref={piggybankReorderConstraintsRef} className="relative">
@@ -1157,9 +1158,14 @@ export const EnvelopeListView: React.FC = () => {
                 <div className="text-center py-8 text-gray-500 dark:text-zinc-400">
                   <PiggyBank size={48} className="mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No piggybanks yet</p>
-                  <p className="text-xs mt-1">Click the + button above to create your first piggybank</p>
+                  <p className="text-xs mt-1">Click the + button below to create your first piggybank</p>
                 </div>
               )}
+            <div className="flex justify-end mt-4">
+              <button onClick={() => navigate('/add-envelope?type=piggybank')} className="text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800" title="Create New Piggybank">
+                <Plus size={24} />
+              </button>
+            </div>
           </section>
         </>
       )}

@@ -234,4 +234,31 @@ npm run deploy
 *   **Version Control:** Semantic versioning. **CRITICAL: STOP AND ASK.** You are FORBIDDEN from committing or pushing changes to GitHub without explicit, verbal permission from the user for *each specific commit*. Do not assume permission carries over. Always ask: "Shall I commit and push these changes?" **IMPORTANT:** When executing Git commands (add, commit, push), run them as separate, individual commands. Do NOT use `&&` to chain them, as it is not supported by default in PowerShell on Windows.
 *   **Mandatory Build & Test Check:** After applying any code changes and *before* asking to commit, you MUST run `npm run build` to verify there are no TypeScript or compilation errors. Additionally, if the user asks to "test before commit", you must provide clear manual testing steps or execute automated tests if available.
 
+---
+
+## 7. Style Guide
+
+### File Naming Conventions
+
+**Scope:** Applies to all files in the project (source code, assets, documentation, etc.)
+
+**Core Rules:**
+
+*   **Use camelCase for file names:** `myComponent.tsx`, `userDataService.ts`, `budgetCalculator.ts`
+*   **Date format:** Use `YYYY_MM_DD` when including dates in file names
+    *   Good: `ProjectSummary_2026_02_01.md`
+    *   Bad: `ProjectSummary-Feb-1-2026.md` or `ProjectSummary02012026.md`
+*   **Keep names short but meaningful:** Balance brevity with descriptiveness
+*   **No spaces:** Never use spaces in file names
+*   **Avoid special characters:** Do not use `: \ / < > | " ? [ ] ; = + & £ $` in file names
+*   **Include version control when needed:** Use `v01`, `v02`, etc. for versioned files
+*   **Use leading zeros for sequential numbers:** `001`, `002`, `010` instead of `1`, `2`, `10`
+*   **Put most important information first:** Order elements by importance for sorting
+
+**Examples:**
+*   Components: `envelopeListItem.tsx`, `transactionModal.tsx`
+*   Services: `envelopeService.ts`, `monthlyBudgetService.ts`
+*   Documentation: `projectSummary_2026_02_01.md`, `apiDocumentation_v2.md`
+*   Assets: `appIcon_192.png`, `backgroundImage_2026_01_15.jpg`
+
 run git commands sequentially, one at a time, and wait for each to complete before moving on to the next. Do NOT use `&&` to chain them, as it is not supported by default in PowerShell on Windows.

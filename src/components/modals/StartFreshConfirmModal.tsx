@@ -28,8 +28,7 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
   totalTransactionAmount,
   isLoading = false,
 }) => {
-  const [confirmationText, setConfirmationText] = useState('');
-  const [step, setStep] = useState<'confirm' | 'type'>('confirm');
+  const [step, setStep] = useState<'confirm' | 'final_confirm'>('confirm');
 
   const formatMonth = (monthStr: string) => {
     const [year, month] = monthStr.split('-');
@@ -39,15 +38,14 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
 
   const handleConfirmClick = () => {
     if (step === 'confirm') {
-      setStep('type');
-    } else if (step === 'type' && confirmationText === 'START FRESH') {
+      setStep('final_confirm');
+    } else if (step === 'final_confirm') {
       onConfirm();
     }
   };
 
   const handleClose = () => {
     setStep('confirm');
-    setConfirmationText('');
     onClose();
   };
 
@@ -123,31 +121,21 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
                       </div>
                     </div>
                   </div>
-
-                  <p className="text-sm text-gray-600 dark:text-zinc-400">
-                    You can undo this action within 30 seconds if you change your mind.
-                  </p>
                 </>
               ) : (
-                <>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-900 dark:text-white mb-4">
-                      Type <strong>START FRESH</strong> to confirm:
-                    </p>
-                    <input
-                      type="text"
-                      value={confirmationText}
-                      onChange={(e) => setConfirmationText(e.target.value)}
-                      placeholder="START FRESH"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-zinc-800 dark:text-white text-center font-mono text-lg"
-                      autoFocus
-                    />
+                <div className="text-center py-4">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 mb-4">
+                    <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
                   </div>
-
-                  <p className="text-xs text-gray-500 dark:text-zinc-500 text-center">
-                    This action cannot be undone after 30 seconds
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-2">
+                    Are you absolutely sure?
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-zinc-400">
+                    This action cannot be undone. All budget data and transactions for <strong>{formatMonth(currentMonth)}</strong> will be permanently removed.
                   </p>
-                </>
+                </div>
               )}
             </div>
 
@@ -164,13 +152,10 @@ const StartFreshConfirmModal: React.FC<StartFreshConfirmModalProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmClick}
-                disabled={
-                  isLoading ||
-                  (step === 'type' && confirmationText !== 'START FRESH')
-                }
+                disabled={isLoading}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoading ? 'Clearing...' : step === 'confirm' ? 'Continue' : 'Start Fresh'}
+                {isLoading ? 'Clearing...' : step === 'confirm' ? 'Continue' : 'Yes, Start Fresh'}
               </button>
             </div>
           </motion.div>
