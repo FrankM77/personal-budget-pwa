@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { PiggyBank, TrendingUp, Pause, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLongPress, LongPressEventType } from 'use-long-press';
@@ -27,6 +27,9 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   onItemDragStart,
   onLongPressTrigger
 }) => {
+  const moveableItemRef = useRef<HTMLDivElement>(null);
+  const [didDragThisItem, setDidDragThisItem] = useState(false);
+
   // long press for mobile reordering
   const bind = useLongPress((event) => {
     // Vibrate to indicate grab
@@ -54,9 +57,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   };
   const accentBackground = `linear-gradient(135deg, ${hexToRgba(color, 0.14)} 0%, ${hexToRgba(color, 0.05)} 100%)`;
   const accentBorder = hexToRgba(color, 0.4);
-  const moveableItemRef = useRef<HTMLDivElement>(null);
-  const [didDragThisItem, setDidDragThisItem] = useState(false);
-  
+
   // Calculate progress percentage
   const progressPercentage = targetAmount && targetAmount > 0
     ? Math.min((balanceNum / targetAmount) * 100, 100)
@@ -89,8 +90,6 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
       return () => clearTimeout(timer);
     }
   }, [activelyDraggingId, didDragThisItem]);
-
-
 
   const handleMoveableClick = (e: React.MouseEvent | React.TouchEvent) => {
     // Don't navigate if we just dragged this item or if currently reordering
