@@ -71,6 +71,49 @@ export class CategoryService {
     await batch.commit();
   }
 
+  // Deduplicate categories by name, keeping the first (lowest orderIndex) of each
+  public async deduplicateCategories(userId: string): Promise<number> {
+    const categories = await this.getCategories(userId);
+    
+    // Group by name (case-insensitive)
+    const seen = new Map<string, Category>();
+    const duplicateIds: string[] = [];
+    
+    for (const cat of categories) {
+      const key = cat.name.toLowerCase().trim();
+      if (seen.has(key)) {
+        duplicateIds.push(cat.id);
+      } else {
+        seen.set(key, cat);
+      }
+    }
+    
+    if (duplicateIds.length === 0) {
+      console.log('✅ No duplicate categories found');
+      return 0;
+    }
+    
+    console.log(`🧹 Found ${duplicateIds.length} duplicate categories to remove`);
+    
+    // Delete in batches of 450
+    const BATCH_SIZE = 450;
+    for (let i = 0; i < duplicateIds.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = duplicateIds.slice(i, i + BATCH_SIZE);
+      
+      chunk.forEach(id => {
+        const ref = doc(db, `users/${userId}/categories`, id);
+        batch.delete(ref);
+      });
+      
+      await batch.commit();
+      console.log(`🗑️ Deleted batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+    }
+    
+    console.log(`✅ Removed ${duplicateIds.length} duplicate categories`);
+    return duplicateIds.length;
+  }
+
   // Real-time subscription
   public subscribeToCategories(userId: string, onUpdate: (categories: Category[]) => void): () => void {
     const q = query(

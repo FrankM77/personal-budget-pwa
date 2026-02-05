@@ -393,7 +393,24 @@ export const useBudgetStore = create<BudgetState>()(
                 ]);
                 
                 // Deduplicate categories by ID
-                const uniqueCategories = Array.from(new Map(categoriesResult.map(c => [c.id, c])).values());
+                let uniqueCategories = Array.from(new Map(categoriesResult.map(c => [c.id, c])).values());
+
+                // If there are duplicate category names in Firestore, clean them up
+                const nameSet = new Set<string>();
+                let hasDuplicateNames = false;
+                for (const cat of uniqueCategories) {
+                    const key = cat.name.toLowerCase().trim();
+                    if (nameSet.has(key)) { hasDuplicateNames = true; break; }
+                    nameSet.add(key);
+                }
+                if (hasDuplicateNames && currentUser) {
+                    console.log('🧹 Duplicate category names detected, running Firestore cleanup...');
+                    const removed = await categoryService.deduplicateCategories(currentUser.id);
+                    if (removed > 0) {
+                        const freshCategories = await categoryService.getCategories(currentUser.id);
+                        uniqueCategories = freshCategories;
+                    }
+                }
 
                 // Update state with fetched data
                 set({
@@ -446,6 +463,16 @@ export const useBudgetStore = create<BudgetState>()(
                 const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
                 const currentUser = authStore.currentUser;
                 if (!currentUser) throw new Error('No user logged in');
+
+                // Prevent duplicate categories by name
+                const existingByName = get().categories.find(
+                    c => c.name.toLowerCase().trim() === (category.name || '').toLowerCase().trim()
+                );
+                if (existingByName) {
+                    console.log(`⚠️ Category "${category.name}" already exists, skipping creation`);
+                    set({ isLoading: false });
+                    return existingByName.id;
+                }
 
                 const newId = categoryService.createId();
                 const newCategory: Category = {
@@ -1793,6 +1820,7 @@ export const useBudgetStore = create<BudgetState>()(
             set({
                 envelopes: [],
                 transactions: [],
+                categories: [],
                 incomeSources: {},
                 allocations: {},
                 isOnboardingActive: false,
