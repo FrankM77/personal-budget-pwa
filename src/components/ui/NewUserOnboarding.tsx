@@ -12,7 +12,8 @@ import {
   Plus,
   Target,
   RotateCcw,
-  Tags
+  Tags,
+  GripVertical
 } from 'lucide-react';
 import appIcon from '/icon-512.png';
 import budgetBalancedIcon from '/images/budget-balanced.png';
@@ -66,7 +67,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
   // Animate budget amount when animation key changes or when entering Step 5
   useEffect(() => {
     console.log('Animation effect triggered:', { currentStep, animationKey });
-    if (currentStep === 4) { // Only animate on Step 5 (index 4) - Allocate Your Budget
+    if (currentStep === 5) { // Only animate on Step 5 (index 5) - Allocate Your Budget
       console.log('Starting animation from $2500 to $0');
       setCurrentBudgetAmount(2500);
       
@@ -250,8 +251,73 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
       color: 'purple'
     },
     {
+      icon: GripVertical,
+      title: 'Step 4: Organize Your Budget',
+      description: 'Reorder categories and envelopes to match your preferences',
+      content: (
+        <div className="space-y-4 text-left">
+          <p className="text-gray-600 dark:text-zinc-400">
+            Your budget should work the way <strong>you</strong> think about money. Customize the order to match your priorities!
+          </p>
+          
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4">
+            <h4 className="font-medium text-indigo-900 dark:text-indigo-200 mb-3 flex items-center gap-2">
+              <GripVertical className="w-4 h-4" />
+              Drag to Reorder
+            </h4>
+            
+            <p className="text-sm text-indigo-800 dark:text-indigo-300 mb-3">
+              Both categories and envelopes can be reordered the same way:
+            </p>
+            
+            <div className="space-y-2 mb-3">
+              <p className="text-sm text-indigo-800 dark:text-indigo-300">
+                <strong>Mobile:</strong> Long-press and drag
+              </p>
+              <p className="text-sm text-indigo-800 dark:text-indigo-300">
+                <strong>PC:</strong> Click and hold on the <strong>⋮⋮</strong> dots, then drag
+              </p>
+            </div>
+            
+            <div className="bg-white dark:bg-indigo-950/30 rounded-lg p-3 mb-3 border border-indigo-300 dark:border-indigo-700">
+              <div className="flex items-center gap-2 text-xs mb-2">
+                <div className="text-indigo-600 dark:text-indigo-400 font-bold">⋮⋮</div>
+                <div className="flex-1">
+                  <div className="font-medium text-indigo-900 dark:text-indigo-200">Food</div>
+                  <div className="text-indigo-700 dark:text-indigo-400 text-xs">Category</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <div className="text-indigo-600 dark:text-indigo-400 font-bold">⋮⋮</div>
+                <div className="flex-1">
+                  <div className="font-medium text-indigo-900 dark:text-indigo-200">Groceries</div>
+                  <div className="text-indigo-700 dark:text-indigo-400 text-xs">$450 / $500</div>
+                </div>
+              </div>
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 italic">
+                ← Click and hold these dots to drag
+              </p>
+            </div>
+            
+            <ul className="space-y-1 text-sm text-indigo-700 dark:text-indigo-400">
+              <li>• Reorder categories: Settings → Manage Categories</li>
+              <li>• Reorder envelopes: On the main budget screen</li>
+              <li>• Organize by priority, frequency, or preference</li>
+            </ul>
+          </div>
+          
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              💡 <strong>Pro tip:</strong> Try organizing your budget like this: Income → Fixed Expenses → Variable Expenses → Savings Goals
+            </p>
+          </div>
+        </div>
+      ),
+      color: 'indigo'
+    },
+    {
       icon: TrendingUp,
-      title: 'Step 4: Allocate Your Budget',
+      title: 'Step 5: Allocate Your Budget',
       description: 'Assign money to each envelope',
       content: (
         <div className="space-y-4 text-left">
@@ -401,6 +467,12 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 dark:text-green-400 font-bold">4</span>
               </div>
+              <span>Organize your budget order</span>
+            </div>
+            <div className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
+              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-green-600 dark:text-green-400 font-bold">5</span>
+              </div>
               <span>Allocate until Left to Budget = $0</span>
             </div>
           </div>
@@ -436,6 +508,11 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
       bg: 'bg-purple-100 dark:bg-purple-900/30',
       text: 'text-purple-600 dark:text-purple-400',
       button: 'bg-purple-600 hover:bg-purple-700'
+    },
+    indigo: {
+      bg: 'bg-indigo-100 dark:bg-indigo-900/30',
+      text: 'text-indigo-600 dark:text-indigo-400',
+      button: 'bg-indigo-600 hover:bg-indigo-700'
     },
     pink: {
       bg: 'bg-pink-100 dark:bg-pink-900/30',
