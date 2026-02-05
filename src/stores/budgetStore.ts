@@ -40,6 +40,7 @@ interface BudgetState {
   setMonth: (month: string) => void;
   init: () => Promise<void>;
   setIsOnboardingActive: (active: boolean) => void; // UI Action
+  checkAndStartOnboarding: () => void; // Action to check and start onboarding for new users
   completeOnboarding: () => void; // Action to mark onboarding as complete
   resetOnboarding: () => void; // Action to reset onboarding status
   addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
@@ -115,6 +116,11 @@ export const useBudgetStore = create<BudgetState>()(
             console.log('🎯 Starting onboarding for new user');
             set({ isOnboardingActive: true });
           }
+        },
+
+        completeOnboarding: () => {
+          set({ isOnboardingCompleted: true, isOnboardingActive: false });
+          localStorage.setItem('onboardingCompleted', 'true');
         },
 
         resetOnboarding: () => {

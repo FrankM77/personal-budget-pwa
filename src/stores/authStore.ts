@@ -414,7 +414,7 @@ export const useAuthStore = create<AuthStore>()(
 
         set({ isInitialized: false });
 
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
           const now = Date.now();
           const currentState = useAuthStore.getState(); // Use getState() instead of get()
 
