@@ -10,7 +10,8 @@ import {
   sendEmailVerification as firebaseSendEmailVerification, 
   deleteUser, 
   reauthenticateWithCredential, 
-  EmailAuthProvider 
+  EmailAuthProvider,
+  confirmPasswordReset
 } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -42,6 +43,7 @@ interface AuthActions {
   sendEmailVerification: () => Promise<boolean>;
   resendEmailVerification: () => Promise<boolean>;
   checkVerificationStatus: () => Promise<boolean>;
+  confirmPasswordReset: (oobCode: string, newPassword: string) => Promise<boolean>;
   deleteAccount: (password: string) => Promise<boolean>;
   clearError: () => void;
   initializeAuth: () => () => void; // Returns cleanup function
@@ -393,6 +395,38 @@ export const useAuthStore = create<AuthStore>()(
               break;
             case 'auth/network-request-failed':
               errorMessage = 'Network error. Please check your connection and try again.';
+              break;
+          }
+
+          set({
+            isLoading: false,
+            loginError: errorMessage
+          });
+          return false;
+        }
+      },
+
+      confirmPasswordReset: async (oobCode: string, newPassword: string): Promise<boolean> => {
+        set({ isLoading: true, loginError: null });
+
+        try {
+          await confirmPasswordReset(auth, oobCode, newPassword);
+          set({ isLoading: false });
+          console.log('✅ Password reset successful');
+          return true;
+        } catch (error: any) {
+          console.error('Password reset confirmation error:', error);
+          let errorMessage = 'Failed to reset password. The link may be expired or invalid.';
+
+          switch (error.code) {
+            case 'auth/expired-action-code':
+              errorMessage = 'The password reset link has expired. Please request a new one.';
+              break;
+            case 'auth/invalid-action-code':
+              errorMessage = 'The password reset link is invalid. Please request a new one.';
+              break;
+            case 'auth/weak-password':
+              errorMessage = 'Password should be at least 6 characters.';
               break;
           }
 

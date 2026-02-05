@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { applyActionCode } from 'firebase/auth';
 import { HashRouter } from 'react-router-dom';
 import { LoginView } from './views/LoginView';
+import { ResetPasswordView } from './views/ResetPasswordView';
 import { EmailVerificationView } from './views/EmailVerificationView';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
@@ -17,6 +18,7 @@ function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
+  const [resetPasswordCode, setResetPasswordCode] = useState<string | null>(null);
   const { appSettings, isOnboardingActive } = useBudgetStore();
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
 
@@ -34,12 +36,18 @@ function App() {
     return unsubscribe;
   }, [initializeAuth]);
 
-  // Handle email verification from URL parameters
+  // Handle email verification and password reset from URL parameters
   useEffect(() => {
-    const handleEmailVerification = async () => {
+    const handleUrlActions = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const mode = urlParams.get('mode');
       const oobCode = urlParams.get('oobCode');
+
+      if (mode === 'resetPassword' && oobCode) {
+        console.log('🔗 Processing password reset from URL');
+        setResetPasswordCode(oobCode);
+        return;
+      }
 
       if (mode === 'verifyEmail' && oobCode) {
         console.log('🔗 Processing email verification from URL');
@@ -62,7 +70,7 @@ function App() {
       }
     };
 
-    handleEmailVerification();
+    handleUrlActions();
   }, []);
 
   // Theme effect: toggle html.dark based on app settings theme preference
@@ -117,6 +125,29 @@ function App() {
   // Splash Screen View - Show loading screen during initialization
   if (showingLaunchScreen || !isInitialized) {
     return <LoadingScreen message="Initializing Personal Budget..." />;
+  }
+
+  // Reset Password View - Show when processing a password reset code
+  if (resetPasswordCode) {
+    return (
+      <ErrorBoundary>
+        <ResetPasswordView 
+          oobCode={resetPasswordCode}
+          onSuccess={() => {
+            setResetPasswordCode(null);
+            // Clean up URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+          }}
+          onCancel={() => {
+            setResetPasswordCode(null);
+            // Clean up URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+          }}
+        />
+      </ErrorBoundary>
+    );
   }
 
   // Login View - Show when not authenticated
