@@ -497,7 +497,8 @@ export const EnvelopeListView: React.FC = () => {
 
   const { 
     setMonth, 
-    setIsOnboardingActive, 
+    setIsOnboardingActive,
+    isOnboardingActive,
     isOnboardingCompleted, 
     completeOnboarding, 
     categories, 
@@ -513,7 +514,6 @@ export const EnvelopeListView: React.FC = () => {
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -550,7 +550,7 @@ export const EnvelopeListView: React.FC = () => {
   }, [envelopes, reorderEnvelopes]);
 
   useLayoutEffect(() => {
-    if (showOnboarding) return;
+    if (isOnboardingActive) return;
     const el = headerRef.current;
     if (!el) return;
     const update = () => setHeaderHeight(el.getBoundingClientRect().height);
@@ -562,19 +562,16 @@ export const EnvelopeListView: React.FC = () => {
       window.removeEventListener('resize', update);
       ro.disconnect();
     };
-  }, [showOnboarding, currentMonth, incomeSources, allocations, visibleEnvelopes, piggybanks, availableToBudget]);
+  }, [isOnboardingActive, currentMonth, incomeSources, allocations, visibleEnvelopes, piggybanks, availableToBudget]);
 
-  useEffect(() => {
-    setIsOnboardingActive(showOnboarding);
-    return () => setIsOnboardingActive(false);
-  }, [showOnboarding, setIsOnboardingActive]);
+  // Removed: isOnboardingActive is now managed by the budget store directly
 
   useEffect(() => {
     if (!isInitialLoading && !isLoading) {
       const timer = setTimeout(() => {
-        if (showOnboarding) return;
+        if (isOnboardingActive) return;
         if (isOnboardingCompleted) {
-           setShowOnboarding(false);
+           setIsOnboardingActive(false);
            const hasNoData = (incomeSources[currentMonth] || []).length === 0 && (allocations[currentMonth] || []).length === 0;
            const hasAnyDataInAnyMonth = Object.keys(incomeSources).some(month => (incomeSources[month] || []).length > 0) || Object.keys(allocations).some(month => (allocations[month] || []).length > 0);
            if (hasNoData && hasAnyDataInAnyMonth) setShowCopyPrompt(true);
@@ -585,15 +582,15 @@ export const EnvelopeListView: React.FC = () => {
         const hasAnyDataInAnyMonth = Object.keys(incomeSources).some(month => (incomeSources[month] || []).length > 0) || Object.keys(allocations).some(month => (allocations[month] || []).length > 0);
         if (hasNoData) {
           if (!hasAnyDataInAnyMonth) {
-            setShowOnboarding(true);
+            setIsOnboardingActive(true);
             setShowCopyPrompt(false);
           } else {
             setShowCopyPrompt(true);
-            setShowOnboarding(false);
+            setIsOnboardingActive(false);
           }
         } else {
           setShowCopyPrompt(false);
-          setShowOnboarding(false);
+          setIsOnboardingActive(false);
         }
       }, 500);
       return () => clearTimeout(timer);
@@ -634,7 +631,7 @@ export const EnvelopeListView: React.FC = () => {
 
   const handleOnboardingComplete = () => {
     completeOnboarding();
-    setShowOnboarding(false);
+    setIsOnboardingActive(false);
   };
 
   if (isInitialLoading) {
@@ -645,7 +642,7 @@ export const EnvelopeListView: React.FC = () => {
     <>
       <style dangerouslySetInnerHTML={{ __html: `.moveable-control, .moveable-origin, .moveable-line { display: none !important; }` }} />
       <div className="min-h-screen bg-gray-50 dark:bg-black pb-20">
-      {!showOnboarding && (
+      {!isOnboardingActive && (
       <header ref={headerRef as any} className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+4px)] pb-1">
         <MonthSelector
           currentMonth={currentMonth}
@@ -661,8 +658,8 @@ export const EnvelopeListView: React.FC = () => {
       </header>
       )}
 
-    <div className="pb-[calc(8rem+env(safe-area-inset-bottom))] px-4 max-w-4xl mx-auto space-y-4" style={showOnboarding ? undefined : { paddingTop: Math.max(0, headerHeight + 16) }}>
-      {showOnboarding ? (
+    <div className="pb-[calc(8rem+env(safe-area-inset-bottom))] px-4 max-w-4xl mx-auto space-y-4" style={isOnboardingActive ? undefined : { paddingTop: Math.max(0, headerHeight + 16) }}>
+      {isOnboardingActive ? (
         <NewUserOnboarding currentMonth={currentMonth} onComplete={handleOnboardingComplete} />
       ) : showCopyPrompt ? (
         <CopyPreviousMonthPrompt currentMonth={currentMonth} onCopy={handleCopyPreviousMonth} />

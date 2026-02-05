@@ -451,9 +451,19 @@ export const useAuthStore = create<AuthStore>()(
               shouldGrantOfflineAccess ? '(offline grace period)' : isVerified ? '(verified)' : '(unverified)');
 
             // Check if we should start onboarding for new users
+            console.log('🔍 Onboarding check:', {
+              isVerified,
+              shouldGrantOfflineAccess,
+              willCheckOnboarding: isVerified && !shouldGrantOfflineAccess
+            });
+            
             if (isVerified && !shouldGrantOfflineAccess) {
+              console.log('🔍 Loading budgetStore to check onboarding...');
               const budgetStore = await import('./budgetStore').then(m => m.useBudgetStore.getState());
+              console.log('🔍 Calling budgetStore.checkAndStartOnboarding()...');
               budgetStore.checkAndStartOnboarding();
+            } else {
+              console.log('⏭️ Skipping onboarding check (not verified or offline grace period)');
             }
           } else {
             console.log('🔄 Auth state: User is signed out');

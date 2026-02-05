@@ -101,7 +101,11 @@ export const useBudgetStore = create<BudgetState>()(
         currentMonth: new Date().toISOString().slice(0, 7),
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         isOnboardingActive: false,
-        isOnboardingCompleted: typeof localStorage !== 'undefined' ? localStorage.getItem('onboardingCompleted') === 'true' : false,
+        isOnboardingCompleted: (() => {
+          const completed = typeof localStorage !== 'undefined' ? localStorage.getItem('onboardingCompleted') === 'true' : false;
+          console.log('📋 BudgetStore initialized: isOnboardingCompleted =', completed);
+          return completed;
+        })(),
         isLoading: false,
         error: null,
 
@@ -112,9 +116,19 @@ export const useBudgetStore = create<BudgetState>()(
 
         checkAndStartOnboarding: () => {
           const state = get();
+          console.log('🔍 checkAndStartOnboarding called:', {
+            isOnboardingCompleted: state.isOnboardingCompleted,
+            isOnboardingActive: state.isOnboardingActive,
+            localStorage_value: localStorage.getItem('onboardingCompleted')
+          });
           if (!state.isOnboardingCompleted && !state.isOnboardingActive) {
-            console.log('🎯 Starting onboarding for new user');
+            console.log('🎯 Starting onboarding for new user - setting isOnboardingActive to TRUE');
             set({ isOnboardingActive: true });
+            console.log('✅ isOnboardingActive set to:', get().isOnboardingActive);
+          } else {
+            console.log('⏭️ Skipping onboarding:', {
+              reason: state.isOnboardingCompleted ? 'already completed' : 'already active'
+            });
           }
         },
 
