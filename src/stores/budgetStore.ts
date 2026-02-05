@@ -109,9 +109,12 @@ export const useBudgetStore = create<BudgetState>()(
             set({ isOnboardingActive: active });
         },
 
-        completeOnboarding: () => {
-            set({ isOnboardingCompleted: true, isOnboardingActive: false });
-            localStorage.setItem('onboardingCompleted', 'true');
+        checkAndStartOnboarding: () => {
+          const state = get();
+          if (!state.isOnboardingCompleted && !state.isOnboardingActive) {
+            console.log('🎯 Starting onboarding for new user');
+            set({ isOnboardingActive: true });
+          }
         },
 
         resetOnboarding: () => {

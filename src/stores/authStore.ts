@@ -449,6 +449,12 @@ export const useAuthStore = create<AuthStore>()(
           if (effectiveUser) {
             console.log(`🔄 Auth state: User is signed in (${effectiveUser.email})`,
               shouldGrantOfflineAccess ? '(offline grace period)' : isVerified ? '(verified)' : '(unverified)');
+
+            // Check if we should start onboarding for new users
+            if (isVerified && !shouldGrantOfflineAccess) {
+              const budgetStore = await import('./budgetStore').then(m => m.useBudgetStore.getState());
+              budgetStore.checkAndStartOnboarding();
+            }
           } else {
             console.log('🔄 Auth state: User is signed out');
           }
