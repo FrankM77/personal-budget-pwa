@@ -46,6 +46,8 @@ const CardStack: React.FC<Props> = ({
     last4: '',
     color: '#3b82f6'
   });
+  const [draggedCard, setDraggedCard] = useState<PaymentSource | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Load cards from app settings on mount and when app settings change
   useEffect(() => {
@@ -183,6 +185,56 @@ const CardStack: React.FC<Props> = ({
     });
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, card: PaymentSource) => {
+    if (disabled) return;
+    setDraggedCard(card);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (disabled || !draggedCard) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    if (disabled || !draggedCard) return;
+    e.preventDefault();
+    setDragOverIndex(null);
+
+    const draggedIndex = cards.findIndex(card => card.id === draggedCard.id);
+    if (draggedIndex === -1 || draggedIndex === dropIndex) return;
+
+    // Reorder cards
+    const newCards = [...cards];
+    newCards.splice(draggedIndex, 1);
+    newCards.splice(dropIndex, 0, draggedCard);
+    
+    setCards(newCards);
+    setDraggedCard(null);
+
+    // Save to app settings
+    try {
+      await updateAppSettings({ paymentSources: newCards });
+    } catch (error) {
+      console.error('Failed to reorder cards:', error);
+      // Revert the local state if save failed
+      setCards(cards);
+      alert('Failed to reorder cards. Please try again.');
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCard(null);
+    setDragOverIndex(null);
+  };
+
   const colorOptions = [
     '#3b82f6', // Blue
     '#ef4444', // Red
@@ -253,6 +305,11 @@ const CardStack: React.FC<Props> = ({
         {/* Dropdown Card Stack */}
         {isStackOpen && (
           <div className="card-stack-dropdown">
+            {cards.length > 1 && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 text-center">
+                💡 Drag and drop cards to reorder
+              </div>
+            )}
             <div className="card-stack">
               <AnimatePresence initial={false} mode="popLayout">
                 {[...cards, { id: 'add-new', name: '+ Add New Card', network: 'Visa' as const, last4: '', color: '#6b7280' }].map((card, index) => {
@@ -275,12 +332,20 @@ const CardStack: React.FC<Props> = ({
                       >
                         {/* Card */}
                         <div
-                          className={`card-stack-item ${isSelected ? 'selected' : ''} ${isAddNew ? 'add-new-card' : ''}`}
+                          className={`card-stack-item ${isSelected ? 'selected' : ''} ${isAddNew ? 'add-new-card' : ''} ${draggedCard?.id === card.id ? 'dragging' : ''} ${dragOverIndex === index ? 'drag-over' : ''}`}
                           onClick={() => handleCardClick(card)}
+                          draggable={!isAddNew && !disabled}
+                          onDragStart={!isAddNew ? (e) => handleDragStart(e, card) : undefined}
+                          onDragOver={!isAddNew ? (e) => handleDragOver(e, index) : undefined}
+                          onDragLeave={!isAddNew ? handleDragLeave : undefined}
+                          onDrop={!isAddNew ? (e) => handleDrop(e, index) : undefined}
+                          onDragEnd={!isAddNew ? handleDragEnd : undefined}
                           style={{ 
                             backgroundColor: isAddNew ? '#f3f4f6' : card.color,
                             color: isAddNew ? '#374151' : (card.color === '#e3e3e3' ? '#000' : '#fff'),
-                            zIndex: cards.length - index
+                            zIndex: cards.length - index,
+                            opacity: draggedCard?.id === card.id ? 0.5 : 1,
+                            transform: dragOverIndex === index ? 'scale(1.02)' : 'scale(1)'
                           }}
                         >
                           <div className="card-header">
