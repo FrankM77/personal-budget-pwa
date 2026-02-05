@@ -101,11 +101,7 @@ export const useBudgetStore = create<BudgetState>()(
         currentMonth: new Date().toISOString().slice(0, 7),
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         isOnboardingActive: false,
-        isOnboardingCompleted: (() => {
-          const completed = typeof localStorage !== 'undefined' ? localStorage.getItem('onboardingCompleted') === 'true' : false;
-          console.log('📋 BudgetStore initialized: isOnboardingCompleted =', completed);
-          return completed;
-        })(),
+        isOnboardingCompleted: false, // Will be set per-user in checkAndStartOnboarding
         isLoading: false,
         error: null,
 
@@ -115,31 +111,56 @@ export const useBudgetStore = create<BudgetState>()(
         },
 
         checkAndStartOnboarding: () => {
-          const state = get();
+          const userId = getCurrentUserId();
+          if (!userId) {
+            console.log('⏭️ No user ID, skipping onboarding check');
+            return;
+          }
+          
+          // Check user-specific onboarding completion status
+          const storageKey = `onboardingCompleted_${userId}`;
+          const isCompleted = typeof localStorage !== 'undefined' ? localStorage.getItem(storageKey) === 'true' : false;
+          
           console.log('🔍 checkAndStartOnboarding called:', {
-            isOnboardingCompleted: state.isOnboardingCompleted,
-            isOnboardingActive: state.isOnboardingActive,
-            localStorage_value: localStorage.getItem('onboardingCompleted')
+            userId,
+            isOnboardingCompleted: isCompleted,
+            isOnboardingActive: get().isOnboardingActive,
+            localStorage_key: storageKey,
+            localStorage_value: localStorage.getItem(storageKey)
           });
-          if (!state.isOnboardingCompleted && !state.isOnboardingActive) {
+          
+          // Update state with user-specific completion status
+          set({ isOnboardingCompleted: isCompleted });
+          
+          if (!isCompleted && !get().isOnboardingActive) {
             console.log('🎯 Starting onboarding for new user - setting isOnboardingActive to TRUE');
             set({ isOnboardingActive: true });
             console.log('✅ isOnboardingActive set to:', get().isOnboardingActive);
           } else {
             console.log('⏭️ Skipping onboarding:', {
-              reason: state.isOnboardingCompleted ? 'already completed' : 'already active'
+              reason: isCompleted ? 'already completed' : 'already active'
             });
           }
         },
 
         completeOnboarding: () => {
+          const userId = getCurrentUserId();
+          if (userId) {
+            const storageKey = `onboardingCompleted_${userId}`;
+            localStorage.setItem(storageKey, 'true');
+            console.log('✅ Onboarding completed for user:', userId);
+          }
           set({ isOnboardingCompleted: true, isOnboardingActive: false });
-          localStorage.setItem('onboardingCompleted', 'true');
         },
 
         resetOnboarding: () => {
+            const userId = getCurrentUserId();
+            if (userId) {
+              const storageKey = `onboardingCompleted_${userId}`;
+              localStorage.removeItem(storageKey);
+              console.log('🔄 Onboarding reset for user:', userId);
+            }
             set({ isOnboardingCompleted: false, isOnboardingActive: true });
-            localStorage.removeItem('onboardingCompleted');
         },
 
         clearMonthData: async (month: string) => {
@@ -1744,11 +1765,14 @@ export const useBudgetStore = create<BudgetState>()(
         },
         handleUserLogout: () => {
             console.log('🧹 Clearing user data on logout');
+            // Reset onboarding state (user-specific keys remain in localStorage)
             set({
                 envelopes: [],
                 transactions: [],
                 incomeSources: {},
                 allocations: {},
+                isOnboardingActive: false,
+                isOnboardingCompleted: false,
                 isLoading: false,
                 error: null
             });
@@ -1756,6 +1780,19 @@ export const useBudgetStore = create<BudgetState>()(
       }),
       {
         name: 'budget-storage',
+        partialize: (state) => ({
+          // Exclude onboarding state from persistence - it's user-specific and stored separately
+          envelopes: state.envelopes,
+          transactions: state.transactions,
+          categories: state.categories,
+          appSettings: state.appSettings,
+          incomeSources: state.incomeSources,
+          allocations: state.allocations,
+          currentMonth: state.currentMonth,
+          isOnline: state.isOnline,
+          // isOnboardingActive: excluded (UI state only)
+          // isOnboardingCompleted: excluded (stored in localStorage separately per user)
+        }),
       }
     )
   )
