@@ -461,7 +461,7 @@ export const useAuthStore = create<AuthStore>()(
               console.log('🔍 Loading budgetStore to check onboarding...');
               const budgetStore = await import('./budgetStore').then(m => m.useBudgetStore.getState());
               console.log('🔍 Calling budgetStore.checkAndStartOnboarding()...');
-              budgetStore.checkAndStartOnboarding();
+              await budgetStore.checkAndStartOnboarding();
             } else {
               console.log('⏭️ Skipping onboarding check (not verified or offline grace period)');
             }
