@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { applyActionCode } from 'firebase/auth';
 import { HashRouter } from 'react-router-dom';
 import { LoginView } from './views/LoginView';
@@ -10,6 +11,7 @@ import { AppRoutes } from './components/AppRoutes';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
 import { AddTransactionView } from './views/AddTransactionView';
+import { auth } from './firebase';
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
