@@ -69,7 +69,9 @@ export const SettingsView: React.FC = () => {
     const incomeSourceCount = Object.values(incomeSources).reduce((sum, sources) => sum + sources.length, 0);
     const allocationCount = currentAllocations.length;
     const totalBalance = envelopes.reduce((sum, env) => {
-      const balance = getEnvelopeBalance(env.id!);
+      const balance = env.isPiggybank
+        ? getEnvelopeBalance(env.id!)
+        : getEnvelopeBalance(env.id!, currentMonth);
       return sum + (typeof balance === 'number' ? balance : 0);
     }, 0);
 
@@ -118,7 +120,9 @@ export const SettingsView: React.FC = () => {
         envelopes: envelopes.map(env => ({
           ...env,
           currentBalance: (() => {
-            const balance = getEnvelopeBalance(env.id!);
+            const balance = env.isPiggybank
+              ? getEnvelopeBalance(env.id!)
+              : getEnvelopeBalance(env.id!, currentMonth);
             return typeof balance === 'number' ? balance : 0;
           })(), // Use computed balance for backup compatibility
           lastUpdated: new Date().toISOString()
