@@ -41,6 +41,7 @@ interface AuthActions {
   sendPasswordReset: (email: string) => Promise<boolean>;
   sendEmailVerification: () => Promise<boolean>;
   resendEmailVerification: () => Promise<boolean>;
+  checkVerificationStatus: () => Promise<boolean>;
   deleteAccount: (password: string) => Promise<boolean>;
   clearError: () => void;
   initializeAuth: () => () => void; // Returns cleanup function
@@ -76,9 +77,18 @@ export const useAuthStore = create<AuthStore>()(
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
           const firebaseUser = userCredential.user;
 
-          // Check if email is verified (TEMPORARILY BYPASSED FOR TESTING)
-          /*
+          // Check if email is verified
+          console.log(`🔍 Checking email verification for: ${firebaseUser.email}`);
+          console.log(`🔍 emailVerified status:`, firebaseUser.emailVerified);
+          console.log(`🔍 Firebase user object:`, {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            emailVerified: firebaseUser.emailVerified,
+            metadata: firebaseUser.metadata
+          });
+
           if (!firebaseUser.emailVerified) {
+            console.log(`❌ BLOCKING LOGIN: Email not verified for ${firebaseUser.email}`);
             // Sign out the user since they can't access the app without verification
             await firebaseSignOut(auth);
             set({
@@ -90,7 +100,8 @@ export const useAuthStore = create<AuthStore>()(
             console.log(`❌ Login blocked: ${firebaseUser.email} not verified`);
             return false;
           }
-          */
+
+          console.log(`✅ EMAIL VERIFIED: Allowing login for ${firebaseUser.email}`);
 
           const user = firebaseUserToUser(firebaseUser);
 
@@ -309,6 +320,32 @@ export const useAuthStore = create<AuthStore>()(
         return state.sendEmailVerification();
       },
 
+      checkVerificationStatus: async (): Promise<boolean> => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return false;
+
+        try {
+          // Reload the user to get the latest emailVerified status
+          await currentUser.reload();
+          const updatedUser = auth.currentUser;
+          
+          if (updatedUser?.emailVerified) {
+            const user = firebaseUserToUser(updatedUser);
+            set({
+              currentUser: user,
+              isAuthenticated: true,
+              lastAuthTime: Date.now()
+            });
+            console.log(`✅ Email verified for: ${updatedUser.email}`);
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error('Error checking verification status:', error);
+          return false;
+        }
+      },
+
       deleteAccount: async (password: string): Promise<boolean> => {
         const currentUser = auth.currentUser;
         if (!currentUser || !currentUser.email) {
@@ -394,8 +431,7 @@ export const useAuthStore = create<AuthStore>()(
             isWithinGracePeriod && !user; // No current Firebase user but we have persisted state
 
           // Only grant access if user is verified (unless offline grace period applies)
-          // TEMPORARILY BYPASSED FOR TESTING
-          const isVerified = true; // firebaseUser ? firebaseUser.emailVerified : true; // Assume verified for offline grace period
+          const isVerified = firebaseUser ? firebaseUser.emailVerified : true; // Assume verified for offline grace period
 
           // Effective authentication state - user must be verified to be authenticated
           const effectiveAuthenticated = (firebaseUser && isVerified) || !!shouldGrantOfflineAccess;

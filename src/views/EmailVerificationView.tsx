@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 export const EmailVerificationView = () => {
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
-  const { currentUser, resendEmailVerification, logout, loginError } = useAuthStore();
+  const { currentUser, resendEmailVerification, checkVerificationStatus, logout, loginError } = useAuthStore();
 
   // Redirect if no current user (shouldn't happen in normal flow)
   useEffect(() => {
@@ -13,6 +13,17 @@ export const EmailVerificationView = () => {
       console.warn('EmailVerificationView: No current user, this should not happen');
     }
   }, [currentUser]);
+
+  // Auto-check when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, checking verification status...');
+      checkVerificationStatus();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [checkVerificationStatus]);
 
   const handleResendVerification = async () => {
     setIsResending(true);

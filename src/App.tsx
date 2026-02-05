@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { applyActionCode } from 'firebase/auth';
 import { HashRouter } from 'react-router-dom';
 import { LoginView } from './views/LoginView';
 import { EmailVerificationView } from './views/EmailVerificationView';
@@ -31,6 +31,37 @@ function App() {
     const unsubscribe = initializeAuth();
     return unsubscribe;
   }, [initializeAuth]);
+
+  // Handle email verification from URL parameters
+  useEffect(() => {
+    const handleEmailVerification = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mode = urlParams.get('mode');
+      const oobCode = urlParams.get('oobCode');
+
+      if (mode === 'verifyEmail' && oobCode) {
+        console.log('🔗 Processing email verification from URL');
+        try {
+          await applyActionCode(auth, oobCode);
+          console.log('✅ Email verification successful');
+
+          // Clean up URL parameters
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+
+          // Show success message
+          // You might want to add a toast notification here
+          alert('Email verified successfully! You can now sign in.');
+
+        } catch (error: any) {
+          console.error('❌ Email verification failed:', error);
+          alert('Email verification failed. The link may be expired or invalid.');
+        }
+      }
+    };
+
+    handleEmailVerification();
+  }, []);
 
   // Theme effect: toggle html.dark based on app settings theme preference
   useEffect(() => {
