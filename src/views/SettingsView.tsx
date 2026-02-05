@@ -445,6 +445,23 @@ export const SettingsView: React.FC = () => {
           </div>
         </section>
 
+        {/* Categories */}
+        <section>
+          <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Categories</h2>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm divide-y divide-gray-100 dark:divide-zinc-800">
+            <button
+              onClick={() => navigate('/settings/categories')}
+              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🏷️</span>
+                <span className="text-gray-900 dark:text-white font-medium">Manage Categories</span>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
+          </div>
+        </section>
+
         {/* Appearance */}
         <section>
           <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Appearance</h2>

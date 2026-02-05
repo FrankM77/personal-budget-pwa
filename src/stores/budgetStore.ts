@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { BudgetService } from '../services/budgetService';
+import { CategoryService } from '../services/CategoryService';
 import { useAuthStore } from './authStore';
 import { setupEnvelopeStoreRealtime } from './envelopeStoreRealtime';
 
@@ -12,13 +13,15 @@ const getCurrentUserId = () => {
 
 // Service instance
 const budgetService = BudgetService.getInstance();
+const categoryService = CategoryService.getInstance();
 
-import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation, AppSettings } from '../models/types';
+import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation, AppSettings, Category } from '../models/types';
 
 interface BudgetState {
   // === DATA ===
   envelopes: Envelope[];
   transactions: Transaction[];
+  categories: Category[];
   appSettings: AppSettings | null;
   
   // Organized by Month (e.g., "2026-01")
@@ -62,6 +65,13 @@ interface BudgetState {
   fetchMonthData: (month: string) => Promise<void>;
   removeEnvelopeFromMonth: (envelopeId: string, month: string) => Promise<void>;
   
+  // Category Actions
+  fetchCategories: () => Promise<void>;
+  addCategory: (category: Omit<Category, 'id' | 'userId'>) => Promise<string>;
+  updateCategory: (category: Category) => Promise<void>;
+  deleteCategory: (categoryId: string) => Promise<void>;
+  reorderCategories: (orderedIds: string[]) => Promise<void>;
+
   // Income Source Actions
   addIncomeSource: (month: string, source: Omit<IncomeSource, 'id'>) => Promise<void>;
   updateIncomeSource: (month: string, source: IncomeSource) => Promise<void>;
@@ -83,6 +93,7 @@ export const useBudgetStore = create<BudgetState>()(
         // Initial State
         envelopes: [],
         transactions: [],
+        categories: [],
         appSettings: null,
         incomeSources: {},
         allocations: {},
@@ -307,10 +318,14 @@ export const useBudgetStore = create<BudgetState>()(
                 
                 console.log(`Fetching data for user: ${currentUser.id}, month: ${state.currentMonth}`);
                 
-                // Fetch data in parallel
-                const [envelopes, transactions, monthData] = await Promise.all([
+                // Fetch data in parallel with individual error handling for categories
+                const [envelopes, transactions, categoriesResult, monthData] = await Promise.all([
                     budgetService.getEnvelopes(currentUser.id),
                     budgetService.getTransactions(currentUser.id),
+                    categoryService.getCategories(currentUser.id).catch(err => {
+                        console.error('⚠️ Failed to load categories:', err);
+                        return []; // Fallback to empty array
+                    }),
                     budgetService.getMonthData(currentUser.id, state.currentMonth)
                 ]);
                 
@@ -318,6 +333,7 @@ export const useBudgetStore = create<BudgetState>()(
                 set({
                     envelopes,
                     transactions,
+                    categories: categoriesResult,
                     incomeSources: {
                         ...state.incomeSources,
                         [state.currentMonth]: monthData.incomeSources
@@ -330,7 +346,7 @@ export const useBudgetStore = create<BudgetState>()(
                     error: null
                 });
                 
-                console.log(`✅ BudgetStore initialized: ${envelopes.length} envelopes, ${transactions.length} transactions, ${monthData.incomeSources.length} income sources, ${monthData.allocations.length} allocations`);
+                console.log(`✅ BudgetStore initialized: ${envelopes.length} envelopes, ${transactions.length} transactions, ${categoriesResult.length} categories, ${monthData.incomeSources.length} income sources, ${monthData.allocations.length} allocations`);
                 
             } catch (error) {
                 console.error('❌ BudgetStore initialization failed:', error);
@@ -340,6 +356,130 @@ export const useBudgetStore = create<BudgetState>()(
                 });
             }
         },
+        // === CATEGORY ACTIONS ===
+        fetchCategories: async () => {
+            try {
+                set({ isLoading: true, error: null });
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) return;
+
+                const categories = await categoryService.getCategories(currentUser.id);
+                set({ categories, isLoading: false });
+            } catch (error) {
+                console.error('Failed to fetch categories:', error);
+                set({ isLoading: false });
+            }
+        },
+
+        addCategory: async (category) => {
+            try {
+                set({ isLoading: true, error: null });
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) throw new Error('No user logged in');
+
+                const newId = categoryService.createId();
+                const newCategory: Category = {
+                    ...category,
+                    id: newId,
+                    userId: currentUser.id,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    orderIndex: get().categories.length // Append to end
+                };
+
+                await categoryService.createCategory(newCategory);
+                
+                // Update local state - Check for duplicates first (real-time listener might have beaten us)
+                set(state => {
+                    const exists = state.categories.some(c => c.id === newId);
+                    if (exists) return { isLoading: false };
+                    return {
+                        categories: [...state.categories, newCategory],
+                        isLoading: false
+                    };
+                });
+
+                return newId;
+            } catch (error) {
+                console.error('Failed to add category:', error);
+                set({ isLoading: false });
+                throw error;
+            }
+        },
+
+        updateCategory: async (category) => {
+            try {
+                set({ isLoading: true, error: null });
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) throw new Error('No user logged in');
+
+                const updatedCategory = { ...category, updatedAt: new Date().toISOString() };
+                await categoryService.updateCategory(currentUser.id, updatedCategory);
+
+                set(state => ({
+                    categories: state.categories.map(c => c.id === category.id ? updatedCategory : c),
+                    isLoading: false
+                }));
+            } catch (error) {
+                console.error('Failed to update category:', error);
+                set({ isLoading: false });
+                throw error;
+            }
+        },
+
+        deleteCategory: async (categoryId) => {
+            try {
+                set({ isLoading: true, error: null });
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) throw new Error('No user logged in');
+
+                await categoryService.deleteCategory(currentUser.id, categoryId);
+
+                set(state => ({
+                    categories: state.categories.filter(c => c.id !== categoryId),
+                    isLoading: false
+                }));
+            } catch (error) {
+                console.error('Failed to delete category:', error);
+                set({ isLoading: false });
+                throw error;
+            }
+        },
+
+        reorderCategories: async (orderedIds) => {
+            try {
+                set({ isLoading: true, error: null });
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) throw new Error('No user logged in');
+
+                const state = get();
+                const orderMap = new Map<string, number>();
+                orderedIds.forEach((id, index) => orderMap.set(id, index));
+
+                const updatedCategories = state.categories.map(cat => {
+                    if (!orderMap.has(cat.id)) return cat;
+                    const nextOrder = orderMap.get(cat.id)!;
+                    if (cat.orderIndex === nextOrder) return cat;
+                    return { ...cat, orderIndex: nextOrder };
+                });
+                
+                // Optimistic update
+                set({ categories: updatedCategories.sort((a, b) => a.orderIndex - b.orderIndex) });
+
+                await categoryService.reorderCategories(currentUser.id, updatedCategories);
+                set({ isLoading: false });
+            } catch (error) {
+                console.error('Failed to reorder categories:', error);
+                set({ isLoading: false });
+                throw error;
+            }
+        },
+
         addEnvelope: async (envelope: Omit<Envelope, 'id'>): Promise<string> => {
             try {
                 set({ isLoading: true, error: null });
@@ -1123,6 +1263,12 @@ export const useBudgetStore = create<BudgetState>()(
                     prevMonth = 12;
                 }
                 const prevMonthString = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+
+                // Ensure previous month data is loaded
+                if (!get().incomeSources[prevMonthString] || !get().allocations[prevMonthString]) {
+                    console.log(`⏳ Previous month ${prevMonthString} data missing, fetching...`);
+                    await get().fetchMonthData(prevMonthString);
+                }
                 
                 // Copy income sources from previous month
                 const previousIncomeSources = get().incomeSources[prevMonthString] || [];

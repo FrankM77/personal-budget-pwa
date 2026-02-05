@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { EnvelopeListView } from '../views/EnvelopeListView';
 import EnvelopeDetail from '../views/EnvelopeDetail';
 import { SettingsView } from '../views/SettingsView';
+import { CategorySettingsView } from '../views/CategorySettingsView';
 import { AddEnvelopeView } from '../views/AddEnvelopeView';
 import { AddTransactionView } from '../views/AddTransactionView';
 import { TransactionHistoryView } from '../views/TransactionHistoryView';
@@ -86,6 +87,16 @@ export const AppRoutes = () => {
             <PageTransition>
               <ErrorBoundary>
                 <SettingsView />
+              </ErrorBoundary>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/settings/categories" 
+            element={
+            <PageTransition>
+              <ErrorBoundary>
+                <CategorySettingsView />
               </ErrorBoundary>
             </PageTransition>
           } 

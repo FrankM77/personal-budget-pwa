@@ -11,25 +11,62 @@ import {
   Sparkles,
   Plus,
   Target,
-  RotateCcw
+  RotateCcw,
+  Tags
 } from 'lucide-react';
 import appIcon from '/icon-512.png';
 import budgetBalancedIcon from '/images/budget-balanced.png';
+import { useBudgetStore } from '../../stores/budgetStore';
 
 interface NewUserOnboardingProps {
   currentMonth: string;
   onComplete: () => void;
 }
 
+const DEFAULT_CATEGORIES = [
+  'Giving',
+  'Savings',
+  'Housing',
+  'Transportation',
+  'Food',
+  'Personal',
+  'Health',
+  'Insurance',
+  'Debt'
+];
+
 const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [animationKey, setAnimationKey] = useState(0);
   const [currentBudgetAmount, setCurrentBudgetAmount] = useState(2500);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const { addCategory } = useBudgetStore();
 
-  // Animate budget amount when animation key changes or when entering Step 4
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const handleComplete = async () => {
+    // Create selected categories
+    for (let i = 0; i < selectedCategories.length; i++) {
+      await addCategory({
+        name: selectedCategories[i],
+        orderIndex: i,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+    onComplete();
+  };
+
+  // Animate budget amount when animation key changes or when entering Step 5
   useEffect(() => {
     console.log('Animation effect triggered:', { currentStep, animationKey });
-    if (currentStep === 3) { // Only animate on Step 4 (index 3) - Allocate Your Budget
+    if (currentStep === 4) { // Only animate on Step 5 (index 4) - Allocate Your Budget
       console.log('Starting animation from $2500 to $0');
       setCurrentBudgetAmount(2500);
       
@@ -113,8 +150,44 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
       color: 'blue'
     },
     {
+      icon: Tags,
+      title: 'Step 1: Choose Categories',
+      description: 'Select categories to organize your spending',
+      content: (
+        <div className="space-y-4 text-left">
+          <p className="text-gray-600 dark:text-zinc-400">
+            Categories help group your envelopes. Select the ones you need:
+          </p>
+          <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+            {DEFAULT_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => toggleCategory(cat)}
+                className={`p-3 rounded-xl border text-sm font-medium transition-all flex items-center gap-2 ${
+                  selectedCategories.includes(cat)
+                    ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300'
+                    : 'bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                  selectedCategories.includes(cat) ? 'border-blue-500 bg-blue-500' : 'border-gray-400'
+                }`}>
+                  {selectedCategories.includes(cat) && <CheckCircle2 size={12} className="text-white" />}
+                </div>
+                {cat}
+              </button>
+            ))}
+          </div>
+          {selectedCategories.length === 0 && (
+            <p className="text-red-500 text-xs">Please select at least one category.</p>
+          )}
+        </div>
+      ),
+      color: 'blue'
+    },
+    {
       icon: DollarSign,
-      title: 'Step 1: Add Your Income',
+      title: 'Step 2: Add Your Income',
       description: 'Tell us how much money you have to work with',
       content: (
         <div className="space-y-4 text-left">
@@ -146,34 +219,30 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
     },
     {
       icon: Wallet,
-      title: 'Step 2: Create Spending Envelopes',
+      title: 'Step 3: Create Spending Envelopes',
       description: 'Organize your spending into categories',
       content: (
         <div className="space-y-4 text-left">
           <p className="text-gray-600 dark:text-zinc-400">
-            Spending envelopes are categories for your expenses. Common examples:
+            Spending envelopes are where you track expenses. You'll assign each envelope to a category.
           </p>
           <ul className="space-y-2 text-gray-600 dark:text-zinc-400">
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-              <span><strong>Groceries</strong> - Food and household items</span>
+              <span><strong>Groceries</strong> (Food)</span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-              <span><strong>Rent/Mortgage</strong> - Housing costs</span>
+              <span><strong>Rent/Mortgage</strong> (Housing)</span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-              <span><strong>Transportation</strong> - Gas, car payment, transit</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-              <span><strong>Entertainment</strong> - Fun money</span>
+              <span><strong>Gas</strong> (Transportation)</span>
             </li>
           </ul>
           <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
             <p className="text-sm text-purple-900 dark:text-purple-200">
-              <strong>Scroll down to "Spending Envelopes"</strong> and tap "Create New Envelope" to add your categories.
+              <strong>Tap "+" on a category section</strong> to add an envelope to it.
             </p>
           </div>
         </div>
@@ -182,7 +251,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
     },
     {
       icon: TrendingUp,
-      title: 'Step 3: Allocate Your Budget',
+      title: 'Step 4: Allocate Your Budget',
       description: 'Assign money to each envelope',
       content: (
         <div className="space-y-4 text-left">
@@ -314,25 +383,25 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 dark:text-green-400 font-bold">1</span>
               </div>
-              <span>Add your income sources</span>
+              <span>Choose your categories</span>
             </div>
             <div className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 dark:text-green-400 font-bold">2</span>
               </div>
-              <span>Create spending envelopes</span>
+              <span>Add your income sources</span>
             </div>
             <div className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 dark:text-green-400 font-bold">3</span>
               </div>
-              <span>Allocate until Left to Budget = $0</span>
+              <span>Create envelopes in categories</span>
             </div>
             <div className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
               <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 dark:text-green-400 font-bold">4</span>
               </div>
-              <span>Track spending and adjust as needed</span>
+              <span>Allocate until Left to Budget = $0</span>
             </div>
           </div>
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mt-6">
@@ -451,12 +520,16 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
               <button
                 onClick={() => {
                   if (isLastStep) {
-                    onComplete();
+                    handleComplete();
                   } else {
+                    if (currentStepData.title.includes('Choose Categories') && selectedCategories.length === 0) {
+                      return; // Block progress if no category selected
+                    }
                     setCurrentStep(prev => prev + 1);
                   }
                 }}
-                className={`${isFirstStep ? 'flex-1' : 'flex-[2]'} py-3 px-4 ${colors.button} text-white rounded-xl font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2`}
+                disabled={currentStepData.title.includes('Choose Categories') && selectedCategories.length === 0}
+                className={`${isFirstStep ? 'flex-1' : 'flex-[2]'} py-3 px-4 ${colors.button} text-white rounded-xl font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {isLastStep ? (
                   <>

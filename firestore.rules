@@ -50,6 +50,11 @@ service cloud.firestore {
       match /monthlyBudgets/{monthId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Categories subcollection
+      match /categories/{categoryId} {
+        allow read, write: if isOwner(userId);
+      }
     }
   }
 }

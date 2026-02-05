@@ -2,8 +2,9 @@ import { TransactionService } from '../services/TransactionService';
 import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
+import { CategoryService } from '../services/CategoryService';
 import { budgetService } from '../services/budgetService';
-import type { Transaction, Envelope, AppSettings } from '../models/types';
+import type { Transaction, Envelope, AppSettings, Category } from '../models/types';
 import { fromFirestore } from '../mappers/transaction';
 
 type BudgetStoreLike = {
@@ -14,6 +15,7 @@ type BudgetStoreLike = {
     currentMonth: string;
     incomeSources: Record<string, any[]>;
     allocations: Record<string, any[]>;
+    categories: Category[];
     isAuthenticated?: boolean;
   };
   setState: (partial: any) => void;
@@ -38,7 +40,18 @@ const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   userId: firebaseEnv.userId || undefined,
   createdAt: firebaseEnv.createdAt?.toDate?.() ? firebaseEnv.createdAt.toDate().toISOString() : firebaseEnv.createdAt,
   isPiggybank: firebaseEnv.isPiggybank,
-  piggybankConfig: firebaseEnv.piggybankConfig
+  piggybankConfig: firebaseEnv.piggybankConfig,
+  categoryId: firebaseEnv.categoryId
+});
+
+const convertFirebaseCategory = (firebaseCat: any): Category => ({
+  id: firebaseCat.id,
+  userId: firebaseCat.userId,
+  name: firebaseCat.name,
+  orderIndex: firebaseCat.orderIndex,
+  isArchived: firebaseCat.isArchived,
+  createdAt: firebaseCat.createdAt?.toDate?.() ? firebaseCat.createdAt.toDate().toISOString() : firebaseCat.createdAt,
+  updatedAt: firebaseCat.updatedAt?.toDate?.() ? firebaseCat.updatedAt.toDate().toISOString() : firebaseCat.updatedAt,
 });
 
 // Setup real-time Firebase subscriptions for cross-tab/device sync
@@ -95,6 +108,14 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     budgetStore.setState({ transactions: updatedTransactions });
   });
 
+  // Subscribe to categories
+  const categoryService = CategoryService.getInstance();
+  const unsubscribeCategories = categoryService.subscribeToCategories(userId, (firebaseCategories) => {
+    console.log('🔄 Real-time sync: Categories updated', firebaseCategories.length);
+    const categories = firebaseCategories.map(convertFirebaseCategory);
+    budgetStore.setState({ categories });
+  });
+
   // Subscribe to distribution templates
   const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(userId, (firebaseTemplates) => {
     console.log('🔄 Real-time sync: Templates updated from Firebase', firebaseTemplates.length);
@@ -147,6 +168,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   (window as any).__firebaseUnsubscribers = {
     envelopes: unsubscribeEnvelopes,
     transactions: unsubscribeTransactions,
+    categories: unsubscribeCategories,
     templates: unsubscribeTemplates,
     settings: unsubscribeSettings,
     monthlyBudget: unsubscribeMonthlyBudget
@@ -201,6 +223,7 @@ export const setupEnvelopeStoreRealtime = (params: {
         const unsubscribers = (window as any).__firebaseUnsubscribers;
         if (unsubscribers.envelopes) unsubscribers.envelopes();
         if (unsubscribers.transactions) unsubscribers.transactions();
+        if (unsubscribers.categories) unsubscribers.categories();
         if (unsubscribers.templates) unsubscribers.templates();
         if (unsubscribers.settings) unsubscribers.settings();
         if (unsubscribers.monthlyBudget) unsubscribers.monthlyBudget();

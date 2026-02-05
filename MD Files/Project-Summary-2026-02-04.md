@@ -1,6 +1,18 @@
 # House Budget PWA: Project Summary - 2026-02-04
 
 ## Changelog (Highlights)
+- **2026-02-04**: **Major Feature: Categories**: Implemented full category support for organizing envelopes.
+  - **Category Management**: Added a new settings view to create, rename, delete, and reorder categories.
+  - **Envelope Grouping**: The main envelope list is now grouped by user-defined categories instead of a single list.
+  - **Onboarding Integration**: New users can select starter categories during the onboarding process.
+  - **Unified Creation**: Simplified the "Add Envelope" flow with a category selector and a toggle for "Spending" vs "Piggybank".
+- **2026-02-04**: **UI/UX Optimization: Compressed Layout**: Re-engineered the main list view to maximize information density.
+  - **Reduced Vertical Footprint**: Trimmmed padding and margins across all list items and section containers.
+  - **Header Controls**: Integrated "Add" buttons into section headers to save vertical space.
+  - **Slimmer Progress Bars**: Refined the visual weight of budget indicators for a cleaner, more modern look.
+- **2026-02-04**: **Security & Dev Workflow**: Resolved critical infrastructure issues.
+  - **Dev Environment Login Fix**: Resolved a 403 Forbidden error and updated Firebase config to use environment variables.
+  - **Month-to-Month Continuity**: Fixed a bug where data failed to copy between months if the previous month hadn't been loaded into the store cache yet.
 - **2026-02-04**: **Enhanced Accessibility: 5 Font Size Options**: Expanded the font size selection to provide more granular control.
   - **Expanded Range**: Added 'Extra-Small' and 'Extra-Large' options to the existing 'Small', 'Medium', and 'Large' choices.
   - **Improved Customization**: Users can now choose from five distinct font sizes to better suit their visual preferences and device screens.

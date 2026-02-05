@@ -48,6 +48,17 @@ export interface Envelope {
     icon?: string;
     paused?: boolean;
   };
+  categoryId?: string;
+}
+
+export interface Category {
+  id: string;
+  userId: string;
+  name: string;
+  orderIndex: number;
+  isArchived?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DistributionTemplate {

@@ -5,13 +5,22 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 
 export const AddEnvelopeView: React.FC = () => {
-  const { addEnvelope, setEnvelopeAllocation, currentMonth } = useBudgetStore();
+  const { addEnvelope, setEnvelopeAllocation, currentMonth, categories, fetchCategories } = useBudgetStore();
   const { showToast } = useToastStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // Load categories if empty
+  React.useEffect(() => {
+    if (categories.length === 0) {
+      fetchCategories();
+    }
+  }, [categories.length, fetchCategories]);
+
   const [name, setName] = useState('');
-  const isPiggybank = searchParams.get('type') === 'piggybank';
+  const [isPiggybank, setIsPiggybank] = useState(searchParams.get('type') === 'piggybank');
+  const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') || '');
+  
   const [targetAmount, setTargetAmount] = useState('');
   const [monthlyContribution, setMonthlyContribution] = useState('');
   const [color, setColor] = useState('#3B82F6');
@@ -42,7 +51,8 @@ export const AddEnvelopeView: React.FC = () => {
       lastUpdated: new Date().toISOString(),
       createdAt: creationDate.toISOString(),
       isActive: true,
-      orderIndex: nextOrderIndex
+      orderIndex: nextOrderIndex,
+      categoryId: categoryId || undefined // Add categoryId
     };
 
     if (isPiggybank) {
@@ -105,6 +115,58 @@ export const AddEnvelopeView: React.FC = () => {
           </div>
 
           <form onSubmit={handleSave} className="p-6 space-y-6 pb-6">
+            
+            {/* Envelope Type Toggle */}
+             <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
+                Type
+              </label>
+              <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setIsPiggybank(false)}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${
+                    !isPiggybank
+                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  Spending
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPiggybank(true)}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${
+                    isPiggybank
+                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  Piggybank
+                </button>
+              </div>
+            </div>
+
+            {/* Category Selector */}
+            <div className="space-y-2">
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">
+                Category
+              </label>
+              <select
+                id="category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none"
+              >
+                <option value="">Uncategorized</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Name Input */}
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">

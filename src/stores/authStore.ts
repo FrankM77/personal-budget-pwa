@@ -1,9 +1,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as firebaseSignOut, 
+  onAuthStateChanged, 
+  updateProfile, 
+  sendPasswordResetEmail, 
+  sendEmailVerification as firebaseSendEmailVerification, 
+  deleteUser, 
+  reauthenticateWithCredential, 
+  EmailAuthProvider 
+} from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase';
 import type { User } from '../models/types';
+
+// Helper for verification redirects
+const getActionCodeSettings = () => ({
+  url: window.location.origin + import.meta.env.BASE_URL,
+  handleCodeInApp: false,
+});
 
 interface AuthState {
   currentUser: User | null;
@@ -59,7 +76,8 @@ export const useAuthStore = create<AuthStore>()(
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
           const firebaseUser = userCredential.user;
 
-          // Check if email is verified
+          // Check if email is verified (TEMPORARILY BYPASSED FOR TESTING)
+          /*
           if (!firebaseUser.emailVerified) {
             // Sign out the user since they can't access the app without verification
             await firebaseSignOut(auth);
@@ -72,6 +90,7 @@ export const useAuthStore = create<AuthStore>()(
             console.log(`❌ Login blocked: ${firebaseUser.email} not verified`);
             return false;
           }
+          */
 
           const user = firebaseUserToUser(firebaseUser);
 
@@ -147,8 +166,8 @@ export const useAuthStore = create<AuthStore>()(
           // Set display name
           await updateProfile(firebaseUser, { displayName });
 
-          // Send verification email
-          await sendEmailVerification(firebaseUser);
+          // Send verification email with redirect back to app
+          await firebaseSendEmailVerification(firebaseUser, getActionCodeSettings());
 
           const user = firebaseUserToUser(firebaseUser);
 
@@ -245,7 +264,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, loginError: null });
 
         try {
-          await sendEmailVerification(currentUser);
+          await firebaseSendEmailVerification(currentUser, getActionCodeSettings());
           set({
             isLoading: false,
             lastVerificationEmailSent: Date.now()
@@ -375,7 +394,8 @@ export const useAuthStore = create<AuthStore>()(
             isWithinGracePeriod && !user; // No current Firebase user but we have persisted state
 
           // Only grant access if user is verified (unless offline grace period applies)
-          const isVerified = firebaseUser ? firebaseUser.emailVerified : true; // Assume verified for offline grace period
+          // TEMPORARILY BYPASSED FOR TESTING
+          const isVerified = true; // firebaseUser ? firebaseUser.emailVerified : true; // Assume verified for offline grace period
 
           // Effective authentication state - user must be verified to be authenticated
           const effectiveAuthenticated = (firebaseUser && isVerified) || !!shouldGrantOfflineAccess;

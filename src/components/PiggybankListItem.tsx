@@ -118,13 +118,13 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
       {/* Content Wrapper */}
       <div className="flex-1 min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center justify-between gap-3 mb-1">
           <div className="flex items-center gap-2 min-w-0">
             <div
-              className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+              className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center"
               style={{ backgroundColor: `${color}20` }}
             >
-              <PiggyBank size={16} style={{ color }} />
+              <PiggyBank size={12} style={{ color }} />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate leading-tight">
@@ -136,7 +136,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
                   ${monthlyContribution.toFixed(2)}/mo
                 </span>
                 {isPaused && (
-                  <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold ml-1 flex items-center gap-0.5">
+                  <span className="text-[9px] text-orange-600 dark:text-orange-400 font-bold ml-1 flex items-center gap-0.5">
                     <Pause size={8} /> PAUSED
                   </span>
                 )}
@@ -148,7 +148,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
             <div className="text-sm font-bold text-gray-900 dark:text-white leading-none">
               ${balanceNum.toFixed(2)}
             </div>
-            <div className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">
+            <div className="text-[9px] text-gray-400 dark:text-zinc-500 mt-1">
               of ${targetAmount?.toFixed(0) || '0'}
             </div>
           </div>
@@ -156,7 +156,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
 
         {/* Thinner Progress Bar */}
         {targetAmount && targetAmount > 0 && (
-          <div className="w-full bg-gray-200 dark:bg-zinc-800/50 rounded-full h-1 overflow-hidden">
+          <div className="w-full bg-gray-200 dark:bg-zinc-800/50 rounded-full h-0.5 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{
@@ -168,7 +168,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
         )}
         
         {goalReached && !targetAmount && (
-          <div className="text-[10px] text-green-600 dark:text-green-400 font-bold mt-1">
+          <div className="text-[9px] text-green-600 dark:text-green-400 font-bold mt-0.5">
             🎉 GOAL REACHED
           </div>
         )}
@@ -195,7 +195,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
         zIndex: isBeingDragged ? 50 : 1,
         scale: isBeingDragged ? 1.02 : 1
       }}
-      className="rounded-xl py-2 px-3 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99] group"
+      className="rounded-xl py-1.5 px-3 border transition-all cursor-pointer shadow-sm hover:shadow-md select-none active:scale-[0.99] group"
     >
       {content}
     </motion.div>
