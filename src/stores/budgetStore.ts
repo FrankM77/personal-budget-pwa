@@ -40,7 +40,7 @@ interface BudgetState {
   setMonth: (month: string) => void;
   init: () => Promise<void>;
   setIsOnboardingActive: (active: boolean) => void; // UI Action
-  checkAndStartOnboarding: () => void; // Action to check and start onboarding for new users
+  checkAndStartOnboarding: () => Promise<void>; // Action to check and start onboarding for new users
   completeOnboarding: () => void; // Action to mark onboarding as complete
   resetOnboarding: () => void; // Action to reset onboarding status
   addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
@@ -110,7 +110,7 @@ export const useBudgetStore = create<BudgetState>()(
             set({ isOnboardingActive: active });
         },
 
-        checkAndStartOnboarding: () => {
+        checkAndStartOnboarding: async () => {
           const userId = getCurrentUserId();
           if (!userId) {
             console.log('⏭️ No user ID, skipping onboarding check');
@@ -129,17 +129,36 @@ export const useBudgetStore = create<BudgetState>()(
             localStorage_value: localStorage.getItem(storageKey)
           });
           
-          // Update state with user-specific completion status
-          set({ isOnboardingCompleted: isCompleted });
+          // If localStorage says completed, trust it
+          if (isCompleted) {
+            set({ isOnboardingCompleted: true });
+            console.log('⏭️ Skipping onboarding: already completed (localStorage)');
+            return;
+          }
           
-          if (!isCompleted && !get().isOnboardingActive) {
+          // localStorage doesn't have completion flag (new device or cleared storage)
+          // Check Firestore for existing data before treating user as new
+          try {
+            const existingEnvelopes = await budgetService.getEnvelopes(userId);
+            if (existingEnvelopes.length > 0) {
+              // User has existing data — they're not new, just on a new device
+              console.log('⏭️ Existing user detected on new device — skipping onboarding, setting localStorage');
+              localStorage.setItem(storageKey, 'true');
+              set({ isOnboardingCompleted: true, isOnboardingActive: false });
+              return;
+            }
+          } catch (error) {
+            console.error('⚠️ Failed to check existing envelopes for onboarding:', error);
+            // On error, don't show onboarding — safer to skip than to annoy existing users
+            set({ isOnboardingCompleted: true, isOnboardingActive: false });
+            return;
+          }
+          
+          // Truly new user — no localStorage flag AND no Firestore data
+          if (!get().isOnboardingActive) {
             console.log('🎯 Starting onboarding for new user - setting isOnboardingActive to TRUE');
-            set({ isOnboardingActive: true });
+            set({ isOnboardingCompleted: false, isOnboardingActive: true });
             console.log('✅ isOnboardingActive set to:', get().isOnboardingActive);
-          } else {
-            console.log('⏭️ Skipping onboarding:', {
-              reason: isCompleted ? 'already completed' : 'already active'
-            });
           }
         },
 
