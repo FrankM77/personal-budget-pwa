@@ -600,25 +600,23 @@ export const SettingsView: React.FC = () => {
               <ChevronRight className="text-gray-400" size={18} />
             </button>
 
-            <div className="p-4">
-              <button
-                onClick={handleExportCSV}
-                disabled={isExportingCSV}
-                className="w-full flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed rounded-xl border border-gray-100 dark:border-zinc-800 px-4 py-3 bg-white dark:bg-zinc-900"
-              >
-                <div className="flex items-center gap-3">
-                  {isExportingCSV ? (
-                    <Loader className="text-blue-500 animate-spin" size={20} />
-                  ) : (
-                    <FileText className="text-blue-500" size={20} />
-                  )}
-                  <span className="text-gray-900 dark:text-white font-medium">
-                    {isExportingCSV ? 'Preparing CSV…' : 'Export Transactions (CSV)'}
-                  </span>
-                </div>
-                <ChevronRight className="text-gray-400" size={18} />
-              </button>
-            </div>
+            <button
+              onClick={handleExportCSV}
+              disabled={isExportingCSV}
+              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-3">
+                {isExportingCSV ? (
+                  <Loader className="text-blue-500 animate-spin" size={20} />
+                ) : (
+                  <FileText className="text-blue-500" size={20} />
+                )}
+                <span className="text-gray-900 dark:text-white font-medium">
+                  {isExportingCSV ? 'Preparing CSV…' : 'Export Transactions (CSV)'}
+                </span>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
 
             <input
               type="file"

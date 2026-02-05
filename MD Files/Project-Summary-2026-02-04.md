@@ -11,6 +11,7 @@
   - **Reduced Vertical Footprint**: Trimmed padding and margins across all list items and section containers.
   - **Header Controls**: Integrated "Add" buttons into section headers to save vertical space.
   - **Slimmer Progress Bars**: Refined the visual weight of budget indicators for a cleaner, more modern look.
+  - **Settings Refinement**: Unified the visual style of action buttons in Settings by removing redundant borders and padding from the CSV export control.
 - **2026-02-04**: **Security & Dev Workflow**: Resolved critical infrastructure issues.
   - **Environment Variables**: Migrated `src/firebase.ts` from hardcoded values to `import.meta.env` for better security.
   - **Dev Environment Login Fix**: Resolved a 403 Forbidden error by correcting API key mismatches and whitelisting local domains.
