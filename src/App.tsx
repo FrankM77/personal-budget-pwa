@@ -64,11 +64,17 @@ function App() {
     const size = appSettings?.fontSize ?? 'medium';
     
     switch (size) {
+      case 'extra-small':
+        root.style.fontSize = '75%'; // 12px
+        break;
       case 'small':
         root.style.fontSize = '87.5%'; // 14px
         break;
       case 'large':
         root.style.fontSize = '112.5%'; // 18px
+        break;
+      case 'extra-large':
+        root.style.fontSize = '125%'; // 20px
         break;
       default:
         root.style.fontSize = '100%'; // 16px

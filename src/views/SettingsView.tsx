@@ -501,9 +501,11 @@ export const SettingsView: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 {[ 
+                  { label: 'A', value: 'extra-small' as const, sizeClass: 'text-[10px]' },
                   { label: 'A', value: 'small' as const, sizeClass: 'text-xs' },
                   { label: 'A', value: 'medium' as const, sizeClass: 'text-base' },
-                  { label: 'A', value: 'large' as const, sizeClass: 'text-xl' }
+                  { label: 'A', value: 'large' as const, sizeClass: 'text-xl' },
+                  { label: 'A', value: 'extra-large' as const, sizeClass: 'text-2xl' }
                 ].map((option) => (
                   <button
                     key={option.value}

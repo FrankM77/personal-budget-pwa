@@ -1,6 +1,9 @@
 # House Budget PWA: Project Summary - 2026-02-04
 
 ## Changelog (Highlights)
+- **2026-02-04**: **Enhanced Accessibility: 5 Font Size Options**: Expanded the font size selection to provide more granular control.
+  - **Expanded Range**: Added 'Extra-Small' and 'Extra-Large' options to the existing 'Small', 'Medium', and 'Large' choices.
+  - **Improved Customization**: Users can now choose from five distinct font sizes to better suit their visual preferences and device screens.
 - **2026-02-04**: **UI/UX Decluttering: Hidden Internal Transactions**: Improved the transaction history and envelope detail views by hiding auto-generated allocation transactions.
   - **Transaction List Filtering**: "Budgeted" and "Piggybank Contribution" transactions are now hidden from the Envelope Detail and All Transactions views.
   - **Cleaner CSV Exports**: These internal transactions are also excluded from CSV exports to ensure the data is focused on actual spending and income.
