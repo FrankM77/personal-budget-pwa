@@ -164,8 +164,10 @@ export const SettingsView: React.FC = () => {
     try {
       const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
 
-      const rows = transactions.map((t) => {
-        const envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
+      const rows = transactions
+        .filter(t => t.description !== 'Budgeted' && t.description !== 'Piggybank Contribution')
+        .map((t) => {
+          const envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
         const safeMerchant = (t.merchant || '').replace(/"/g, '""');
         const safeNotes = (t.description || '').replace(/"/g, '""');
         

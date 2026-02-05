@@ -216,13 +216,13 @@ const EnvelopeDetail: React.FC = () => {
     const envelopeTransactions = transactions
         .filter(t => t.envelopeId === currentEnvelope.id)
         .filter(t => {
+            // Filter out internal allocation transactions to declutter UI
+            if (t.description === 'Budgeted' || t.description === 'Piggybank Contribution') {
+                return false;
+            }
+
             // If it's a piggybank, filter by creation date
             if (currentEnvelope.isPiggybank) {
-                // Always show monthly allocation transactions regardless of date
-                if ((t.description === 'Monthly Allocation' || t.description === 'Piggybank Contribution') && t.isAutomatic) {
-                    return true;
-                }
-                
                 if (!currentEnvelope.createdAt) return true; // Legacy piggybanks with no creation date
                 
                 // Use the safe toDate parser to avoid "Invalid Time Value"

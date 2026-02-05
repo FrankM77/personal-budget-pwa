@@ -81,6 +81,11 @@ export const TransactionHistoryView: React.FC = () => {
 
     return sanitizedTransactions
       .filter((t) => {
+        // 0. Filter out internal allocation transactions to declutter UI
+        if (t.description === 'Budgeted' || t.description === 'Piggybank Contribution') {
+          return false;
+        }
+
         // 1. Search Text (Description OR Envelope Name OR Amount)
         if (searchText) {
           const searchLower = searchText.toLowerCase();
