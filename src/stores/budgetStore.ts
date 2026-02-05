@@ -392,11 +392,14 @@ export const useBudgetStore = create<BudgetState>()(
                     budgetService.getMonthData(currentUser.id, state.currentMonth)
                 ]);
                 
+                // Deduplicate categories by ID
+                const uniqueCategories = Array.from(new Map(categoriesResult.map(c => [c.id, c])).values());
+
                 // Update state with fetched data
                 set({
                     envelopes,
                     transactions,
-                    categories: categoriesResult,
+                    categories: uniqueCategories,
                     incomeSources: {
                         ...state.incomeSources,
                         [state.currentMonth]: monthData.incomeSources
@@ -428,7 +431,9 @@ export const useBudgetStore = create<BudgetState>()(
                 if (!currentUser) return;
 
                 const categories = await categoryService.getCategories(currentUser.id);
-                set({ categories, isLoading: false });
+                // Deduplicate
+                const uniqueCategories = Array.from(new Map(categories.map(c => [c.id, c])).values());
+                set({ categories: uniqueCategories, isLoading: false });
             } catch (error) {
                 console.error('Failed to fetch categories:', error);
                 set({ isLoading: false });

@@ -113,7 +113,15 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   const unsubscribeCategories = categoryService.subscribeToCategories(userId, (firebaseCategories) => {
     console.log('🔄 Real-time sync: Categories updated', firebaseCategories.length);
     const categories = firebaseCategories.map(convertFirebaseCategory);
-    budgetStore.setState({ categories });
+    
+    // Deduplicate categories by ID to prevent UI glitches
+    const uniqueCategories = Array.from(new Map(categories.map(c => [c.id, c])).values());
+    
+    if (uniqueCategories.length !== categories.length) {
+      console.warn('⚠️ Duplicate categories detected in real-time update, deduplicating...');
+    }
+    
+    budgetStore.setState({ categories: uniqueCategories });
   });
 
   // Subscribe to distribution templates
