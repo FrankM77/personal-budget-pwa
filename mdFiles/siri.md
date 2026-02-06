@@ -1,6 +1,6 @@
 # Siri Integration Strategy for Personal Budget PWA
 
-**Status:** Planned (Phase 4.3)
+**Status:** Planned (Phase 5 - Priority #1)
 **Complexity:** Medium (Code) / High (User Setup)
 
 ## Overview
@@ -38,7 +38,7 @@ We don't need AI. We can use "Senior Engineer" Regular Expressions.
     * Match: Found "Groceries" envelope!
 3.  **Find Merchant:** Everything else is the Merchant/Description.
 
-## Implementation Plan (Roadmap Phase 4.3)
+## Implementation Plan (Phase 5 - Priority #1)
 
 ### Option A: Regex-Based Parser (Original)
 1.  **Create a `/add` route:**

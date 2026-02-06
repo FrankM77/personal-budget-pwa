@@ -179,24 +179,7 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 
 ### Phase 5: Advanced Features & Integrations
 
-#### 1. Net Worth Tracking
-- **Asset Management**: Track bank accounts, investment portfolios, real estate, vehicles
-- **Liability Tracking**: Credit cards, loans, mortgages, other debts
-- **Net Worth Calculation**: Real-time net worth dashboard with historical trends
-- **Account Integration**: Manual entry or bank sync for account balances
-- **Progress Visualization**: Charts showing net worth growth over time
-- **Goal Setting**: Net worth targets with milestone tracking
-
-#### 2. CSV Import with Smart Categorization
-- **Import Engine**: Support for bank CSV formats (Chase, Bank of America, etc.)
-- **Holding Area**: Unprocessed transactions appear in a dedicated "To Be Categorized" queue
-- **Smart Suggestions**: AI-powered envelope recommendations based on merchant names and amounts
-- **Batch Processing**: Todo-list interface for quickly categorizing multiple transactions
-- **Learning System**: App remembers categorization choices for future imports
-- **Validation**: Duplicate detection and amount/merchant normalization
-- **Import History**: Track which CSV files have been imported and when
-
-#### 3. Siri Shortcuts Integration
+#### 1. Siri Shortcuts Integration
 - **Voice Transaction Entry**: "Hey Siri, add a grocery transaction at Walmart for $33.28, payment method was Chase Amazon"
 - **Natural Language Processing**: Parse merchant, amount, category, and payment method from voice input
 - **Quick Envelope Funding**: "Hey Siri, add $50 to my grocery envelope"
@@ -204,6 +187,28 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Spending Updates**: "Hey Siri, how much have I spent on groceries this month?"
 - **Custom Shortcuts**: User-created voice commands for frequent actions
 - **Confirmation Feedback**: Siri confirms successful entries with details
+
+#### 2. Enhanced Onboarding & First-Time User Experience
+- **Interactive Onboarding Tour**: Step-by-step guided tour when new users first enter the main screen
+- **Progressive Highlighting**: Shadow all UI elements except the target area to focus user attention
+- **Income Source Setup**: Guide users to create their first income source with visual cues pointing to the '+' button
+- **Spending Envelope Creation**: Walk users through creating their first spending envelope with contextual guidance
+- **Transaction Entry Tutorial**: Show users how to navigate to transaction history and add their first transaction
+- **Settings Access**: Demonstrate how to access and configure app settings
+- **Visual Progress Bar**: On-screen progress indicator showing completion percentage of the onboarding process
+- **Contextual Tooltips**: Helpful hints that appear at each step explaining the purpose and benefit
+- **Skip Option**: Allow experienced users to skip the guided tour while still tracking progress
+- **Resume Capability**: If user closes app during onboarding, resume from the last completed step on return
+- **Milestone Celebrations**: Positive reinforcement when users complete key setup milestones
+
+#### 3. CSV Import with Smart Categorization
+- **Import Engine**: Support for bank CSV formats (Chase, Bank of America, etc.)
+- **Holding Area**: Unprocessed transactions appear in a dedicated "To Be Categorized" queue
+- **Smart Suggestions**: AI-powered envelope recommendations based on merchant names and amounts
+- **Batch Processing**: Todo-list interface for quickly categorizing multiple transactions
+- **Learning System**: App remembers categorization choices for future imports
+- **Validation**: Duplicate detection and amount/merchant normalization
+- **Import History**: Track which CSV files have been imported and when
 
 #### 4. Enhanced Analytics & Insights
 - **Spending Patterns**: AI-powered analysis of spending habits and trends
@@ -220,18 +225,27 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Smart Suggestions**: AI recommendations for budget optimization
 - **Bill Reminders**: Proactive notifications for upcoming bills
 
-#### 6. Bank Integration (Advanced)
-- **Plaid Integration**: Direct bank account syncing for automatic transaction import
-- **Real-time Sync**: Continuous transaction monitoring and categorization
-- **Multi-institution Support**: Connect multiple banks and credit cards
-- **Security**: End-to-end encryption with read-only access
-- **Transaction Enrichment**: Automatic merchant categorization and receipt matching
+#### 6. Debt Management Features
+- **Debt Envelopes**: Credit cards, student loans, auto loans with tracking
+- **Payoff Calculators**: Interest savings and payoff date projections
+- **Minimum Payment Tracking**: Ensure debt payments are met
+- **Debt Progress Visualization**: Show debt reduction over time
+- **Debt Types**: Support for credit_card, student_loan, auto_loan, mortgage, personal_loan, other
+- **Interest Rate Tracking**: Calculate impact of interest on payoff timeline
+- **Target Payoff Dates**: Set and track debt payoff goals
+
+#### 7. Net Worth Tracking
+- **Asset Management**: Track bank accounts, investment portfolios, real estate, vehicles
+- **Liability Tracking**: Credit cards, loans, mortgages, other debts
+- **Net Worth Calculation**: Real-time net worth dashboard with historical trends
+- **Account Integration**: Manual entry or bank sync for account balances
+- **Progress Visualization**: Charts showing net worth growth over time
+- **Goal Setting**: Net worth targets with milestone tracking
 
 ### Legacy Future Enhancements
 - **Automated Rules**: Set up recurring allocations
 - **Goal Tracking**: Savings goals with progress tracking
 - **AI Insights**: Spending pattern analysis and suggestions
-- **Integration**: Bank account syncing for automatic transaction import
 - **Backup/Export UX**: Show clear success/failure feedback after CSV exports or backup generation so users know when downloads are ready 
 - **Smart Month Onboarding**: Auto-select the real current month on launch and, when the month has no data, prompt the user to create that month's budget (e.g., open Feb 2026 on Feb 1 and guide them to start budgeting)
 - **Transaction Field Updates**: When creating transactions, add a dedicated "Merchant" input and reserve the existing Notes field for meta info (e.g., which bank/card was used) to enable better filtering later   
@@ -241,7 +255,7 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 2. **✅ COMPLETED**: Full income and envelope allocation management with interactive UI (Phase 2)
 3. **✅ COMPLETED**: Split transactions (Phase 3)
 4. **✅ COMPLETED**: Piggybanks (savings goals) and enhanced analytics
-5. **🎯 NEXT PRIORITY**: Phase 5 Advanced Features (Net Worth, CSV Import, Siri Shortcuts)
+5. **🎯 NEXT PRIORITY**: Phase 5 Advanced Features (Siri Integration, Enhanced Onboarding, CSV Import, Enhanced Analytics, Automation Rules, Debt Management, Net Worth Tracking)
 6. **Low Priority**: Enhanced analytics, advanced features, integrations
 
 ## Current Status: Phase 4 Complete - Ready for Phase 5! ✅
@@ -300,10 +314,15 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 - **Demo Mode Integration**: All envelope functionality works offline with mock data
 
 ### 🎯 **Next Steps - Phase 5**
-- **🚀 IMMEDIATE FOCUS - Phase 5 Advanced Features**: Net Worth Tracking, CSV Import with Smart Categorization, Siri Shortcuts Integration
-- **Enhanced Analytics**: AI-powered spending patterns, budget variance analysis, anomaly detection
-- **Automation & Rules**: Recurring transactions, envelope rules, alert system
-- **Bank Integration**: Plaid integration for automatic transaction import
+- **🚀 IMMEDIATE FOCUS - Phase 5 Advanced Features**: Siri Shortcuts Integration, Enhanced Onboarding & First-Time User Experience, CSV Import, Enhanced Analytics, Automation Rules, Debt Management, Net Worth Tracking
+- **Implementation Order**: 
+  1. Siri Shortcuts Integration (Voice-driven user experience)
+  2. Enhanced Onboarding & First-Time User Experience (Interactive guided tour for new users)
+  3. CSV Import with Smart Categorization (Bank statement processing)
+  4. Enhanced Analytics & Insights (AI-powered spending analysis)
+  5. Automation & Rules (Recurring transactions and smart alerts)
+  6. Debt Management Features (Comprehensive debt tracking)
+  7. Net Worth Tracking (Complete financial picture)
 - **Transaction Management Enhancements**: Advanced filtering/editing capabilities
 
 ### 📱 **Mobile/Desktop UX Patterns Established**

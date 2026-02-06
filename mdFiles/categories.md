@@ -1,7 +1,9 @@
-# Categories + Envelope Grouping Plan
+# Categories + Envelope Grouping
 
-## Goal
-Add user-defined categories to the app, assign categories at the envelope level (including piggybanks), and display the main envelope list grouped into category sections. This enables better reporting/insights without requiring category selection per transaction.
+**Status:** ✅ IMPLEMENTED (February 2026)
+
+## Overview
+User-defined categories for organizing envelopes, with category-based grouping on the main screen. Categories are assigned at the envelope level (including piggybanks), enabling better reporting/insights without requiring category selection per transaction.
 
 ## Decisions (Locked)
 - Categories are stored as first-class documents and referenced by `categoryId`.
@@ -141,12 +143,17 @@ File: `src/components/ui/NewUserOnboarding.tsx` (and any related onboarding flow
 - `src/utils/debtCalculations.ts` (new)
 - `src/validation/envelopeValidation.ts` (update)
 
-## Suggested Implementation Order
-1) Types + CategoryService + store state/actions + realtime subscription
-2) AddEnvelopeView: category selector + envelope type selector (spending/piggybank/debt)
-3) EnvelopeListView: render category sections (including piggybanks and debt envelopes)
-4) Debt envelope components and validation
-5) Settings: category CRUD + archive + (optional reorder)
-6) Onboarding: category creation step
-7) Debt progress tracking and calculations
-8) Debt-specific reporting features
+## Implementation Status
+
+### ✅ Completed Features
+1. ✅ Types + CategoryService + store state/actions + realtime subscription
+2. ✅ AddEnvelopeView: category selector + envelope type selector (spending/piggybank)
+3. ✅ EnvelopeListView: render category sections (including piggybanks)
+4. ✅ Settings: category CRUD + archive + reorder
+5. ✅ Onboarding: category creation step
+6. ✅ Interactive reordering with long-press drag-and-drop
+
+### 🚧 Planned Features (Phase 5)
+- **Debt Envelopes** (Phase 5 - Priority #5): Debt envelope type with tracking, payoff calculators, and progress visualization
+- **Debt Progress Tracking**: Automatic balance updates and payoff date calculations
+- **Debt Reporting**: Category-based debt metrics and interest savings opportunities
