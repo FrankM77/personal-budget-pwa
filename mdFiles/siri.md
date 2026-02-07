@@ -1,6 +1,6 @@
 # Siri Integration Strategy for Personal Budget PWA
 
-**Status:** ✅ Frontend Complete / 🚧 Backend Pending (Phase 5 - Priority #1)
+**Status:** ✅ Complete (v1.7.0) - Both Frontend & Backend Deployed
 **Complexity:** Medium (Code) / High (User Setup)
 
 ---
@@ -13,9 +13,9 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 ### The Workflow
 1.  **User:** Says "Hey Siri, Add Transaction..."
 2.  **Siri:** Asks "What's the text?"
-3.  **User:** "Grocery transaction at Walmart for $33.28"
+3.  **User:** "Grocery transaction at Walmart for $33.28 with Chase Amazon"
 4.  **Shortcuts App:** Takes that text and opens a specific URL:
-    `https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=Grocery%20transaction%20at%20Walmart%20for%20$33.28`
+    `https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=Grocery%20transaction%20at%20Walmart%20for%20$33.28%20with%20Chase%20Amazon`
 5.  **Your App:** Opens, reads the `?query=`, parses it via AI (with regex fallback), and pre-fills the "Add Transaction" form.
 6.  **User:** Reviews pre-filled form and hits "Save".
 
@@ -27,10 +27,10 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 
 | File | Purpose |
 | :--- | :--- |
-| `src/utils/smartTransactionParser.ts` | Regex-based NLP parser (fallback) — extracts amount, merchant, envelope, and transaction type from natural language |
+| `src/utils/smartTransactionParser.ts` | Regex-based NLP parser (fallback) — extracts amount, merchant, envelope, payment method, and transaction type from natural language |
 | `src/services/SiriService.ts` | Service layer — calls Firebase Cloud Function for AI parsing, falls back to regex parser if offline or on failure |
 | `src/hooks/useSiriQuery.ts` | React hook — detects `?query=` URL parameter, triggers parsing, returns pre-filled data |
-| `src/views/AddTransactionView.tsx` | Updated — consumes parsed data to pre-fill amount, merchant, note, type, and envelope selection |
+| `src/views/AddTransactionView.tsx` | Updated — consumes parsed data to pre-fill amount, merchant, note, type, envelope, and payment method |
 | `src/components/SplitTransactionHelper.tsx` | Updated — accepts `initialSelectedEnvelopeId` prop for Siri auto-selection |
 
 #### How It Works (Frontend Flow)
@@ -38,24 +38,25 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 2. `useSiriQuery` hook detects the `?query=` param
 3. If online: calls `SiriService.parseWithAI()` → Firebase Cloud Function
 4. If offline or AI fails: falls back to `smartTransactionParser.parseTransactionText()`
-5. Parsed result pre-fills: amount, merchant, note, transaction type, envelope
+5. Parsed result pre-fills: amount, merchant, note, transaction type, envelope, payment method
 6. Purple "Siri Shortcut" banner shows the original query and confidence score
 7. User reviews and saves
 
 #### Regex Fallback Parser Capabilities
 - Extracts dollar amounts: `$33.28`, `33.28`, `33 dollars`
 - Fuzzy-matches envelope names: "grocery" → "Groceries" envelope
+- Extracts payment methods: "with Chase Amazon", "using Venmo"
 - Detects income vs expense: "paycheck", "income", "refund" → Income type
-- Extracts merchant from remaining text after amount/envelope extraction
+- Extracts merchant from remaining text after amount/envelope/payment extraction
 - Returns confidence score (0-1) based on how many fields were matched
 
-### 🚧 Backend (Pending — Steps Below)
+### ✅ Backend (Complete — Deployed)
 
-The Firebase Cloud Function `parseTransaction` needs to be created. This is the AI-powered NLP that provides superior parsing compared to the regex fallback.
+The Firebase Cloud Function `parseTransaction` has been deployed with Gemini AI integration. This provides superior parsing compared to the regex fallback.
 
 ---
 
-## Backend Setup Steps
+## Backend Setup (Completed)
 
 ### Step 1: Initialize Firebase Functions
 
@@ -185,14 +186,16 @@ Test the function by navigating to:
 https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=Spent%2045%20at%20Target%20for%20groceries
 ```
 
-### Step 7: Create the Apple Shortcut
+### Step 7: Create the Apple Shortcut (Complete)
 
 Create an iOS Shortcut with these actions:
 1. **Ask for Input** → "What's the transaction?" (type: Text)
-2. **URL** → `https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=[Provided Input]`
+2. **URL** → `https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=[Ask for Input]`
 3. **Open URLs**
 
 Name it "Add Transaction" so the user can say: **"Hey Siri, Add Transaction"**
+
+**Note:** iOS may open the URL in Safari instead of the installed PWA. This is a known limitation of iOS PWA deep linking. The functionality works perfectly—only the app container behavior varies.
 
 Optionally, share via iCloud link so users can install with one tap.
 

@@ -25,7 +25,7 @@
 ├── dist/
 ├── mdFiles/
 │   ├── personalBudgetPwaVision.md
-│   ├── projectSummary_2026_02_05.md
+│   ├── projectSummary_2026_02_07.md
 │   ├── architectureEvolution.md
 │   ├── qualityAssurance.md
 │   ├── siri.md
@@ -127,6 +127,7 @@ This project is a Progressive Web App (PWA) version of a native iOS "personal bu
 
 *   **Zero-Based Budgeting:** Follows the "EveryDollar" model where every dollar of income is assigned a job (allocated to envelopes) until the "Available to Budget" pool is zero.
 *   **Monthly Budget Cycles:** Each month operates as an independent budget cycle with easy navigation and template copying.
+*   **Siri Shortcuts Integration:** Voice-powered transaction entry with AI parsing and payment method extraction (v1.7.0).
 *   **Offline-First:** Robust offline architecture using Firebase's native `enableIndexedDbPersistence` for seamless sync.
 *   **Piggybanks (Savings Goals):** Special envelopes for long-term savings with auto-contributions, goal tracking, and progress visualization.
 *   **Split Transactions:** Ability to split single transactions across multiple envelopes/categories.
@@ -251,14 +252,14 @@ Based on professional IT standards from "Naming Files and Directories the Right 
 **Naming Convention: camelCase**
 
 *   **First letter lowercase, subsequent words capitalized:** `myComponent.tsx`, `userDataService.ts`
-*   **Dates use underscores:** `projectSummary_2026_02_05.md`
+*   **Dates use underscores:** `projectSummary_2026_02_07.md`
 *   **No hyphens or special characters:** Avoid `-`, `!`, `$`, etc.
 *   **Lowercase file extensions:** `.md`, `.tsx`, `.ts` (not `.MD`, `.TSX`)
 
 **Examples:**
 *   Components: `envelopeListItem.tsx`, `transactionModal.tsx`
 *   Services: `budgetService.ts`
-*   Documentation: `projectSummary_2026_02_05.md`, `apiDocumentation.md`
+*   Documentation: `projectSummary_2026_02_07.md`, `siri.md`, `apiDocumentation.md`
 *   Assets: `appIcon192.png`, `backgroundImage.jpg`
 *   Directories: `mdFiles/`, `srcComponents/`
 
@@ -313,4 +314,4 @@ Based on professional IT standards from "Naming Files and Directories the Right 
 
 ---
 
-*Last Updated: February 5, 2026*
+*Last Updated: February 7, 2026*
