@@ -80,7 +80,8 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
       onClose();
       return;
     }
-    navigate(-1);
+    // If opened directly (e.g., from Siri URL), navigate to home
+    navigate('/');
   };
 
   const handlePaymentMethodSelect = (card: PaymentSource) => {
