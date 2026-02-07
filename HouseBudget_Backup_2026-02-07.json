@@ -1,0 +1,2193 @@
+{
+  "appVersion": "1.6.9",
+  "backupDate": 1770495011013,
+  "appSettings": {
+    "id": "default",
+    "theme": "system",
+    "userId": "2UTyRL6KXCdIjNKEFBIGcz06hxQ2",
+    "paymentSources": [
+      {
+        "id": "custom-1770092471695",
+        "last4": "7474",
+        "network": "Visa",
+        "color": "#0f4c81",
+        "name": "Chase Amazon"
+      },
+      {
+        "network": "Visa",
+        "color": "#ef4444",
+        "last4": "3386",
+        "name": "AA CREDIT UNION",
+        "id": "custom-1770092365707"
+      },
+      {
+        "network": "Visa",
+        "color": "#3b82f6",
+        "name": "Venmo",
+        "id": "custom-1769529060403",
+        "last4": "9999"
+      },
+      {
+        "color": "#10b981",
+        "name": "CASH",
+        "network": "Cash",
+        "id": "custom-1770001235300"
+      }
+    ],
+    "enableMoveableReorder": true,
+    "fontSize": "medium"
+  },
+  "envelopes": [
+    {
+      "id": "sK0eq0SU7GKm4suS3oO8",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770072349,
+        "nanoseconds": 478000000
+      },
+      "currentBalance": 200,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "isActive": true,
+      "categoryId": "NrY4iUUBJjW5qLI4Xe46",
+      "orderIndex": 0,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "name": "Kevin Birthday"
+    },
+    {
+      "id": "CozHB7cUKJTYVKmh2Vld",
+      "orderIndex": 1,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "NrY4iUUBJjW5qLI4Xe46",
+      "name": "Christmas",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770072317,
+        "nanoseconds": 437000000
+      },
+      "isPiggybank": true,
+      "currentBalance": 50,
+      "piggybankConfig": {
+        "icon": "piggy-bank",
+        "targetAmount": 1000,
+        "monthlyContribution": 50,
+        "color": "#10B981"
+      },
+      "isActive": true
+    },
+    {
+      "id": "RpDMDVBVNY18vTwLicsu",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "name": "Investments",
+      "currentBalance": 12069.68,
+      "isActive": true,
+      "categoryId": "kNb0POae9qnaRX9n6eM0",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 2,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1769377430,
+        "nanoseconds": 21000000
+      }
+    },
+    {
+      "id": "e3cz09n7YoUaLYRzRgwX",
+      "currentBalance": 60,
+      "orderIndex": 3,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770072614,
+        "nanoseconds": 217000000
+      },
+      "isActive": true,
+      "name": "Layover Transportation",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "PTm0flvdUPzlACL0KQ0H"
+    },
+    {
+      "id": "Iieeon1IiZoPWZMcKiLu",
+      "currentBalance": 60,
+      "isActive": true,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 4,
+      "name": "EZ Pass",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1769528583,
+        "nanoseconds": 732000000
+      },
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "categoryId": "PTm0flvdUPzlACL0KQ0H"
+    },
+    {
+      "id": "NKpfsHY7UBQvlMx9lbRA",
+      "createdAt": "2026-01-27T15:39:00.715Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "currentBalance": 90,
+      "orderIndex": 5,
+      "categoryId": "PTm0flvdUPzlACL0KQ0H",
+      "name": "Gas",
+      "isActive": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z"
+    },
+    {
+      "id": "9obL5MwCfEI8LO9rzjF4",
+      "isActive": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 6,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770072649,
+        "nanoseconds": 654000000
+      },
+      "currentBalance": 434.11,
+      "categoryId": "lU30zgsKxC3I0d0hPOOA",
+      "name": "Groceries"
+    },
+    {
+      "id": "o94kpt6wOZPGUURVrbyK",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1769528479,
+        "nanoseconds": 293000000
+      },
+      "isActive": true,
+      "currentBalance": 400,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "orderIndex": 7,
+      "name": "Restaurants ",
+      "categoryId": "lU30zgsKxC3I0d0hPOOA",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493"
+    },
+    {
+      "id": "uvnZrQ7GyBPrlAWC7jDL",
+      "isActive": true,
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "currentBalance": 100,
+      "name": "Clothing",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 8,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770072702,
+        "nanoseconds": 618000000
+      }
+    },
+    {
+      "id": "57x1fYzzOprK7I1ZEijL",
+      "isActive": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 9,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1769528836,
+        "nanoseconds": 387000000
+      },
+      "currentBalance": 45,
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "name": "Phone"
+    },
+    {
+      "id": "29tNcKb9o8Hv6X7LoPoB",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "isActive": true,
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "name": "Hair/Cosmetics",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1769529477,
+        "nanoseconds": 514000000
+      },
+      "currentBalance": 20,
+      "orderIndex": 10
+    },
+    {
+      "id": "PzZ7UyulF7k9K4p8ifzX",
+      "currentBalance": 20,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091776,
+        "nanoseconds": 921000000
+      },
+      "name": "Misc",
+      "isActive": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "orderIndex": 11,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "PTm0flvdUPzlACL0KQ0H"
+    },
+    {
+      "id": "HDHETh8xnVyeYxhCpdjL",
+      "orderIndex": 12,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091735,
+        "nanoseconds": 864000000
+      },
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "currentBalance": 87.01,
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "isActive": true,
+      "name": "Subscriptions"
+    },
+    {
+      "id": "pB7ONg0DTBJVX04ohq94",
+      "isActive": true,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770262429,
+        "nanoseconds": 199000000
+      },
+      "name": "Mortgage/Rent",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 13,
+      "currentBalance": 0,
+      "categoryId": "q9wyuPFPYFzz5DwQxjmM"
+    },
+    {
+      "id": "mBnegfTBSexq9qLaT61u",
+      "currentBalance": 1200,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091752,
+        "nanoseconds": 80000000
+      },
+      "name": "Fun Money",
+      "isActive": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "orderIndex": 14,
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493"
+    },
+    {
+      "id": "8YP5fw7N97GgCcpK8oqK",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091760,
+        "nanoseconds": 913000000
+      },
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "currentBalance": 550,
+      "name": "Jiu Jitsu Private",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "isActive": true,
+      "orderIndex": 15
+    },
+    {
+      "id": "iRQeHS0ScuUfSaHEOuJl",
+      "currentBalance": 150,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "isActive": true,
+      "categoryId": "12649p2YMKU5BVx9syJS",
+      "orderIndex": 16,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091768,
+        "nanoseconds": 809000000
+      },
+      "name": "Tax Filing"
+    },
+    {
+      "id": "XQ7A67qlC5bY7aMUCBnD",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "isPiggybank": true,
+      "isActive": true,
+      "categoryId": "PTm0flvdUPzlACL0KQ0H",
+      "createdAt": "2026-01-27T15:42:20.811Z",
+      "currentBalance": 400,
+      "name": "Car Maintenance",
+      "orderIndex": 17,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "piggybankConfig": {
+        "monthlyContribution": 200,
+        "paused": false,
+        "targetAmount": 5000,
+        "color": "#10B981",
+        "icon": "piggy-bank"
+      }
+    },
+    {
+      "id": "FvdiF2gUcG6lDzbXwiB8",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "isActive": true,
+      "orderIndex": 18,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "currentBalance": 30,
+      "name": "Cleaning Supplies",
+      "categoryId": "q9wyuPFPYFzz5DwQxjmM",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091744,
+        "nanoseconds": 536000000
+      }
+    },
+    {
+      "id": "GaKkmoKtVkPw7tDzVm4w",
+      "piggybankConfig": {
+        "color": "#F59E0B",
+        "icon": "piggy-bank",
+        "targetAmount": 30000,
+        "monthlyContribution": 1000
+      },
+      "createdAt": "2026-02-03T04:10:21.955Z",
+      "currentBalance": 1000,
+      "isPiggybank": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "orderIndex": 19,
+      "isActive": true,
+      "name": "Car Fund",
+      "categoryId": "PTm0flvdUPzlACL0KQ0H",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493"
+    },
+    {
+      "id": "PsEeouWVkLOnvCuUdpKN",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770092077,
+        "nanoseconds": 435000000
+      },
+      "orderIndex": 20,
+      "name": "Gym Membership",
+      "isActive": true,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "currentBalance": 22,
+      "categoryId": "yDqZQOtBhTjhxXCX60GD"
+    },
+    {
+      "id": "YGAXnCSjolMTiFOdTXlb",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "piggybankConfig": {
+        "targetAmount": 5000,
+        "monthlyContribution": 100,
+        "icon": "piggy-bank",
+        "color": "#EF4444"
+      },
+      "categoryId": "yDqZQOtBhTjhxXCX60GD",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091864,
+        "nanoseconds": 412000000
+      },
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "currentBalance": 100,
+      "isActive": true,
+      "orderIndex": 21,
+      "name": "Doctor Visits",
+      "isPiggybank": true
+    },
+    {
+      "id": "1B22ZlDUrzrMfBSQLQeG",
+      "name": "APA Pilot Mutual Aid",
+      "isActive": true,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "DTV7jhmDUGAyZ8NOXLB2",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770092108,
+        "nanoseconds": 92000000
+      },
+      "currentBalance": 100,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "orderIndex": 22
+    },
+    {
+      "id": "ABY8LSJ8eB6ungaqIvk9",
+      "isActive": true,
+      "name": "Auto Insurance",
+      "orderIndex": 23,
+      "isPiggybank": true,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "piggybankConfig": {
+        "icon": "piggy-bank",
+        "targetAmount": 1400,
+        "monthlyContribution": 50,
+        "color": "#F59E0B"
+      },
+      "categoryId": "PTm0flvdUPzlACL0KQ0H",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "createdAt": "2026-02-03T04:11:39.013Z",
+      "currentBalance": 50
+    },
+    {
+      "id": "MpOvGeRgnYsYqjzraE4N",
+      "isActive": true,
+      "currentBalance": 168,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "DTV7jhmDUGAyZ8NOXLB2",
+      "orderIndex": 24,
+      "name": "APA Disability",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770092119,
+        "nanoseconds": 549000000
+      },
+      "lastUpdated": "2026-02-07T20:10:11.013Z"
+    },
+    {
+      "id": "qcEP0hqAYhZsm9HPIbXQ",
+      "name": "Umbrella Policy",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "isPiggybank": true,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091939,
+        "nanoseconds": 975000000
+      },
+      "isActive": true,
+      "piggybankConfig": {
+        "icon": "piggy-bank",
+        "monthlyContribution": 24,
+        "color": "#3B82F6",
+        "targetAmount": 240
+      },
+      "categoryId": "DTV7jhmDUGAyZ8NOXLB2",
+      "orderIndex": 25,
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "currentBalance": 24
+    },
+    {
+      "id": "oMctPOmhnCInUw7tatZB",
+      "piggybankConfig": {
+        "monthlyContribution": 200,
+        "targetAmount": 4000,
+        "color": "#10B981",
+        "icon": "piggy-bank"
+      },
+      "isActive": true,
+      "currentBalance": 200,
+      "isPiggybank": true,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "orderIndex": 26,
+      "name": "Vito Sinking Fund",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091969,
+        "nanoseconds": 544000000
+      },
+      "categoryId": "DTV7jhmDUGAyZ8NOXLB2"
+    },
+    {
+      "id": "SsiCrPA0zN4CsStcsZBW",
+      "lastUpdated": "2026-02-07T20:10:11.013Z",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770091783,
+        "nanoseconds": 401000000
+      },
+      "currentBalance": 30,
+      "isActive": true,
+      "name": "Pet Supplies",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "q9wyuPFPYFzz5DwQxjmM",
+      "orderIndex": 27
+    },
+    {
+      "id": "3egTeB7no9TxIdM1xJWi",
+      "currentBalance": -30.17,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1770262472,
+        "nanoseconds": 151000000
+      },
+      "orderIndex": 28,
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "categoryId": "q9wyuPFPYFzz5DwQxjmM",
+      "lastUpdated": "2026-02-07T20:10:11.014Z",
+      "name": "Reimbursement",
+      "isActive": true
+    }
+  ],
+  "transactions": [
+    {
+      "id": "0cBcEs52czTBU8ls63Z3",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "HDHETh8xnVyeYxhCpdjL",
+      "amount": 12.99,
+      "date": "2026-02-05T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Check My Pay",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "network": "Visa",
+        "id": "custom-1770092471695",
+        "name": "Chase Amazon",
+        "last4": "7474",
+        "color": "#0f4c81"
+      }
+    },
+    {
+      "id": "zK4FbURNXhgvaDN7j3Fo",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "NKpfsHY7UBQvlMx9lbRA",
+      "amount": 10,
+      "date": "2026-02-04T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Multani Gas",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "network": "Cash",
+        "id": "custom-1770001235300",
+        "color": "#10b981",
+        "name": "CASH"
+      }
+    },
+    {
+      "id": "N7lmlRlKBt2TIKoolKaW",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+      "amount": 2.77,
+      "date": "2026-02-04T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Dollar General",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "color": "#ef4444",
+        "name": "AA CREDIT UNION",
+        "last4": "3386",
+        "id": "custom-1770092365707",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "VjFBGJEU4pcdBzFyTbqD",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "3egTeB7no9TxIdM1xJWi",
+      "amount": 2.96,
+      "date": "2026-02-03T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Lowe's",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1770092471695",
+        "network": "Visa",
+        "last4": "7474",
+        "name": "Chase Amazon",
+        "color": "#0f4c81"
+      }
+    },
+    {
+      "id": "EZvikfCQDqJtI2OrY3ny",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "3egTeB7no9TxIdM1xJWi",
+      "amount": 26.09,
+      "date": "2026-02-03T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Lowe's",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "last4": "7474",
+        "color": "#0f4c81",
+        "network": "Visa",
+        "name": "Chase Amazon",
+        "id": "custom-1770092471695"
+      }
+    },
+    {
+      "id": "Ev9mtE0wWyTH7mVFtInf",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "3egTeB7no9TxIdM1xJWi",
+      "amount": 1.12,
+      "date": "2026-02-03T00:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Lowe's",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1770092365707",
+        "last4": "3386",
+        "color": "#ef4444",
+        "name": "AA CREDIT UNION",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "r0Y6WCCO4jiCJASwHx28",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+      "amount": 19.97,
+      "date": "2026-02-02T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Verchio's",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1770092365707",
+        "last4": "3386",
+        "network": "Visa",
+        "name": "AA CREDIT UNION",
+        "color": "#ef4444"
+      }
+    },
+    {
+      "id": "oloUVUweQGTNiVt3gELy",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+      "amount": 7.04,
+      "date": "2026-02-02T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Dollar General",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "name": "AA CREDIT UNION",
+        "last4": "3386",
+        "network": "Visa",
+        "color": "#ef4444",
+        "id": "custom-1770092365707"
+      }
+    },
+    {
+      "id": "LJJB2iWs3kKwRkUZELUD",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+      "amount": 81.12,
+      "date": "2026-02-02T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Sam's Club",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "network": "Visa",
+        "last4": "7474",
+        "name": "Chase Amazon",
+        "color": "#0f4c81",
+        "id": "custom-1770092471695"
+      }
+    },
+    {
+      "id": "6ywjVKtSugfSS649ZZmu",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+      "amount": 4.99,
+      "date": "2026-02-02T17:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "ALDI",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "name": "AA CREDIT UNION",
+        "network": "Visa",
+        "last4": "3386",
+        "id": "custom-1770092365707",
+        "color": "#ef4444"
+      }
+    },
+    {
+      "id": "ZQ7LXUaPyIMNntpGo9BH",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "pB7ONg0DTBJVX04ohq94",
+      "amount": 657,
+      "date": "2026-02-02T00:00:00.000Z",
+      "month": "2026-02",
+      "description": "",
+      "merchant": "Frank house",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "last4": "3386",
+        "name": "AA CREDIT UNION",
+        "network": "Visa",
+        "id": "custom-1770092365707",
+        "color": "#ef4444"
+      }
+    },
+    {
+      "id": "ObN6dy7rTNVveMEo3TQ5",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "o94kpt6wOZPGUURVrbyK",
+      "amount": 400,
+      "date": "2026-02-01T05:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "N9ByXrqMzPH3ShE6BKoG",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "NKpfsHY7UBQvlMx9lbRA",
+      "amount": 100,
+      "date": "2026-02-01T05:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "Mofw1CO2KFS3noAkAuSQ",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "XQ7A67qlC5bY7aMUCBnD",
+      "amount": 200,
+      "date": "2026-02-01T05:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "Mo0iwu5IsupPKAWx6pRr",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 45,
+      "date": "2026-02-01T05:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "9mSG63Hx9jGmx0Ykupo9",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 12069.68,
+      "date": "2026-02-01T05:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "zhhvxFJJtHJ5LDArYI1q",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "00DY9vUxAue6TvFqS0Yd",
+      "amount": 120,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "x0FNMgEZjPfKzW5GPxCO",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "oMctPOmhnCInUw7tatZB",
+      "amount": 200,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "vvHq3EjZGWyjRxSEHe4U",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "8YP5fw7N97GgCcpK8oqK",
+      "amount": 550,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "vb3j3rPu9z9N91bAMmWm",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "mBnegfTBSexq9qLaT61u",
+      "amount": 1200,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "sxbGClyZqeLim6SlfUKJ",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "sK0eq0SU7GKm4suS3oO8",
+      "amount": 200,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "s4mBts0KJr9bqRPlfDcK",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "GaKkmoKtVkPw7tDzVm4w",
+      "amount": 1000,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "rUIPtUuqrBBVlMOTufLx",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "PzZ7UyulF7k9K4p8ifzX",
+      "amount": 20,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "prSSRXydedclXllajuML",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "MpOvGeRgnYsYqjzraE4N",
+      "amount": 168,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "ncInwbHg9SMK7lMNg5Jf",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "ABY8LSJ8eB6ungaqIvk9",
+      "amount": 50,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "iMR2vhKBDoFvPYiDMozO",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "pB7ONg0DTBJVX04ohq94",
+      "amount": 657,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "hVNUFWOdBFzoHkh5HyNC",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "29tNcKb9o8Hv6X7LoPoB",
+      "amount": 20,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "g1s9RvGxdUeWL4FOfFB5",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "qcEP0hqAYhZsm9HPIbXQ",
+      "amount": 24,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "fvdoZQbJzkHZ2bpjh5m8",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "FvdiF2gUcG6lDzbXwiB8",
+      "amount": 30,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "anRfJABPnokSWJFa7bA8",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+      "amount": 550,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "WefFeDccp66JVw6YW2xE",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "PsEeouWVkLOnvCuUdpKN",
+      "amount": 22,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "UzMOnHprC9RO5EVeCRbj",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "ggLL3lVp12Gq7JtTRJf2",
+      "amount": 250,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "QVvDQWXxAY6nbJzPSxrp",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "e3cz09n7YoUaLYRzRgwX",
+      "amount": 60,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "OdpjRCzgePDTQXQhxCLM",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "1B22ZlDUrzrMfBSQLQeG",
+      "amount": 100,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "MlgojPzoQuLaHrAN1PBy",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "YGAXnCSjolMTiFOdTXlb",
+      "amount": 100,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "LQd63oAURJp8t5Dy4vdV",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "iRQeHS0ScuUfSaHEOuJl",
+      "amount": 150,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "EMk9xJXuwgJxmKxHGCEM",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "HDHETh8xnVyeYxhCpdjL",
+      "amount": 100,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "E10nORByUg2RBlwE0xpo",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "uvnZrQ7GyBPrlAWC7jDL",
+      "amount": 100,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "AnW6aUJHS1mPMLeAh4B8",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "SsiCrPA0zN4CsStcsZBW",
+      "amount": 30,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "8N6DULv3pWCZNx1BHoo7",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "Iieeon1IiZoPWZMcKiLu",
+      "amount": 60,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "5kqBgVzAgNEVC7JCCjZE",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "CozHB7cUKJTYVKmh2Vld",
+      "amount": 50,
+      "date": "2026-01-31T21:00:00.000Z",
+      "month": "2026-02",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "lZdJVYsciuewSBwP3ycl",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 3.43,
+      "date": "2026-01-27T17:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "fdafd",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1769546812829",
+        "last4": "3333",
+        "network": "Visa",
+        "name": "test FAB",
+        "color": "#8b5cf6"
+      }
+    },
+    {
+      "id": "XuMciABONN2zfGrpVHoF",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "29tNcKb9o8Hv6X7LoPoB",
+      "amount": 25,
+      "date": "2026-01-27T17:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "A cut above",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "last4": "9999",
+        "id": "custom-1769529060403",
+        "color": "#3b82f6",
+        "network": "Visa",
+        "name": "Venmo"
+      }
+    },
+    {
+      "id": "WVCza76QYflJSpjqP6ZR",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 3.33,
+      "date": "2026-01-27T17:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "test",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1769545384893",
+        "color": "#f59e0b",
+        "name": "production test",
+        "last4": "5555",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "GKYbWTw3RUQaymtC8uM0",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 26.96,
+      "date": "2026-01-27T17:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "Test",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "name": "new test card",
+        "network": "Mastercard",
+        "id": "custom-1769379530382",
+        "last4": "5555",
+        "color": "#8b5cf6"
+      }
+    },
+    {
+      "id": "9thkdTwsos5moi6soGx1",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 34.56,
+      "date": "2026-01-27T17:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "test new card aa",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "name": "test card",
+        "last4": "9999",
+        "id": "custom-1769545246848",
+        "color": "#10b981",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "y627kb11GBdEys54z9YX",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 0.34,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "test",
+      "type": "Income",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1769379342400",
+        "name": "card saved",
+        "network": "Visa",
+        "color": "#f59e0b",
+        "last4": "4444"
+      }
+    },
+    {
+      "id": "wrmmTQNVQ0HiJsBt6ush",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "o94kpt6wOZPGUURVrbyK",
+      "amount": 4.35,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "fdafafa",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "color": "#ec4899",
+        "name": "spend flow",
+        "id": "custom-1769545616173",
+        "network": "Visa",
+        "last4": "9999"
+      }
+    },
+    {
+      "id": "rCgHAcO4Fiyq7CPmIrmb",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 49,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "Kim",
+      "type": "Income",
+      "reconciled": false,
+      "paymentMethod": {
+        "network": "Visa",
+        "last4": "9999",
+        "name": "Venmo",
+        "id": "custom-1769529060403",
+        "color": "#3b82f6"
+      }
+    },
+    {
+      "id": "g3GGEdDqZhVwF1plBAlu",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 25,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "Me",
+      "type": "Income",
+      "reconciled": false,
+      "paymentMethod": {
+        "color": "#f59e0b",
+        "id": "custom-1769379342400",
+        "name": "card saved",
+        "network": "Visa",
+        "last4": "4444"
+      }
+    },
+    {
+      "id": "PF10DiBRNKaZmvEYKiFZ",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 3.45,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "test2",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "network": "Visa",
+        "name": "card saved",
+        "id": "custom-1769379342400",
+        "color": "#f59e0b",
+        "last4": "4444"
+      }
+    },
+    {
+      "id": "MjkZYKDi3dBVe1xISvzx",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 3.45,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "test cardstacl fox",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "color": "#6b7280",
+        "last4": "8888",
+        "network": "Visa",
+        "id": "custom-1769546783797",
+        "name": "test the fix"
+      }
+    },
+    {
+      "id": "Jpcl9zuM7uzRlAfdJnEY",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 63.14,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "Spend flow",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "color": "#f59e0b",
+        "id": "custom-1769379342400",
+        "name": "card saved",
+        "network": "Visa",
+        "last4": "4444"
+      }
+    },
+    {
+      "id": "CbU9wu5gq6lpTGEfJWBJ",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 90,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "Mom&Mike",
+      "type": "Income",
+      "reconciled": false,
+      "paymentMethod": {
+        "color": "#3b82f6",
+        "name": "Check",
+        "last4": "9999",
+        "id": "custom-1769528967858",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "AabO3h75l5Yos3isDuGm",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 0.99,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "test after budgeted fix",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "last4": "4444",
+        "color": "#f59e0b",
+        "name": "card saved",
+        "id": "custom-1769379342400",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "7MbPknnq5wx4pVGMg8tg",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 182,
+      "date": "2026-01-27T00:00:00.000Z",
+      "month": "2026-01",
+      "description": "",
+      "merchant": "T-Mobile ",
+      "type": "Expense",
+      "reconciled": false,
+      "paymentMethod": {
+        "id": "custom-1769379342400",
+        "last4": "4444",
+        "color": "#f59e0b",
+        "name": "card saved",
+        "network": "Visa"
+      }
+    },
+    {
+      "id": "qAHYQnP43cGVP7yIW13t",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "NKpfsHY7UBQvlMx9lbRA",
+      "amount": 120,
+      "date": "2026-01-01T05:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "oKAMiNZNPBlERkxPWR3m",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 50,
+      "date": "2026-01-01T05:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "cuWTjGYsB3YXFSxmTI5K",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 1390,
+      "date": "2026-01-01T05:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "8zMC1tngxTDUDFTJF5W7",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "XQ7A67qlC5bY7aMUCBnD",
+      "amount": 100,
+      "date": "2026-01-01T05:00:00.000Z",
+      "month": "2026-01",
+      "description": "Piggybank Contribution",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "xiZfXTVBGtFWc5FEccDu",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "0AtprH6i3szw0ODZeAiR",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "x3PvIv3ioyK9gx8PANAy",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "hobSlA798Rb0AScNUIuT",
+      "amount": 50,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "vZ24CD0XM56kKIQph4Dl",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "57x1fYzzOprK7I1ZEijL",
+      "amount": 50,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "slmEUOv3JKQlyAmjwidM",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "kqnoB247Hcv3FyaQAnFI",
+      "amount": 23,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "sbah7vkU6CsFFdGT0L75",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "ky170NWMrSSPh5T8otU7",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "sNjpTGs56RKDU9gpz8ph",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "00DY9vUxAue6TvFqS0Yd",
+      "amount": 120,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "p2YvvuUeljTeuI88U63W",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "0AtprH6i3szw0ODZeAiR",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "oaVVImHauzqi1leSjAAd",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "ky170NWMrSSPh5T8otU7",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "jcYpuTUbyZVOXoSUKP1d",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "VJkV0mQLsm01FgYSriS1",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "gm3njZVXD3u82415cuQw",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "NKpfsHY7UBQvlMx9lbRA",
+      "amount": 120,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "gbS50mQKnqoGWkRVBIQg",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "uJPP1wS8bOpnjLwBgyuv",
+      "amount": 200,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "fuVKRy6cG4ZgdOcU5TWx",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "HxlZYTOOqlyxZkga15OT",
+      "amount": 50,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "eIMtfZv2vGxV7YwqoKVp",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "HxlZYTOOqlyxZkga15OT",
+      "amount": 50,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "biLgaXTVwHrXzidMNyAB",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "29tNcKb9o8Hv6X7LoPoB",
+      "amount": 20,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "ZIJq1dZgbg4hBBw0VGP3",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "RpDMDVBVNY18vTwLicsu",
+      "amount": 1390,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "YHskQYmAXHpaIzLXYolw",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "JrjPqkXlGuEJ4V8r6mXx",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "YCHbzsk2pFVdGNI5BJGo",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "hobSlA798Rb0AScNUIuT",
+      "amount": 50,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "XLqLTLHxPZYj6pCFljdT",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "ggLL3lVp12Gq7JtTRJf2",
+      "amount": 250,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "WKBvM9fqH7XchlcvhazU",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "00DY9vUxAue6TvFqS0Yd",
+      "amount": 120,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "WJfJEQGeIPtFU3G8IHjU",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "Iieeon1IiZoPWZMcKiLu",
+      "amount": 60,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "VM8Qv5BkXuqkVo38ot0u",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "3uF6lzWkuugcx7Xxl7nW",
+      "amount": 200,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "UXB9F6Ib65Bvzsvksvii",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "Iieeon1IiZoPWZMcKiLu",
+      "amount": 60,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "QYsoyVF98txAwWBIShCX",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "29tNcKb9o8Hv6X7LoPoB",
+      "amount": 20,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "OR9RLyPg3SUNtkYS8kkX",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "uJPP1wS8bOpnjLwBgyuv",
+      "amount": 200,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "N2JUqjiZA7q6j7OfenHO",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "AiszHOgb5hU3ilyGoo79",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "JUEdpgadL7Q8k4pCfioP",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "Gk2L0W80Hbg4XeOXHUKa",
+      "amount": 45,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "ItwVAh2KhQWIAioiGsvy",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "Gk2L0W80Hbg4XeOXHUKa",
+      "amount": 45,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "FGmuzvEqwownuyjEn1SE",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "ggLL3lVp12Gq7JtTRJf2",
+      "amount": 250,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "CDzs3RdUbksMXlkGnY55",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "XQ7A67qlC5bY7aMUCBnD",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "AJBCdhyD7b4JYtdPycde",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "3uF6lzWkuugcx7Xxl7nW",
+      "amount": 200,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "9X3N6JaHT6BpcAkPEauH",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "o94kpt6wOZPGUURVrbyK",
+      "amount": 140,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "6t7aiCLMyyCjQGozD2Pq",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "KQKg9hOUrhy5kYlhrQot",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "6E8PBYxQ5D7O0Pe3NXlj",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "kqnoB247Hcv3FyaQAnFI",
+      "amount": 23,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "4HaOgXwGHkQ0oct6WuDf",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "o94kpt6wOZPGUURVrbyK",
+      "amount": 140,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "42b68x0sd7dNLv1zmADS",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "AiszHOgb5hU3ilyGoo79",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "3SOytB7sj4Ipiept5C5J",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "KQKg9hOUrhy5kYlhrQot",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "0hxzluvJ1JYCLs76fwJM",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "JrjPqkXlGuEJ4V8r6mXx",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    },
+    {
+      "id": "0gkoijfPPlJznB30uqUM",
+      "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+      "envelopeId": "VJkV0mQLsm01FgYSriS1",
+      "amount": 100,
+      "date": "2025-12-31T21:00:00.000Z",
+      "month": "2026-01",
+      "description": "Budgeted",
+      "type": "Income",
+      "reconciled": false,
+      "isAutomatic": true
+    }
+  ],
+  "allocations": {
+    "2026-02": [
+      {
+        "id": "mBnegfTBSexq9qLaT61u",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "mBnegfTBSexq9qLaT61u",
+        "month": "2026-02",
+        "budgetedAmount": 1200,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "uvnZrQ7GyBPrlAWC7jDL",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "uvnZrQ7GyBPrlAWC7jDL",
+        "month": "2026-02",
+        "budgetedAmount": 100,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "1B22ZlDUrzrMfBSQLQeG",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "1B22ZlDUrzrMfBSQLQeG",
+        "month": "2026-02",
+        "budgetedAmount": 100,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "PsEeouWVkLOnvCuUdpKN",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "PsEeouWVkLOnvCuUdpKN",
+        "month": "2026-02",
+        "budgetedAmount": 22,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "HDHETh8xnVyeYxhCpdjL",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "HDHETh8xnVyeYxhCpdjL",
+        "month": "2026-02",
+        "budgetedAmount": 100,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "00DY9vUxAue6TvFqS0Yd",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "00DY9vUxAue6TvFqS0Yd",
+        "month": "2026-02",
+        "budgetedAmount": 120,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "SsiCrPA0zN4CsStcsZBW",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "SsiCrPA0zN4CsStcsZBW",
+        "month": "2026-02",
+        "budgetedAmount": 30,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "pB7ONg0DTBJVX04ohq94",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "pB7ONg0DTBJVX04ohq94",
+        "month": "2026-02",
+        "budgetedAmount": 657,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "o94kpt6wOZPGUURVrbyK",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "o94kpt6wOZPGUURVrbyK",
+        "month": "2026-02",
+        "budgetedAmount": 400,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "9obL5MwCfEI8LO9rzjF4",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "9obL5MwCfEI8LO9rzjF4",
+        "month": "2026-02",
+        "budgetedAmount": 550,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "8YP5fw7N97GgCcpK8oqK",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "8YP5fw7N97GgCcpK8oqK",
+        "month": "2026-02",
+        "budgetedAmount": 550,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "CozHB7cUKJTYVKmh2Vld",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "CozHB7cUKJTYVKmh2Vld",
+        "month": "2026-02",
+        "budgetedAmount": 50,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "MpOvGeRgnYsYqjzraE4N",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "MpOvGeRgnYsYqjzraE4N",
+        "month": "2026-02",
+        "budgetedAmount": 168,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "jqv9KtnkxoUvVOx6kqIj",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "jqv9KtnkxoUvVOx6kqIj",
+        "month": "2026-02",
+        "budgetedAmount": 657,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "57x1fYzzOprK7I1ZEijL",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "57x1fYzzOprK7I1ZEijL",
+        "month": "2026-02",
+        "budgetedAmount": 45,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "ggLL3lVp12Gq7JtTRJf2",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "ggLL3lVp12Gq7JtTRJf2",
+        "month": "2026-02",
+        "budgetedAmount": 250,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "qcEP0hqAYhZsm9HPIbXQ",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "qcEP0hqAYhZsm9HPIbXQ",
+        "month": "2026-02",
+        "budgetedAmount": 24,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "PzZ7UyulF7k9K4p8ifzX",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "PzZ7UyulF7k9K4p8ifzX",
+        "month": "2026-02",
+        "budgetedAmount": 20,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "e3cz09n7YoUaLYRzRgwX",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "e3cz09n7YoUaLYRzRgwX",
+        "month": "2026-02",
+        "budgetedAmount": 60,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "GaKkmoKtVkPw7tDzVm4w",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "GaKkmoKtVkPw7tDzVm4w",
+        "month": "2026-02",
+        "budgetedAmount": 1000,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "fwHZXr9TQWH81MuLVrVo",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "fwHZXr9TQWH81MuLVrVo",
+        "month": "2026-02",
+        "budgetedAmount": 0,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "YGAXnCSjolMTiFOdTXlb",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "YGAXnCSjolMTiFOdTXlb",
+        "month": "2026-02",
+        "budgetedAmount": 100,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "Jdd7jo8jOFRThUTeCz9X",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "Jdd7jo8jOFRThUTeCz9X",
+        "month": "2026-02",
+        "budgetedAmount": 100,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "Iieeon1IiZoPWZMcKiLu",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "Iieeon1IiZoPWZMcKiLu",
+        "month": "2026-02",
+        "budgetedAmount": 60,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "oMctPOmhnCInUw7tatZB",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "oMctPOmhnCInUw7tatZB",
+        "month": "2026-02",
+        "budgetedAmount": 200,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "iRQeHS0ScuUfSaHEOuJl",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "iRQeHS0ScuUfSaHEOuJl",
+        "month": "2026-02",
+        "budgetedAmount": 150,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "29tNcKb9o8Hv6X7LoPoB",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "29tNcKb9o8Hv6X7LoPoB",
+        "month": "2026-02",
+        "budgetedAmount": 20,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "sK0eq0SU7GKm4suS3oO8",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "sK0eq0SU7GKm4suS3oO8",
+        "month": "2026-02",
+        "budgetedAmount": 200,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "3egTeB7no9TxIdM1xJWi",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "3egTeB7no9TxIdM1xJWi",
+        "month": "2026-02",
+        "budgetedAmount": 0,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "FvdiF2gUcG6lDzbXwiB8",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "FvdiF2gUcG6lDzbXwiB8",
+        "month": "2026-02",
+        "budgetedAmount": 30,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "ABY8LSJ8eB6ungaqIvk9",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "ABY8LSJ8eB6ungaqIvk9",
+        "month": "2026-02",
+        "budgetedAmount": 50,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "RpDMDVBVNY18vTwLicsu",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "RpDMDVBVNY18vTwLicsu",
+        "month": "2026-02",
+        "budgetedAmount": 12069.68,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "XQ7A67qlC5bY7aMUCBnD",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "XQ7A67qlC5bY7aMUCBnD",
+        "month": "2026-02",
+        "budgetedAmount": 200,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      },
+      {
+        "id": "NKpfsHY7UBQvlMx9lbRA",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "envelopeId": "NKpfsHY7UBQvlMx9lbRA",
+        "month": "2026-02",
+        "budgetedAmount": 100,
+        "createdAt": "2026-02-02T01:33:28.050Z",
+        "updatedAt": "2026-02-05T03:34:32.175Z"
+      }
+    ]
+  },
+  "incomeSources": {
+    "2026-02": [
+      {
+        "id": "inc_1769998836406_c2argic",
+        "userId": "loGJ7nYvnyUxEI6mgYwYskdE0493",
+        "amount": 18355.68,
+        "month": "2026-02",
+        "createdAt": "2026-02-02T02:20:36.406Z",
+        "name": "Pay",
+        "updatedAt": "2026-02-02T22:44:39.216Z"
+      }
+    ]
+  }
+}

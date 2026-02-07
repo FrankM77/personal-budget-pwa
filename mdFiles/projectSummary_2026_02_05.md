@@ -1,4 +1,4 @@
-# House Budget PWA: Project Summary - 2026-02-05
+# House Budget PWA: Project Summary - 2026-02-07
 
 ## Changelog (Highlights)
 - **2026-02-04**: **Major Feature: Categories**: Implemented full category support for organizing envelopes.
@@ -22,6 +22,13 @@
 - **2026-02-04**: **UI/UX Decluttering: Hidden Internal Transactions**: Improved the transaction history and envelope detail views by hiding auto-generated allocation transactions.
   - **Transaction List Filtering**: "Budgeted" and "Piggybank Contribution" transactions are now hidden from the Envelope Detail and All Transactions views.
   - **Cleaner CSV Exports**: These internal transactions are also excluded from CSV exports to ensure the data is focused on actual spending and income.
+- **2026-02-07**: **Major Feature: Siri Integration**: Implemented voice-powered transaction entry with AI parsing.
+  - **AI-Powered Parsing**: Firebase Cloud Function with Gemini AI parses natural language input into structured transaction data.
+  - **Regex Fallback**: Local parser ensures graceful degradation when offline or AI fails.
+  - **Payment Method Support**: Recognizes "with" or "using" to auto-select payment methods (e.g., "with Chase Amazon").
+  - **Fuzzy Envelope Matching**: AI matches common variations (e.g., "Grocery" → "Groceries").
+  - **Pre-filled Forms**: Amount, merchant, envelope, payment method, and transaction type are auto-populated.
+  - **iOS Shortcuts**: Users can create shortcuts to add transactions via Siri voice commands.
 
 ## 1. Executive Summary
 

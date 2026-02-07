@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Mic } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 import CardStack from '../components/ui/CardStack';
+import { useSiriQuery } from '../hooks/useSiriQuery';
 import type { PaymentSource } from '../models/types';
 import '../styles/CardStack.css';
 
@@ -14,12 +15,14 @@ interface AddTransactionViewProps {
 
 export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose, onSaved }) => {
   const navigate = useNavigate();
-  const { envelopes, addTransaction, currentMonth } = useBudgetStore();
+  const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
+  const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
   // Form state
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
+  const [siriPrefilled, setSiriPrefilled] = useState(false);
   // Initialize with LOCAL date string to ensure "today" is actually today for the user
   const [date, setDate] = useState(() => {
     const now = new Date();
@@ -31,6 +34,46 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
   const [hasUserSelectedPayment, setHasUserSelectedPayment] = useState(false);
+  const [siriEnvelopeId, setSiriEnvelopeId] = useState<string | null>(null);
+
+  // Pre-fill form when Siri parsed data arrives
+  useEffect(() => {
+    if (!parsedData || siriPrefilled) return;
+
+    if (parsedData.amount !== null) {
+      setAmount(parsedData.amount.toFixed(2));
+    }
+    if (parsedData.merchant) {
+      setMerchant(parsedData.merchant);
+    }
+    if (parsedData.description) {
+      setNote(parsedData.description);
+    }
+    if (parsedData.type) {
+      setTransactionType(parsedData.type === 'Income' ? 'income' : 'expense');
+    }
+    if (parsedData.envelopeId) {
+      setSiriEnvelopeId(parsedData.envelopeId);
+    }
+
+    // Payment method prefill (match against Settings payment sources)
+    if (parsedData.paymentMethodName && appSettings?.paymentSources?.length) {
+      const normalized = parsedData.paymentMethodName.toLowerCase();
+      const matched = appSettings.paymentSources.find((p) => {
+        const name = p.name.toLowerCase();
+        return name === normalized || name.includes(normalized) || normalized.includes(name);
+      });
+
+      if (matched) {
+        setSelectedPaymentMethod(matched);
+        // Do NOT mark as user-selected; this is a Siri prefill.
+        setHasUserSelectedPayment(false);
+      }
+    }
+
+    setSiriPrefilled(true);
+    console.log('🎙️ Siri: Pre-filled form with parsed data:', parsedData);
+  }, [parsedData, siriPrefilled, appSettings?.paymentSources]);
 
   const handleClose = () => {
     if (onClose) {
@@ -147,6 +190,35 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
           Save
         </button>
       </header>
+
+      {/* Siri Parsing Banner */}
+      {isParsing && (
+        <div className="mx-4 mt-3 p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl flex items-center gap-3">
+          <Mic size={18} className="text-purple-500 animate-pulse" />
+          <span className="text-sm text-purple-700 dark:text-purple-300">Parsing voice input...</span>
+        </div>
+      )}
+      {siriPrefilled && !isParsing && siriQuery && (
+        <div className="mx-4 mt-3 p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl">
+          <div className="flex items-center gap-2 mb-1">
+            <Mic size={14} className="text-purple-500" />
+            <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">Siri Shortcut</span>
+            {parsedData && (
+              <span className="ml-auto text-[10px] text-purple-500 dark:text-purple-400">
+                {Math.round(parsedData.confidence * 100)}% confidence
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-purple-600 dark:text-purple-400 italic truncate">"{siriQuery}"</p>
+          <button
+            type="button"
+            onClick={() => { clearParsedData(); setSiriPrefilled(false); }}
+            className="text-[10px] text-purple-500 dark:text-purple-400 underline mt-1"
+          >
+            Clear pre-filled data
+          </button>
+        </div>
+      )}
 
       <div className="p-4 max-w-4xl mx-auto pb-[calc(8rem+env(safe-area-inset-bottom))]">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -272,6 +344,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
               envelopes={sortedEnvelopes}
               transactionAmount={parseFloat(amount) || 0}
               onSplitChange={setSplitAmounts}
+              initialSelectedEnvelopeId={siriEnvelopeId}
             />
           </div>
         </form>

@@ -5,14 +5,28 @@ interface SplitTransactionHelperProps {
   envelopes: Envelope[];
   transactionAmount: number;
   onSplitChange: (splits: Record<string, number>) => void;
+  initialSelectedEnvelopeId?: string | null;
 }
 
 export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
   envelopes,
   transactionAmount,
-  onSplitChange
+  onSplitChange,
+  initialSelectedEnvelopeId
 }) => {
   const [selectedEnvelopes, setSelectedEnvelopes] = useState<string[]>([]);
+  const [hasAppliedInitial, setHasAppliedInitial] = useState(false);
+
+  // Auto-select envelope from Siri pre-fill
+  useEffect(() => {
+    if (initialSelectedEnvelopeId && !hasAppliedInitial) {
+      const exists = envelopes.some(e => e.id === initialSelectedEnvelopeId);
+      if (exists) {
+        setSelectedEnvelopes([initialSelectedEnvelopeId]);
+        setHasAppliedInitial(true);
+      }
+    }
+  }, [initialSelectedEnvelopeId, envelopes, hasAppliedInitial]);
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
   const [remaining, setRemaining] = useState(transactionAmount);
 
