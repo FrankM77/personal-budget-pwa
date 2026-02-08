@@ -18,11 +18,66 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
+  // Check for Siri data from sessionStorage (for webapp URL scheme handling)
+  useEffect(() => {
+    const storedSiriData = sessionStorage.getItem('siriParsedData');
+    const storedSiriQuery = sessionStorage.getItem('siriQuery');
+    
+    if (storedSiriData && storedSiriQuery && !parsedData && !siriQuery) {
+      try {
+        const data = JSON.parse(storedSiriData);
+        console.log('🎙️ Siri: Loaded stored data from sessionStorage:', data);
+        
+        // Manually set the parsed data as if it came from the hook
+        if (data.amount !== null) {
+          setAmount(data.amount.toFixed(2));
+        }
+        if (data.merchant) {
+          setMerchant(data.merchant);
+        }
+        if (data.description) {
+          setNote(data.description);
+        }
+        if (data.type) {
+          setTransactionType(data.type === 'Income' ? 'income' : 'expense');
+        }
+        if (data.envelopeId) {
+          setSiriEnvelopeId(data.envelopeId);
+        }
+
+        // Payment method prefill
+        if (data.paymentMethodName && appSettings?.paymentSources?.length) {
+          const normalized = data.paymentMethodName.toLowerCase();
+          const matched = appSettings.paymentSources.find((p) => {
+            const name = p.name.toLowerCase();
+            return name === normalized || name.includes(normalized) || normalized.includes(name);
+          });
+
+          if (matched) {
+            setSelectedPaymentMethod(matched);
+            setHasUserSelectedPayment(false);
+          }
+        }
+
+        setSiriPrefilled(true);
+        setStoredSiriQueryText(storedSiriQuery);
+        console.log('🎙️ Siri: Pre-filled form from sessionStorage');
+        
+        // Clear sessionStorage after using
+        sessionStorage.removeItem('siriParsedData');
+        sessionStorage.removeItem('siriQuery');
+      } catch (error) {
+        console.error('🎙️ Siri: Failed to parse stored data:', error);
+      }
+    }
+  }, [parsedData, siriQuery, appSettings?.paymentSources]);
+
   // Form state
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [note, setNote] = useState('');
   const [siriPrefilled, setSiriPrefilled] = useState(false);
+  const [storedSiriQueryText, setStoredSiriQueryText] = useState<string | null>(null);
   // Initialize with LOCAL date string to ensure "today" is actually today for the user
   const [date, setDate] = useState(() => {
     const now = new Date();
@@ -199,7 +254,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
           <span className="text-sm text-purple-700 dark:text-purple-300">Parsing voice input...</span>
         </div>
       )}
-      {siriPrefilled && !isParsing && siriQuery && (
+      {siriPrefilled && !isParsing && (siriQuery || storedSiriQueryText) && (
         <div className="mx-4 mt-3 p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl">
           <div className="flex items-center gap-2 mb-1">
             <Mic size={14} className="text-purple-500" />
@@ -210,10 +265,10 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
               </span>
             )}
           </div>
-          <p className="text-xs text-purple-600 dark:text-purple-400 italic truncate">"{siriQuery}"</p>
+          <p className="text-xs text-purple-600 dark:text-purple-400 italic truncate">"{siriQuery || storedSiriQueryText}"</p>
           <button
             type="button"
-            onClick={() => { clearParsedData(); setSiriPrefilled(false); }}
+            onClick={() => { clearParsedData(); setSiriPrefilled(false); setStoredSiriQueryText(null); }}
             className="text-[10px] text-purple-500 dark:text-purple-400 underline mt-1"
           >
             Clear pre-filled data

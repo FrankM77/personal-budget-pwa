@@ -1,22 +1,25 @@
 # Siri Integration Strategy for Personal Budget PWA
 
-**Status:** ✅ Complete (v1.7.0) - Both Frontend & Backend Deployed
+**Status:** ✅ Complete (v1.8.0) - Full End-to-End Working
 **Complexity:** Medium (Code) / High (User Setup)
 
 ---
 
 ## Overview
-Since we are building a PWA (web app) and not a native iOS app (Swift), we cannot "register" a Siri Intent directly. We use a **URL Scheme** workaround via the Apple Shortcuts App.
+Since we are building a PWA (web app) and not a native iOS app (Swift), we cannot "register" a Siri Intent directly. We use a **Cloud Function + Firestore** approach to overcome iOS URL scheme limitations.
 
-## The Architecture: "The Deep Link Trick"
+## The Architecture: "Cloud Function Bridge"
 
-### The Workflow
+### The Workflow (Final Working Version)
 1.  **User:** Says "Hey Siri, Add Transaction..."
 2.  **Siri:** Asks "What's the text?"
 3.  **User:** "Grocery transaction at Walmart for $33.28 with Chase Amazon"
-4.  **Shortcuts App:** Takes that text and opens a specific URL:
-    `https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=Grocery%20transaction%20at%20Walmart%20for%20$33.28%20with%20Chase%20Amazon`
-5.  **Your App:** Opens, reads the `?query=`, parses it via AI (with regex fallback), and pre-fills the "Add Transaction" form.
+4.  **Shortcuts App:** 
+    - **URL** action builds: `https://us-central1-personal-budget-pwa-5defb.cloudfunctions.net/siriStoreQuery?query=[Ask for Input]&token=[USER_TOKEN]`
+    - **Get Contents of URL** calls the Cloud Function (stores query in Firestore)
+    - **Wait** 3 seconds
+    - **URL** + **Open URL**: `webapp://frankm77.github.io/personal-budget-pwa/`
+5.  **PWA:** Opens, checks Firestore for pending query, parses it, and pre-fills the Add Transaction form
 6.  **User:** Reviews pre-filled form and hits "Save".
 
 ---
@@ -30,17 +33,20 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 | `src/utils/smartTransactionParser.ts` | Regex-based NLP parser (fallback) — extracts amount, merchant, envelope, payment method, and transaction type from natural language |
 | `src/services/SiriService.ts` | Service layer — calls Firebase Cloud Function for AI parsing, falls back to regex parser if offline or on failure |
 | `src/hooks/useSiriQuery.ts` | React hook — detects `?query=` URL parameter, triggers parsing, returns pre-filled data |
-| `src/views/AddTransactionView.tsx` | Updated — consumes parsed data to pre-fill amount, merchant, note, type, envelope, and payment method |
-| `src/components/SplitTransactionHelper.tsx` | Updated — accepts `initialSelectedEnvelopeId` prop for Siri auto-selection |
+| `src/components/SiriQueryHandler.tsx` | NEW: Checks Firestore for pending Siri queries on mount and visibility change, stores parsed data in sessionStorage, navigates to /add-transaction |
+| `src/views/AddTransactionView.tsx` | Updated — reads parsed data from sessionStorage, pre-fills amount, merchant, note, type, envelope, and payment method |
+| `src/views/SettingsView.tsx` | Updated — UI to generate and copy a unique Siri token for use in Shortcuts |
+| `src/models/types.ts` | Updated — added `siriToken?: string` to AppSettings interface |
+| `src/stores/budgetStore.ts` | Updated — `updateAppSettings` now includes `siriToken` in local state update |
 
-#### How It Works (Frontend Flow)
-1. User navigates to `/#/add-transaction?query=...`
-2. `useSiriQuery` hook detects the `?query=` param
-3. If online: calls `SiriService.parseWithAI()` → Firebase Cloud Function
-4. If offline or AI fails: falls back to `smartTransactionParser.parseTransactionText()`
-5. Parsed result pre-fills: amount, merchant, note, transaction type, envelope, payment method
-6. Purple "Siri Shortcut" banner shows the original query and confidence score
-7. User reviews and saves
+#### How It Works (Final Flow)
+1. **Siri Shortcut** calls Cloud Function → stores query in Firestore `siriQueries` collection
+2. **PWA opens** via `webapp://` scheme
+3. **SiriQueryHandler** polls Firestore (1s, 3s, 6s) and re-checks on visibility/focus events
+4. **Query found** → deletes doc, parses via `parseSiriQuery()`, stores result in sessionStorage
+5. **Navigate** to `/add-transaction`
+6. **AddTransactionView** reads from sessionStorage, pre-fills form, shows purple Siri banner
+7. **User** reviews and saves
 
 #### Regex Fallback Parser Capabilities
 - Extracts dollar amounts: `$33.28`, `33.28`, `33 dollars`
@@ -52,7 +58,9 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 
 ### ✅ Backend (Complete — Deployed)
 
-The Firebase Cloud Function `parseTransaction` has been deployed with Gemini AI integration. This provides superior parsing compared to the regex fallback.
+Two Firebase Cloud Functions deployed:
+- `parseTransaction`: AI-powered transaction parsing with Gemini (for useSiriQuery hook)
+- `siriStoreQuery`: HTTP endpoint for Siri Shortcuts to store queries in Firestore (NEW)
 
 ---
 
@@ -189,22 +197,32 @@ https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=Spent%204
 ### Step 7: Create the Apple Shortcut (Complete)
 
 Create an iOS Shortcut with these actions:
-1. **Ask for Input** → "What's the transaction?" (type: Text)
-2. **URL** → `https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=[Ask for Input]`
-3. **Open URLs**
+1. **Ask for Text** → "What's the transaction?"
+2. **URL** → `https://us-central1-personal-budget-pwa-5defb.cloudfunctions.net/siriStoreQuery?query=[Ask for Text]&token=[USER_TOKEN]`
+   - IMPORTANT: Use the **URL** action (🔗), not Text action
+   - Insert variables as blue/orange pills, not literal text
+3. **Get Contents of URL** → `[URL]` (output from step 2)
+4. **Wait** → 3 seconds
+5. **URL** → `webapp://frankm77.github.io/personal-budget-pwa/`
+6. **Open URL** → `[URL]` (output from step 5)
+
+**Get your USER_TOKEN:**
+- Open PWA → Settings → Siri Integration
+- Tap "Generate Siri Token" 
+- Copy the token and paste it into step 2
 
 Name it "Add Transaction" so the user can say: **"Hey Siri, Add Transaction"**
 
-**Note:** iOS may open the URL in Safari instead of the installed PWA. This is a known limitation of iOS PWA deep linking. The functionality works perfectly—only the app container behavior varies.
-
-Optionally, share via iCloud link so users can install with one tap.
+**Why this works:** The Cloud Function stores the query in Firestore, bypassing iOS URL scheme limitations. The PWA then retrieves and processes the query.
 
 ---
 
 ## Security & Rate Limiting
 
 ### Firebase Security Rules
-The Cloud Function requires authentication (`request.auth` check). Only logged-in users can call it.
+- `parseTransaction`: Requires authentication (`request.auth` check)
+- `siriStoreQuery`: No auth required (public endpoint for Siri), but queries are tied to user tokens
+- Firestore rules allow users to read/delete their own `siriQueries` documents by token
 
 ### Rate Limiting (Recommended)
 Add rate limiting in the Cloud Function to prevent abuse:

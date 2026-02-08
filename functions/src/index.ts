@@ -1,6 +1,9 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { VertexAI } from '@google-cloud/vertexai';
+import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+
+initializeApp();
 
 // Rate limiting: Track calls per user per minute
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
@@ -58,6 +61,48 @@ const vertexAI = new VertexAI({
 
 const model = vertexAI.getGenerativeModel({
   model: 'gemini-2.0-flash',
+});
+
+/**
+ * HTTP endpoint for Siri Shortcuts to store a transaction query.
+ * Called via "Get Contents of URL" action (no auth required).
+ * Stores the query in Firestore with a device token for the PWA to retrieve.
+ */
+export const siriStoreQuery = onRequest({ cors: true }, async (req, res) => {
+  console.log('siriStoreQuery called:', req.method, JSON.stringify(req.query), JSON.stringify(req.body));
+
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.status(405).send('Method not allowed');
+    return;
+  }
+
+  const query = req.query.query as string || (req.body && req.body.query);
+  const deviceToken = req.query.token as string || (req.body && req.body.token);
+
+  if (!query || !deviceToken) {
+    console.log('Missing params. query:', query, 'token:', deviceToken);
+    res.status(400).json({ error: 'Missing query or token parameter', receivedQuery: !!query, receivedToken: !!deviceToken });
+    return;
+  }
+
+  if (query.length > 500) {
+    res.status(400).json({ error: 'Query too long' });
+    return;
+  }
+
+  try {
+    const db = getFirestore();
+    await db.collection('siriQueries').doc(deviceToken).set({
+      query: query,
+      timestamp: Date.now(),
+      consumed: false,
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error: any) {
+    console.error('siriStoreQuery error:', error);
+    res.status(500).json({ error: 'Failed to store query' });
+  }
 });
 
 export const parseTransaction = onCall(async (request) => {

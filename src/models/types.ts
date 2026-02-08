@@ -85,6 +85,7 @@ export interface AppSettings {
   fontSize?: 'extra-small' | 'small' | 'medium' | 'large' | 'extra-large';
   enableMoveableReorder?: boolean;
   paymentSources?: PaymentSource[];
+  siriToken?: string;
 }
 
 // Zero-Based Budgeting Types

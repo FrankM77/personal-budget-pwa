@@ -701,6 +701,45 @@ export const SettingsView: React.FC = () => {
           </div>
         </section>
 
+        {/* Siri Integration */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider px-4 mb-2">Siri Integration</h2>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800">
+            <div className="p-4">
+              <p className="text-sm text-gray-600 dark:text-zinc-400 mb-3">
+                Use this token in your Siri Shortcut to add transactions by voice.
+              </p>
+              {appSettings?.siriToken ? (
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-gray-100 dark:bg-zinc-800 px-3 py-2 rounded-lg text-sm font-mono text-gray-900 dark:text-white select-all">
+                    {appSettings.siriToken}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(appSettings.siriToken!);
+                      showStatus('success', 'Token copied to clipboard');
+                    }}
+                    className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    Copy
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+                    await updateAppSettings({ siriToken: token });
+                    showStatus('success', 'Siri token generated');
+                  }}
+                  className="w-full py-2 px-4 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors"
+                >
+                  Generate Siri Token
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* App Version */}
         <div className="text-center py-4">
                       <p className="text-xs text-gray-400 dark:text-zinc-500">Version {__APP_VERSION__} (PWA)</p>        </div>

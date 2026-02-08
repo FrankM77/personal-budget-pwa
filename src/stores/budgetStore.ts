@@ -1053,7 +1053,8 @@ export const useBudgetStore = create<BudgetState>()(
                     theme: settings.theme ?? state.appSettings?.theme ?? 'system',
                     fontSize: settings.fontSize ?? state.appSettings?.fontSize ?? 'medium',
                     enableMoveableReorder: settings.enableMoveableReorder ?? state.appSettings?.enableMoveableReorder ?? true,
-                    paymentSources: settings.paymentSources ?? state.appSettings?.paymentSources ?? []
+                    paymentSources: settings.paymentSources ?? state.appSettings?.paymentSources ?? [],
+                    siriToken: settings.siriToken ?? state.appSettings?.siriToken
                 };
                 
                 // Only include userId if it has a value

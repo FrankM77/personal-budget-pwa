@@ -11,6 +11,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Siri queries - authenticated users can read/delete their own token's document
+    match /siriQueries/{tokenId} {
+      allow read, delete: if isAuthenticated();
+    }
+
     // Users collection - each user can only access their own subcollections
     match /users/{userId} {
       // Allow users to read/write their own user document

@@ -9,6 +9,7 @@ import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNavigation } from './components/BottomNavigation';
 import { AppRoutes } from './components/AppRoutes';
+import { SiriQueryHandler } from './components/SiriQueryHandler';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
 import { AddTransactionView } from './views/AddTransactionView';
@@ -205,6 +206,7 @@ function App() {
       )}
 
       <HashRouter>
+        <SiriQueryHandler />
         <AppRoutes />
 
         {showAddTransactionModal && (
