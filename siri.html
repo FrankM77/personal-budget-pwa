@@ -40,12 +40,13 @@
         // Store in localStorage — shared between Safari and the PWA (same origin)
         localStorage.setItem('siriQuery', query);
         localStorage.setItem('siriQueryTimestamp', String(Date.now()));
+        document.querySelector('p').textContent = 'Transaction saved! Opening app...';
       }
 
-      // Open the PWA via webapp:// scheme after a brief delay to ensure write completes
+      // Try to close this tab / go back so the Shortcut can continue
       setTimeout(function() {
-        window.location.href = 'webapp://frankm77.github.io/personal-budget-pwa/';
-      }, 400);
+        window.close();
+      }, 500);
     })();
   </script>
 </body>
