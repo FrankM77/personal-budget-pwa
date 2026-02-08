@@ -1,5 +1,55 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { VertexAI } from '@google-cloud/vertexai';
+import { getFirestore } from 'firebase-admin/firestore';
+
+// Rate limiting: Track calls per user per minute
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
+const RATE_LIMIT_MAX_CALLS = 30; // Max 30 calls per minute per user
+
+async function checkRateLimit(userId: string): Promise<void> {
+  const db = getFirestore();
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW;
+  
+  // Clean up old entries and count recent calls
+  const callsRef = db.collection('rateLimits').doc(userId);
+  const doc = await callsRef.get();
+  
+  if (!doc.exists) {
+    // First call - initialize
+    await callsRef.set({
+      calls: [{ timestamp: now }],
+      lastReset: now
+    });
+    return;
+  }
+  
+  const data = doc.data();
+  if (!data) {
+    // First call - initialize
+    await callsRef.set({
+      calls: [{ timestamp: now }],
+      lastReset: now
+    });
+    return;
+  }
+  
+  const recentCalls = (data.calls || []).filter((call: any) => 
+    call.timestamp > windowStart
+  );
+  
+  if (recentCalls.length >= RATE_LIMIT_MAX_CALLS) {
+    throw new HttpsError('resource-exhausted', 
+      `Rate limit exceeded. Maximum ${RATE_LIMIT_MAX_CALLS} calls per minute. Please try again later.`);
+  }
+  
+  // Add current call and clean up old ones
+  recentCalls.push({ timestamp: now });
+  await callsRef.update({
+    calls: recentCalls,
+    lastReset: now
+  });
+}
 
 const vertexAI = new VertexAI({
   project: process.env.GCLOUD_PROJECT || 'your-project-id',
@@ -16,10 +66,18 @@ export const parseTransaction = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Must be logged in to parse transactions.');
   }
 
+  // Check rate limiting
+  await checkRateLimit(request.auth.uid);
+
   const { text, userEnvelopes } = request.data;
 
   if (!text || typeof text !== 'string') {
     throw new HttpsError('invalid-argument', 'Missing or invalid "text" field.');
+  }
+
+  // Add input length validation
+  if (text.length > 500) {
+    throw new HttpsError('invalid-argument', 'Text input too long. Maximum 500 characters allowed.');
   }
 
   if (!userEnvelopes || !Array.isArray(userEnvelopes)) {
