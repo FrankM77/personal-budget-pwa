@@ -32,22 +32,21 @@
     <p>Opening Budget App...</p>
   </div>
   <script>
-    // Extract the query parameter from the URL
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('query');
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var query = params.get('query');
 
-    if (query) {
-      // Store the Siri query in localStorage so the PWA can pick it up
-      localStorage.setItem('siriQuery', query);
-      localStorage.setItem('siriQueryTimestamp', Date.now().toString());
-      console.log('Siri: Stored query in localStorage:', query);
-    }
+      if (query) {
+        // Store in localStorage — shared between Safari and the PWA (same origin)
+        localStorage.setItem('siriQuery', query);
+        localStorage.setItem('siriQueryTimestamp', String(Date.now()));
+      }
 
-    // Redirect to the PWA using webapp:// scheme
-    // Small delay to ensure localStorage is written
-    setTimeout(function() {
-      window.location.href = 'webapp://frankm77.github.io/personal-budget-pwa/';
-    }, 300);
+      // Open the PWA via webapp:// scheme after a brief delay to ensure write completes
+      setTimeout(function() {
+        window.location.href = 'webapp://frankm77.github.io/personal-budget-pwa/';
+      }, 400);
+    })();
   </script>
 </body>
 </html>
