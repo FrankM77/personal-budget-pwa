@@ -47,14 +47,21 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
     }));
   };
 
+  const prevEnvelopeCount = React.useRef(selectedEnvelopes.length);
+
   useEffect(() => {
-    // If only one envelope is selected, automatically assign the full amount to it.
-    // If multiple envelopes are selected, we keep the existing splitAmounts or let the user edit.
     if (selectedEnvelopes.length === 1) {
+      // Single envelope: auto-assign the full amount
       const envelopeId = selectedEnvelopes[0];
       setSplitAmounts({ [envelopeId]: transactionAmount });
+    } else if (selectedEnvelopes.length > 1 && prevEnvelopeCount.current <= 1) {
+      // Transitioning from 0 or 1 envelope to multiple: reset all to 0
+      const zeroed: Record<string, number> = {};
+      selectedEnvelopes.forEach(id => { zeroed[id] = 0; });
+      setSplitAmounts(zeroed);
     }
-  }, [selectedEnvelopes.length, transactionAmount]);
+    prevEnvelopeCount.current = selectedEnvelopes.length;
+  }, [selectedEnvelopes.length, selectedEnvelopes, transactionAmount]);
 
   useEffect(() => {
     // Calculate remaining amount

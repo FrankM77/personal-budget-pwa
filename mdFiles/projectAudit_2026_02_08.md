@@ -43,8 +43,8 @@ Google has already flagged this — you received the email: *"Publicly Accessibl
 
 | Action | Priority | Effort |
 |--------|----------|--------|
-| **Add rate limiting** to the Cloud Function. Currently any authenticated user could call `parseTransaction` thousands of times per minute, racking up Vertex AI charges. Add per-user rate limiting (e.g., max 30 calls/minute per user). | 🔴 Critical | 30 min |
-| **Add input length validation** — the `text` field is only checked for existence, not length. A malicious user could send megabytes of text to Gemini. Add `if (text.length > 500) throw new HttpsError(...)`. | 🟠 High | 5 min |
+| ~~**Add rate limiting** to the Cloud Function. Currently any authenticated user could call `parseTransaction` thousands of times per minute, racking up Vertex AI charges. Add per-user rate limiting (e.g., max 30 calls/minute per user).~~ | ~~🔴 Critical~~ | ~~30 min~~ | ✅ **COMPLETED** - Rate limiting implemented: 30 calls/minute per user with Firestore-based tracking and cleanup |
+| ~~**Add input length validation** — the `text` field is only checked for existence, not length. A malicious user could send megabytes of text to Gemini. Add `if (text.length > 500) throw new HttpsError(...)`.~~ | ~~🟠 High~~ | ~~5 min~~ | ✅ **COMPLETED** - Input length validation (500 char limit) implemented in both `siriStoreQuery` and `parseTransaction` functions |
 | **Pin the Gemini model version** — `gemini-2.0-flash` may change behavior on updates. Pin to a specific stable version for consistency. | 🟡 Medium | 5 min |
 
 ### 1C. Firestore Security Rules

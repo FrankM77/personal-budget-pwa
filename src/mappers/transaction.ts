@@ -15,6 +15,7 @@ export interface FirestoreTransaction {
   userId: string;
   reconciled?: boolean;
   transferId?: string | null;
+  splitGroupId?: string | null;
   isAutomatic?: boolean;
   paymentMethod?: string | {
     id: string;
@@ -70,6 +71,7 @@ export const fromFirestore = (doc: any): Transaction => {
     type: toTitleCaseType(data.type || 'expense'),
     reconciled: data.reconciled ?? false,
     transferId: data.transferId || undefined,
+    splitGroupId: data.splitGroupId || undefined,
     isAutomatic: data.isAutomatic || undefined,
     paymentMethod: data.paymentMethod ? 
       (typeof data.paymentMethod === 'string' ? {
@@ -139,6 +141,7 @@ export const transactionUpdatesToFirestore = (tx: Transaction): Omit<FirestoreTr
     reconciled: tx.reconciled ?? false,
     type: toLowerCaseType(tx.type),
     transferId: tx.transferId ?? null,
+    splitGroupId: tx.splitGroupId ?? null,
   };
   
   // Only include isAutomatic if it's explicitly true

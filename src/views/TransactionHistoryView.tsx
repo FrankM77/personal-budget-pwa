@@ -159,7 +159,61 @@ export const TransactionHistoryView: React.FC = () => {
       type: t.type
     }))
   });
-  
+
+  // Group split transactions: transactions sharing a splitGroupId appear as one row
+  // with the total amount and a comma-separated list of envelope names
+  type DisplayRow = {
+    key: string; // unique key for React
+    transaction: Transaction; // primary transaction (first in group, used for display)
+    totalAmount: number; // sum of all split parts
+    envelopeNames: string; // comma-separated envelope names
+    splitTransactions: Transaction[]; // all transactions in the group
+    isSplitGroup: boolean;
+  };
+
+  const displayRows: DisplayRow[] = useMemo(() => {
+    const rows: DisplayRow[] = [];
+    const processedSplitGroups = new Set<string>();
+
+    for (const tx of filteredTransactions) {
+      // If this transaction has a splitGroupId and we haven't processed this group yet
+      if (tx.splitGroupId && !processedSplitGroups.has(tx.splitGroupId)) {
+        processedSplitGroups.add(tx.splitGroupId);
+
+        // Find ALL transactions in this split group (from the full filtered list)
+        const groupTxs = filteredTransactions.filter(t => t.splitGroupId === tx.splitGroupId);
+        const totalAmount = groupTxs.reduce((sum, t) => sum + t.amount, 0);
+        const envNames = groupTxs
+          .map(t => envelopes.find(e => e.id === t.envelopeId)?.name || 'Unknown')
+          .join(', ');
+
+        rows.push({
+          key: `split-${tx.splitGroupId}`,
+          transaction: tx,
+          totalAmount,
+          envelopeNames: envNames,
+          splitTransactions: groupTxs,
+          isSplitGroup: true,
+        });
+      } else if (tx.splitGroupId && processedSplitGroups.has(tx.splitGroupId)) {
+        // Skip — already grouped
+        continue;
+      } else {
+        // Regular (non-split) transaction
+        const envName = envelopes.find(e => e.id === tx.envelopeId)?.name || 'Unknown Envelope';
+        rows.push({
+          key: tx.id,
+          transaction: tx,
+          totalAmount: tx.amount,
+          envelopeNames: envName,
+          splitTransactions: [tx],
+          isSplitGroup: false,
+        });
+      }
+    }
+
+    return rows;
+  }, [filteredTransactions, envelopes]);
 
   // Helper for Modal
   const activeEnvelope = editingTransaction 
@@ -381,47 +435,56 @@ export const TransactionHistoryView: React.FC = () => {
       {/* --- Transaction List --- */}
       <div className="p-4 max-w-4xl mx-auto">
         <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
-          {filteredTransactions.length === 0 ? (
+          {displayRows.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-zinc-500">
               No transactions match your filters.
             </div>
           ) : (
-            // WRAPPER 1: AnimatePresence allows items to animate OUT when removed
             <AnimatePresence initial={false} mode="popLayout">
-              {filteredTransactions.map((transaction) => {
-                const env = envelopes.find(e => e.id === transaction.envelopeId);
+              {displayRows.map((row) => {
+                const primaryTx = row.transaction;
                 return (
-                  // WRAPPER 2: Motion Div handles the collapse animation (height -> 0)
                   <motion.div
-                    key={transaction.id}
+                    key={row.key}
                     layout
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {/* WRAPPER 3: SwipeableRow handles the gesture */}
                     <SwipeableRow 
-                      disabled={transaction.isAutomatic}
+                      disabled={primaryTx.isAutomatic}
                       onDelete={() => {
-                        if (!transaction.id) return;
-                        const transactionToDelete = { ...transaction }; // Create a copy
-                        deleteTransaction(transaction.id);
+                        // Delete all transactions in the group
+                        const txsToDelete = row.splitTransactions.map(t => ({ ...t }));
+                        for (const tx of row.splitTransactions) {
+                          if (tx.id) deleteTransaction(tx.id);
+                        }
                         showToast(
-                          'Transaction deleted',
+                          row.isSplitGroup ? 'Split transaction deleted' : 'Transaction deleted',
                           'neutral',
-                          () => restoreTransaction(transactionToDelete)
+                          () => {
+                            for (const tx of txsToDelete) {
+                              restoreTransaction(tx);
+                            }
+                          }
                         );
                       }}
                     >
                       <EnvelopeTransactionRow
-                        transaction={transaction}
-                        envelopeName={env?.name || 'Unknown Envelope'}
-                        onReconcile={() => handleReconcile(transaction)}
+                        transaction={{ ...primaryTx, amount: row.totalAmount }}
+                        envelopeName={row.envelopeNames}
+                        onReconcile={() => {
+                          // Reconcile all transactions in the group
+                          for (const tx of row.splitTransactions) {
+                            handleReconcile(tx);
+                          }
+                        }}
                         onEdit={() => {
-                          if (transaction.isAutomatic) return;
+                          if (primaryTx.isAutomatic) return;
+                          const env = envelopes.find(e => e.id === primaryTx.envelopeId);
                           if (env) {
-                            setEditingTransaction(transaction);
+                            setEditingTransaction(primaryTx);
                           } else {
                             alert("Cannot edit: Envelope deleted.");
                           }

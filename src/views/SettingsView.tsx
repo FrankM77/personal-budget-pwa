@@ -168,10 +168,30 @@ export const SettingsView: React.FC = () => {
     try {
       const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
 
-      const rows = transactions
-        .filter(t => t.description !== 'Budgeted' && t.description !== 'Piggybank Contribution')
-        .map((t) => {
-          const envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
+      // Group split transactions for CSV export (same logic as TransactionHistoryView)
+      const filtered = transactions.filter(t => t.description !== 'Budgeted' && t.description !== 'Piggybank Contribution');
+      const processedSplitGroups = new Set<string>();
+      const rows: string[] = [];
+
+      for (const t of filtered) {
+        let amount: number;
+        let envName: string;
+        let reconciled: boolean;
+
+        if (t.splitGroupId && !processedSplitGroups.has(t.splitGroupId)) {
+          processedSplitGroups.add(t.splitGroupId);
+          const groupTxs = filtered.filter(tx => tx.splitGroupId === t.splitGroupId);
+          amount = groupTxs.reduce((sum, tx) => sum + tx.amount, 0);
+          envName = groupTxs.map(tx => envelopes.find(e => e.id === tx.envelopeId)?.name || 'Unknown').join(', ');
+          reconciled = groupTxs.every(tx => tx.reconciled);
+        } else if (t.splitGroupId && processedSplitGroups.has(t.splitGroupId)) {
+          continue; // Already included in a group
+        } else {
+          amount = t.amount;
+          envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
+          reconciled = t.reconciled;
+        }
+
         const safeMerchant = (t.merchant || '').replace(/"/g, '""');
         const safeNotes = (t.description || '').replace(/"/g, '""');
         
@@ -190,17 +210,17 @@ export const SettingsView: React.FC = () => {
             dateStr = new Date(ts).toISOString().split('T')[0];
           }
         }
-        return [
+        rows.push([
           dateStr,
           `"${safeMerchant}"`, 
           `"${safePaymentMethod}"`,
           `"${safeNotes}"`, 
-          (t.amount as number).toFixed(2),
+          amount.toFixed(2),
           t.type,
           `"${envName}"`, 
-          t.reconciled ? 'Yes' : 'No',
-        ].join(',');
-      });
+          reconciled ? 'Yes' : 'No',
+        ].join(','));
+      }
 
       const csvContent = [headers.join(','), ...rows].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

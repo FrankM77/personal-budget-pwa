@@ -180,6 +180,9 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
       // Create a transaction for each split
       const splitEntries = Object.entries(splitAmounts).filter(([_, amt]) => amt > 0);
       
+      // Generate a shared splitGroupId if splitting across multiple envelopes
+      const splitGroupId = splitEntries.length > 1 ? crypto.randomUUID() : undefined;
+
       // Fire-and-forget: Create transactions in background
       // The optimistic updates will show them immediately
       Promise.all(
@@ -192,7 +195,8 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
             envelopeId,
             type: transactionType === 'income' ? 'Income' : 'Expense',
             reconciled: false,
-            paymentMethod: selectedPaymentMethod || undefined
+            paymentMethod: selectedPaymentMethod || undefined,
+            splitGroupId
           }).catch(err => console.error('Failed to create transaction:', err))
         )
       ).catch(err => console.error('Failed to create transactions:', err));

@@ -17,6 +17,7 @@ export interface Transaction {
   reconciled: boolean;
   type: TransactionType;
   transferId?: string; // Links two sides of a transfer
+  splitGroupId?: string; // Links split transaction parts together
   userId?: string;
   month?: string; // Format: "2025-01" for monthly budgeting
   isAutomatic?: boolean; // True for piggybank auto-contributions
