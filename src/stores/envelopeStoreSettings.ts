@@ -1,5 +1,6 @@
 import { AppSettingsService } from '../services/AppSettingsService';
 import type { AppSettings } from '../models/types';
+import logger from '../utils/logger';
 
 type SliceParams = {
   set: (partial: any) => void;
@@ -26,10 +27,10 @@ export const createSettingsSlice = ({ set, get, getCurrentUserId }: SliceParams)
             set({ appSettings: updatedSettings });
             const userId = getCurrentUserId();
             await AppSettingsService.updateAppSettings(userId, newState.appSettings.id, settings);
-            console.log('✅ App settings updated successfully');
+            logger.log('✅ App settings updated successfully');
           }
         } catch (error) {
-          console.error('❌ Failed to initialize/update settings:', error);
+          logger.error('❌ Failed to initialize/update settings:', error);
         }
         return;
       }
@@ -41,9 +42,9 @@ export const createSettingsSlice = ({ set, get, getCurrentUserId }: SliceParams)
 
         const userId = getCurrentUserId();
         await AppSettingsService.updateAppSettings(userId, state.appSettings.id, settings);
-        console.log('✅ App settings updated successfully');
+        logger.log('✅ App settings updated successfully');
       } catch (error) {
-        console.error('❌ Failed to update app settings:', error);
+        logger.error('❌ Failed to update app settings:', error);
         // Revert on failure
         set((currentState: { appSettings: AppSettings }) => ({
           appSettings: currentState.appSettings
@@ -65,9 +66,9 @@ export const createSettingsSlice = ({ set, get, getCurrentUserId }: SliceParams)
 
         set({ appSettings: createdSettings });
 
-        console.log('✅ App settings initialized successfully');
+        logger.log('✅ App settings initialized successfully');
       } catch (error) {
-        console.error('❌ Failed to initialize app settings:', error);
+        logger.error('❌ Failed to initialize app settings:', error);
         // Set default settings locally if Firebase fails
         const userId = getCurrentUserId();
         set({

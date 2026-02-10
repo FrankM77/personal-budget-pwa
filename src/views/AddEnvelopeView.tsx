@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Folder, PiggyBank } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
+import logger from '../utils/logger';
 
 export const AddEnvelopeView: React.FC = () => {
   const { addEnvelope, setEnvelopeAllocation, currentMonth, categories, fetchCategories } = useBudgetStore();
@@ -80,7 +81,7 @@ export const AddEnvelopeView: React.FC = () => {
         // Start allocation creation (optimistic update happens immediately)
         const allocationAmount = isPiggybank ? parseFloat(monthlyContribution || '0') : 0;
         setEnvelopeAllocation(newEnvelopeId, allocationAmount).catch(err => 
-          console.error('Failed to create allocation:', err)
+          logger.error('Failed to create allocation:', err)
         );
         
         // Only navigate on successful creation
@@ -89,7 +90,7 @@ export const AddEnvelopeView: React.FC = () => {
         }, 50);
       }
     }).catch(err => {
-      console.error('Failed to create envelope:', err);
+      logger.error('Failed to create envelope:', err);
       showToast(err.message || 'Failed to create envelope', 'error');
       setIsSubmitting(false);
       // Don't navigate on error - let user try again

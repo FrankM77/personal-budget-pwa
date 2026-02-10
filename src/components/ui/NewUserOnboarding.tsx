@@ -18,6 +18,7 @@ import {
 import appIcon from '/icon-512.png';
 import budgetBalancedIcon from '/images/budget-balanced.png';
 import { useBudgetStore } from '../../stores/budgetStore';
+import logger from '../../utils/logger';
 
 interface NewUserOnboardingProps {
   currentMonth: string;
@@ -66,9 +67,9 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
 
   // Animate budget amount when animation key changes or when entering Step 5
   useEffect(() => {
-    console.log('Animation effect triggered:', { currentStep, animationKey });
+    logger.log('Animation effect triggered:', { currentStep, animationKey });
     if (currentStep === 5) { // Only animate on Step 5 (index 5) - Allocate Your Budget
-      console.log('Starting animation from $2500 to $0');
+      logger.log('Starting animation from $2500 to $0');
       setCurrentBudgetAmount(2500);
       
       // Phase 1: Animate to perfect budget (0-2 seconds)
@@ -81,16 +82,16 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
       const phase1Timer = setInterval(() => {
         currentStep++;
         const newAmount = Math.max(0, 2500 - (decrement * currentStep));
-        console.log('Phase 1 - Animation step:', currentStep, 'New amount:', newAmount);
+        logger.log('Phase 1 - Animation step:', currentStep, 'New amount:', newAmount);
         setCurrentBudgetAmount(newAmount);
         
         if (currentStep >= phase1Steps) {
           clearInterval(phase1Timer);
-          console.log('Phase 1 completed - Perfect budget reached');
+          logger.log('Phase 1 completed - Perfect budget reached');
           
           // Phase 2: Pause for 1 second, then show over-budget scenario
           setTimeout(() => {
-            console.log('Starting Phase 2 - Over budget demonstration');
+            logger.log('Starting Phase 2 - Over budget demonstration');
             
             // Phase 2: Animate to over budget (-$500) with red bar (3-5 seconds)
             let overBudgetStep = 0;
@@ -101,12 +102,12 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
             const phase2Timer = setInterval(() => {
               overBudgetStep++;
               const overBudgetAmount = -(overBudgetDecrement * overBudgetStep);
-              console.log('Phase 2 - Over budget step:', overBudgetStep, 'Over budget amount:', overBudgetAmount);
+              logger.log('Phase 2 - Over budget step:', overBudgetStep, 'Over budget amount:', overBudgetAmount);
               setCurrentBudgetAmount(overBudgetAmount);
               
               if (overBudgetStep >= overBudgetSteps) {
                 clearInterval(phase2Timer);
-                console.log('Animation completed - Over budget scenario demonstrated');
+                logger.log('Animation completed - Over budget scenario demonstrated');
               }
             }, overBudgetInterval);
           }, 1000); // 1 second pause
@@ -114,7 +115,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
       }, phase1Interval);
       
       return () => {
-        console.log('Cleaning up animation timers');
+        logger.log('Cleaning up animation timers');
         clearInterval(phase1Timer);
       };
     }

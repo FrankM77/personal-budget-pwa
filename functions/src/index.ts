@@ -105,32 +105,35 @@ export const siriStoreQuery = onRequest({ cors: true }, async (req, res) => {
   }
 });
 
-export const parseTransaction = onCall(async (request) => {
-  // Require authentication
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Must be logged in to parse transactions.');
-  }
+export const parseTransaction = onCall(
+  {
+    enforceAppCheck: true, // Reject requests with missing or invalid App Check tokens.
+  },
+  async (request) => {
+    // Require authentication
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Must be logged in to parse transactions.');
+    }
 
-  // Check rate limiting
-  await checkRateLimit(request.auth.uid);
+    // Check rate limiting
+    await checkRateLimit(request.auth.uid);
 
-  const { text, userEnvelopes } = request.data;
+    const { text, userEnvelopes } = request.data;
 
-  if (!text || typeof text !== 'string') {
-    throw new HttpsError('invalid-argument', 'Missing or invalid "text" field.');
-  }
+    if (!text || typeof text !== 'string') {
+      throw new HttpsError('invalid-argument', 'Missing or invalid "text" field.');
+    }
 
-  // Add input length validation
-  if (text.length > 500) {
-    throw new HttpsError('invalid-argument', 'Text input too long. Maximum 500 characters allowed.');
-  }
+    if (text.length > 500) {
+      throw new HttpsError('invalid-argument', 'Text input too long. Maximum 500 characters allowed.');
+    }
 
-  if (!userEnvelopes || !Array.isArray(userEnvelopes)) {
-    throw new HttpsError('invalid-argument', 'Missing or invalid "userEnvelopes" field.');
-  }
+    if (!userEnvelopes || !Array.isArray(userEnvelopes)) {
+      throw new HttpsError('invalid-argument', 'Missing or invalid "userEnvelopes" field.');
+    }
 
-  try {
-    const prompt = `You are a transaction parser for a budgeting app. Parse the following natural language input into structured transaction data.
+    try {
+      const prompt = `You are a transaction parser for a budgeting app. Parse the following natural language input into structured transaction data.
 
 Input: "${text}"
 

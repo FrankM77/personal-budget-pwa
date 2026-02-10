@@ -4,6 +4,7 @@ import { doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useBudgetStore } from '../stores/budgetStore';
 import { parseSiriQuery } from '../services/SiriService';
+import logger from '../utils/logger';
 
 /**
  * Checks Firestore for a pending Siri query (stored by the Cloud Function
@@ -37,12 +38,12 @@ export const SiriQueryHandler: React.FC = () => {
         try {
           await deleteDoc(docRef);
         } catch (err) {
-          console.error('Failed to cleanup stale Siri query', err);
+          logger.error('Failed to cleanup stale Siri query', err);
         }
         return;
       }
 
-      console.log('🎙️ Siri: Found pending query in Firestore:', data.query);
+      logger.log('🎙️ Siri: Found pending query in Firestore:', data.query);
       isProcessing.current = true;
 
       try {
@@ -51,7 +52,7 @@ export const SiriQueryHandler: React.FC = () => {
 
         // Parse the query
         const result = await parseSiriQuery(data.query, envelopes);
-        console.log('🎙️ Siri: Parsed result:', result);
+        logger.log('🎙️ Siri: Parsed result:', result);
 
         // Store in sessionStorage for AddTransactionView
         sessionStorage.setItem('siriParsedData', JSON.stringify(result));
@@ -65,12 +66,12 @@ export const SiriQueryHandler: React.FC = () => {
         // (handles the case where the component is already mounted)
         window.dispatchEvent(new CustomEvent('siri-query-ready'));
       } catch (error) {
-        console.error('🎙️ Siri: Error processing query:', error);
+        logger.error('🎙️ Siri: Error processing query:', error);
       } finally {
         isProcessing.current = false;
       }
     }, (error) => {
-      console.error('🎙️ Siri: Error listening for queries:', error);
+      logger.error('🎙️ Siri: Error listening for queries:', error);
     });
 
     return () => unsubscribe();

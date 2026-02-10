@@ -1,6 +1,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { Envelope } from '../models/types';
 import { parseTransactionText, type ParsedTransaction } from '../utils/smartTransactionParser';
+import logger from '../utils/logger';
 
 /**
  * SiriService handles parsing natural language transaction input.
@@ -30,7 +31,7 @@ export async function parseWithAI(
   const envelopeNames = activeEnvelopes.map(e => e.name);
 
   try {
-    console.log('🎙️ Siri: Calling Cloud Function to parse:', text);
+    logger.log('🎙️ Siri: Calling Cloud Function to parse:', text);
     
     const functions = getFunctions();
     const parseTransaction = httpsCallable<
@@ -44,7 +45,7 @@ export async function parseWithAI(
     });
 
     const data = response.data;
-    console.log('🎙️ Siri: Cloud Function response:', data);
+    logger.log('🎙️ Siri: Cloud Function response:', data);
 
     // Map the AI-returned envelope name back to an envelope ID
     let envelopeId: string | null = null;
@@ -71,7 +72,7 @@ export async function parseWithAI(
       confidence: 0.9, // AI parsing is high confidence
     };
   } catch (error: any) {
-    console.warn('🎙️ Siri: Cloud Function failed, falling back to regex parser:', error.message);
+    logger.warn('🎙️ Siri: Cloud Function failed, falling back to regex parser:', error.message);
     return parseTransactionText(text, envelopes);
   }
 }
@@ -84,7 +85,7 @@ export function parseLocally(
   text: string,
   envelopes: Envelope[]
 ): ParsedTransaction {
-  console.log('🎙️ Siri: Parsing locally with regex:', text);
+  logger.log('🎙️ Siri: Parsing locally with regex:', text);
   return parseTransactionText(text, envelopes);
 }
 
@@ -99,7 +100,7 @@ export async function parseSiriQuery(
   const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   if (isOffline) {
-    console.log('🎙️ Siri: Offline — using local parser');
+    logger.log('🎙️ Siri: Offline — using local parser');
     return parseLocally(text, envelopes);
   }
 

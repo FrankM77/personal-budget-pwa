@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
 import { useToastStore } from '../../stores/toastStore';
 import type { IncomeSource } from '../../models/types';
+import logger from '../../utils/logger';
 
 interface IncomeSourceModalProps {
   isVisible: boolean;
@@ -78,7 +79,7 @@ const IncomeSourceModal: React.FC<IncomeSourceModalProps> = ({
 
       onClose();
     } catch (error) {
-      console.error('Error saving income source:', error);
+      logger.error('Error saving income source:', error);
       showToast('Failed to save income source. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);

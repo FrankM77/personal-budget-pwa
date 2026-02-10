@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mic, X } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { parseSiriQuery } from '../services/SiriService';
+import logger from '../utils/logger';
 
 /**
  * Banner that appears when the PWA is opened from a Siri Shortcut.
@@ -46,17 +47,17 @@ export const SiriPasteBanner: React.FC = () => {
       const clipText = await navigator.clipboard.readText();
       
       if (!clipText || clipText.trim().length === 0) {
-        console.log('🎙️ Siri: Clipboard is empty');
+        logger.log('🎙️ Siri: Clipboard is empty');
         setShowBanner(false);
         setIsProcessing(false);
         return;
       }
 
-      console.log('🎙️ Siri: Read from clipboard:', clipText);
+      logger.log('🎙️ Siri: Read from clipboard:', clipText);
 
       // Parse the transaction
       const result = await parseSiriQuery(clipText, envelopes);
-      console.log('🎙️ Siri: Parsed result:', result);
+      logger.log('🎙️ Siri: Parsed result:', result);
 
       // Store in sessionStorage for AddTransactionView to pick up
       sessionStorage.setItem('siriParsedData', JSON.stringify(result));
@@ -66,7 +67,7 @@ export const SiriPasteBanner: React.FC = () => {
       navigate('/add-transaction');
       setShowBanner(false);
     } catch (error) {
-      console.error('🎙️ Siri: Failed to read clipboard or parse:', error);
+      logger.error('🎙️ Siri: Failed to read clipboard or parse:', error);
       setShowBanner(false);
     } finally {
       setIsProcessing(false);

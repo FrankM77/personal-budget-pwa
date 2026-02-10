@@ -3,6 +3,7 @@ import { Trash, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
 import type { Transaction, Envelope, PaymentSource } from '../../models/types';
+import logger from '../../utils/logger';
 import CardStack from '../ui/CardStack';
 import { SplitTransactionHelper } from '../SplitTransactionHelper';
 import '../../styles/CardStack.css';
@@ -61,11 +62,11 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         if (!isNaN(d.getTime())) {
           setDate(d.toISOString().split('T')[0]);
         } else {
-          console.warn('Invalid date in transaction:', initialTransaction.date);
+          logger.warn('Invalid date in transaction:', initialTransaction.date);
           setDate(new Date().toISOString().split('T')[0]);
         }
       } catch (error) {
-        console.error('Error parsing transaction date:', error);
+        logger.error('Error parsing transaction date:', error);
         setDate(new Date().toISOString().split('T')[0]);
       }
     } else {
@@ -86,14 +87,14 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      console.log('❌ Invalid amount:', amount);
+      logger.log('❌ Invalid amount:', amount);
       return;
     }
 
     // For edit mode, check if we have split amounts
     const hasSplitTransactions = mode === 'edit' && Object.keys(splitAmounts).length > 0;
     
-    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, splitAmounts, paymentMethod: selectedPaymentMethod });
+    logger.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, splitAmounts, paymentMethod: selectedPaymentMethod });
 
     try {
       // Validate date against current budget month
@@ -108,7 +109,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       }
 
       if (mode === 'add') {
-        console.log('➕ Adding income transaction');
+        logger.log('➕ Adding income transaction');
         await addTransaction({
           amount: numAmount,
           description: note,
@@ -120,7 +121,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           paymentMethod: selectedPaymentMethod || undefined
         });
       } else if (mode === 'spend') {
-        console.log('➖ Adding expense transaction');
+        logger.log('➖ Adding expense transaction');
         await addTransaction({
           amount: numAmount,
           description: note,
@@ -132,7 +133,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           paymentMethod: selectedPaymentMethod || undefined
         });
       } else if (mode === 'edit' && initialTransaction) {
-        console.log('✏️ Updating transaction');
+        logger.log('✏️ Updating transaction');
         if (hasSplitTransactions) {
           // Handle split transaction - for now, just update the original transaction
           // In a future enhancement, we could delete the original and create new split transactions
@@ -158,10 +159,10 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           });
         }
       }
-      console.log('✅ Transaction saved successfully');
+      logger.log('✅ Transaction saved successfully');
       onClose();
     } catch (error) {
-      console.error('❌ Error saving transaction:', error);
+      logger.error('❌ Error saving transaction:', error);
       alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
@@ -300,7 +301,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                   type="date"
                   value={date}
                   onChange={(e) => {
-                    console.log('Date changed to:', e.target.value);
+                    logger.log('Date changed to:', e.target.value);
                     setDate(e.target.value);
                   }}
                   required

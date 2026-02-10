@@ -11,6 +11,7 @@ import { PiggybankModal } from '../components/modals/PiggybankModal';
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import { AnimatePresence, motion } from 'framer-motion';
+import logger from '../utils/logger';
 
 // Helper to format currency
 const formatCurrency = (amount: number): string => {
@@ -42,7 +43,8 @@ const EnvelopeDetail: React.FC = () => {
         incomeSources,
         setEnvelopeAllocation,
         updatePiggybankContribution,
-        updateEnvelope
+        updateEnvelope,
+        fetchTransactionsForEnvelope
     } = useBudgetStore();
     const { showToast } = useToastStore();
 
@@ -68,8 +70,14 @@ const EnvelopeDetail: React.FC = () => {
       }
     }, []); // Empty dependency array - only run once on mount
 
-    // Filter and sort transactions (similar to the envelopeTransactions computed property)
     const currentEnvelope = envelopes.find(e => e.id === id);
+
+    // Fetch transactions for Piggybank if needed
+    useEffect(() => {
+        if (currentEnvelope?.isPiggybank && currentEnvelope.id) {
+            fetchTransactionsForEnvelope(currentEnvelope.id);
+        }
+    }, [currentEnvelope?.isPiggybank, currentEnvelope?.id, fetchTransactionsForEnvelope]);
 
     const handleSavePiggybank = async (piggybankData: Partial<Envelope>) => {
         if (!currentEnvelope) return;
@@ -90,7 +98,7 @@ const EnvelopeDetail: React.FC = () => {
             showToast('Piggybank updated successfully', 'success');
             setIsPiggybankModalOpen(false);
         } catch (error) {
-            console.error('Failed to update piggybank:', error);
+            logger.error('Failed to update piggybank:', error);
             showToast('Failed to update piggybank', 'error');
         }
     };
@@ -176,7 +184,7 @@ const EnvelopeDetail: React.FC = () => {
             }
             setIsEditingBudget(false);
         } catch (error) {
-            console.error("Failed to save budget:", error);
+            logger.error("Failed to save budget:", error);
             showToast("Failed to update budget", "error");
         } finally {
             isSavingRef.current = false;
@@ -204,9 +212,9 @@ const EnvelopeDetail: React.FC = () => {
     // Debug: Check piggybank and transactions
     if (currentEnvelope.isPiggybank) {
         const piggybankTransactions = transactions.filter(t => t.envelopeId === currentEnvelope.id);
-        console.log('🐷 Piggybank:', currentEnvelope.name);
-        console.log('🐷 Created at:', currentEnvelope.createdAt);
-        console.log('🐷 Transactions:', piggybankTransactions.map(t => ({
+        logger.log('🐷 Piggybank:', currentEnvelope.name);
+        logger.log('🐷 Created at:', currentEnvelope.createdAt);
+        logger.log('🐷 Transactions:', piggybankTransactions.map(t => ({
             date: t.date,
             description: t.description,
             amount: t.amount
@@ -302,7 +310,7 @@ const EnvelopeDetail: React.FC = () => {
                       const balance = currentEnvelope.isPiggybank
                         ? getEnvelopeBalance(currentEnvelope.id!) // Piggybanks use lifetime balance
                         : getEnvelopeBalance(currentEnvelope.id!, currentMonth); // Regular envelopes use monthly balance
-                      console.log(`Debug: Envelope ${currentEnvelope.name} Balance:`, balance);
+                      logger.log(`Debug: Envelope ${currentEnvelope.name} Balance:`, balance);
                       return (
                         <span
                           className={`text-xl font-bold ${

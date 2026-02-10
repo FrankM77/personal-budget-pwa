@@ -4,6 +4,7 @@ import { SwipeableRow } from './SwipeableRow';
 import { useBudgetStore } from '../../stores/budgetStore';
 import type { PaymentSource } from '../../models/types';
 import '../../styles/CardStack.css';
+import logger from '../../utils/logger';
 
 const DEFAULT_DATA: PaymentSource[] = [
   // Start with empty array - only show "Add New Card" for new users
@@ -119,7 +120,7 @@ const CardStack: React.FC<Props> = ({
       try {
         await updateAppSettings({ paymentSources: updatedCards });
       } catch (error) {
-        console.error('Failed to delete card from app settings:', error);
+        logger.error('Failed to delete card from app settings:', error);
         // Revert the local state if save failed
         setCards(cards);
         alert('Failed to delete card. Please try again.');
@@ -168,7 +169,7 @@ const CardStack: React.FC<Props> = ({
     try {
       await updateAppSettings({ paymentSources: updatedCards });
     } catch (error) {
-      console.error('Failed to save card to app settings:', error);
+      logger.error('Failed to save card to app settings:', error);
       // Revert the local state if save failed
       setCards(cards);
       setInternalSelectedCard(selectedCard);
@@ -223,7 +224,7 @@ const CardStack: React.FC<Props> = ({
     try {
       await updateAppSettings({ paymentSources: newCards });
     } catch (error) {
-      console.error('Failed to reorder cards:', error);
+      logger.error('Failed to reorder cards:', error);
       // Revert the local state if save failed
       setCards(cards);
       alert('Failed to reorder cards. Please try again.');

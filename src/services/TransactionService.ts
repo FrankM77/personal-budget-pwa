@@ -10,8 +10,9 @@ import {
     getDocs
   } from 'firebase/firestore';
   import { db } from '../firebase'; // Ensure you have your firebase config initialized here
-  import type { Transaction } from '../types/schema';
+  import type { Transaction } from '../models/types';
   import { fromFirestore } from '../mappers/transaction';
+  import logger from '../utils/logger';
 
   // The path to the collection: users/{userId}/transactions
   const getCollectionRef = (userId: string) => 
@@ -29,10 +30,7 @@ import {
 
       // This listener stays alive and calls 'onUpdate' whenever DB changes
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const transactions = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Transaction[];
+        const transactions = snapshot.docs.map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
 
         onUpdate(transactions);
       });
@@ -43,15 +41,12 @@ import {
 
     // 2. GET ALL (For store.fetchData)
     getAllTransactions: async (userId: string): Promise<Transaction[]> => {
-      console.log(`📊 TransactionService.getAllTransactions: Fetching for user ${userId}`);
+      logger.log(`📊 TransactionService.getAllTransactions: Fetching for user ${userId}`);
       const q = query(getCollectionRef(userId), orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(doc => {
-        const firebaseTx = { id: doc.id, ...doc.data() } as any;
-        return fromFirestore(firebaseTx);
-      });
-      console.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description, month: t.month })));
-      return transactions as any as Transaction[];
+      const transactions = snapshot.docs.map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
+      logger.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description, month: t.month })));
+      return transactions;
     },
 
     // 3. ADD (Create) - Updated to match store expectation
@@ -60,24 +55,24 @@ import {
       if (!userId) {
         throw new Error('User ID is required to create transaction');
       }
-      console.log(`📝 TransactionService.addTransaction: Adding transaction for user ${userId}:`, transactionData);
-      console.log(`🔍 Original transaction had temp ID: ${tempId}`);
+      logger.log(`📝 TransactionService.addTransaction: Adding transaction for user ${userId}:`, transactionData);
+      logger.log(`🔍 Original transaction had temp ID: ${tempId}`);
 
       try {
-        console.log(`🔥 About to call addDoc with:`, transactionData);
+        logger.log(`🔥 About to call addDoc with:`, transactionData);
         const docRef = await addDoc(getCollectionRef(userId), transactionData);
-        console.log(`📄 addDoc succeeded, docRef:`, docRef);
-        console.log(`📄 Document ID: ${docRef.id}`);
-        console.log(`📄 Document path: ${docRef.path}`);
+        logger.log(`📄 addDoc succeeded, docRef:`, docRef);
+        logger.log(`📄 Document ID: ${docRef.id}`);
+        logger.log(`📄 Document path: ${docRef.path}`);
 
         // Create result with the real Firebase ID
         const result = { id: docRef.id, ...transactionData, userId };
-        console.log(`📤 Final result object:`, result);
+        logger.log(`📤 Final result object:`, result);
         return result;
       } catch (error) {
-        console.error(`💥 addDoc failed:`, error);
+        logger.error(`💥 addDoc failed:`, error);
         const err = error as Error;
-        console.error(`Error message:`, err.message);
+        logger.error(`Error message:`, err.message);
         throw error;
       }
     },
@@ -90,16 +85,16 @@ import {
 
     // 5. DELETE
     deleteTransaction: async (userId: string, transactionId: string) => {
-      console.log(`🗑️ TransactionService.deleteTransaction: Deleting transaction ${transactionId} for user ${userId}`);
+      logger.log(`🗑️ TransactionService.deleteTransaction: Deleting transaction ${transactionId} for user ${userId}`);
       try {
         const docRef = doc(db, 'users', userId, 'transactions', transactionId);
-        console.log(`🎯 Deleting document at path: ${docRef.path}`);
+        logger.log(`🎯 Deleting document at path: ${docRef.path}`);
         await deleteDoc(docRef);
-        console.log(`✅ TransactionService.deleteTransaction: Successfully deleted transaction ${transactionId}`);
+        logger.log(`✅ TransactionService.deleteTransaction: Successfully deleted transaction ${transactionId}`);
       } catch (error) {
-        console.error(`💥 TransactionService.deleteTransaction: Failed to delete transaction ${transactionId}:`, error);
+        logger.error(`💥 TransactionService.deleteTransaction: Failed to delete transaction ${transactionId}:`, error);
         const err = error as Error;
-        console.error(`Error message:`, err.message);
+        logger.error(`Error message:`, err.message);
         throw error;
       }
     }

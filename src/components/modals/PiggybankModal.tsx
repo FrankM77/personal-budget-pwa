@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, PiggyBank } from 'lucide-react';
 import type { Envelope } from '../../models/types';
+import logger from '../../utils/logger';
 
 interface PiggybankModalProps {
   isOpen: boolean;
@@ -76,7 +77,7 @@ export const PiggybankModal: React.FC<PiggybankModalProps> = ({
       await onSave(piggybankData);
       onClose();
     } catch (error) {
-      console.error('Error saving piggybank:', error);
+      logger.error('Error saving piggybank:', error);
       alert('Failed to save piggybank');
     } finally {
       setIsSaving(false);

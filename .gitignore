@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.json
 
 node_modules
 dist
@@ -33,3 +34,7 @@ src/firebase.ts.backup
 *.njsproj
 *.sln
 *.sw?
+
+#MD files
+securitySetup_2026_02_08.md
+projectAudit_2026_02_08.md

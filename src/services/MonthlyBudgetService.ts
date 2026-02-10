@@ -9,6 +9,7 @@ import type {
 } from '../types/firestore';
 import type { MonthlyBudget, IncomeSource, EnvelopeAllocation } from '../models/types';
 import { toISOString } from '../utils/dateUtils';
+import logger from '../utils/logger';
 
 export class MonthlyBudgetService {
   private static instance: MonthlyBudgetService;
@@ -40,7 +41,7 @@ export class MonthlyBudgetService {
       }
       return null;
     } catch (error) {
-      console.error('Error getting monthly budget:', error);
+      logger.error('Error getting monthly budget:', error);
       throw error;
     }
   }
@@ -69,7 +70,7 @@ export class MonthlyBudgetService {
         updatedAt: toISOString(now),
       };
     } catch (error) {
-      console.error('Error creating/updating monthly budget:', error);
+      logger.error('Error creating/updating monthly budget:', error);
       throw error;
     }
   }
@@ -116,7 +117,7 @@ export class MonthlyBudgetService {
 
       return { incomeSources, allocations };
     } catch (error) {
-      console.error('Error getting month data:', error);
+      logger.error('Error getting month data:', error);
       throw error;
     }
   }
@@ -160,7 +161,7 @@ export class MonthlyBudgetService {
         updatedAt: toISOString(now),
       };
     } catch (error) {
-      console.error('Error creating income source:', error);
+      logger.error('Error creating income source:', error);
       throw error;
     }
   }
@@ -189,7 +190,7 @@ export class MonthlyBudgetService {
         updatedAt: toISOString(now),
       };
     } catch (error) {
-      console.error('Error creating envelope allocation:', error);
+      logger.error('Error creating envelope allocation:', error);
       throw error;
     }
   }
@@ -246,7 +247,7 @@ export class MonthlyBudgetService {
       await setDoc(doc(db, 'users', userId, 'monthlyBudgets', toMonth), firestoreData);
 
     } catch (error) {
-      console.error('Error copying month data:', error);
+      logger.error('Error copying month data:', error);
       throw error;
     }
   }
@@ -268,7 +269,7 @@ export class MonthlyBudgetService {
         updatedAt: Timestamp.now()
       });
     } catch (error) {
-      console.error('Error deleting income source:', error);
+      logger.error('Error deleting income source:', error);
       throw error;
     }
   }
@@ -291,7 +292,7 @@ export class MonthlyBudgetService {
         updatedAt: Timestamp.now() 
       });
     } catch (error) {
-      console.error('Error updating income source:', error);
+      logger.error('Error updating income source:', error);
       throw error;
     }
   }
@@ -304,7 +305,7 @@ export class MonthlyBudgetService {
         updatedAt: Timestamp.now()
       });
     } catch (error) {
-      console.error('Error deleting envelope allocation:', error);
+      logger.error('Error deleting envelope allocation:', error);
       throw error;
     }
   }
@@ -320,7 +321,7 @@ export class MonthlyBudgetService {
         });
       }
     } catch (error) {
-      console.error('Error updating envelope allocation:', error);
+      logger.error('Error updating envelope allocation:', error);
       throw error;
     }
   }
@@ -351,12 +352,12 @@ export class MonthlyBudgetService {
         );
         
         await Promise.all(deletePromises);
-        console.log(`🗑️ Deleted ${transactionsSnapshot.size} transactions for month ${month}`);
+        logger.log(`🗑️ Deleted ${transactionsSnapshot.size} transactions for month ${month}`);
       } else {
-        console.log(`📭 No transactions found for month ${month}`);
+        logger.log(`📭 No transactions found for month ${month}`);
       }
     } catch (error) {
-      console.error('Error clearing month data:', error);
+      logger.error('Error clearing month data:', error);
       throw error;
     }
   }
@@ -369,7 +370,7 @@ export class MonthlyBudgetService {
       const totalAllocations = data.allocations.reduce((sum, allocation) => sum + allocation.budgetedAmount, 0);
       return totalIncome - totalAllocations;
     } catch (error) {
-      console.error('Error calculating available to budget:', error);
+      logger.error('Error calculating available to budget:', error);
       throw error;
     }
   }

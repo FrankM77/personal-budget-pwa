@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Category } from '../models/types';
+import logger from '../utils/logger';
 
 export class CategoryService {
   private static instance: CategoryService;
@@ -89,11 +90,11 @@ export class CategoryService {
     }
     
     if (duplicateIds.length === 0) {
-      console.log('✅ No duplicate categories found');
+      logger.log('✅ No duplicate categories found');
       return 0;
     }
     
-    console.log(`🧹 Found ${duplicateIds.length} duplicate categories to remove`);
+    logger.log(`🧹 Found ${duplicateIds.length} duplicate categories to remove`);
     
     // Delete in batches of 450
     const BATCH_SIZE = 450;
@@ -107,10 +108,10 @@ export class CategoryService {
       });
       
       await batch.commit();
-      console.log(`🗑️ Deleted batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+      logger.log(`🗑️ Deleted batch ${Math.floor(i / BATCH_SIZE) + 1}`);
     }
     
-    console.log(`✅ Removed ${duplicateIds.length} duplicate categories`);
+    logger.log(`✅ Removed ${duplicateIds.length} duplicate categories`);
     return duplicateIds.length;
   }
 
@@ -125,7 +126,7 @@ export class CategoryService {
       const categories = snapshot.docs.map(doc => doc.data() as Category);
       onUpdate(categories);
     }, (error) => {
-      console.error('❌ Category subscription error:', error);
+      logger.error('❌ Category subscription error:', error);
     });
   }
 }

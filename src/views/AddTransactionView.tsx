@@ -7,6 +7,7 @@ import CardStack from '../components/ui/CardStack';
 import { useSiriQuery } from '../hooks/useSiriQuery';
 import type { PaymentSource } from '../models/types';
 import '../styles/CardStack.css';
+import logger from '../utils/logger';
 
 interface AddTransactionViewProps {
   onClose?: () => void;
@@ -26,7 +27,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
     if (storedSiriData && storedSiriQuery) {
       try {
         const data = JSON.parse(storedSiriData);
-        console.log('🎙️ Siri: Loaded stored data from sessionStorage:', data);
+        logger.log('🎙️ Siri: Loaded stored data from sessionStorage:', data);
         
         // Manually set the parsed data as if it came from the hook
         if (data.amount !== null) {
@@ -61,13 +62,13 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
 
         setSiriPrefilled(true);
         setStoredSiriQueryText(storedSiriQuery);
-        console.log('🎙️ Siri: Pre-filled form from sessionStorage');
+        logger.log('🎙️ Siri: Pre-filled form from sessionStorage');
         
         // Clear sessionStorage after using
         sessionStorage.removeItem('siriParsedData');
         sessionStorage.removeItem('siriQuery');
       } catch (error) {
-        console.error('🎙️ Siri: Failed to parse stored data:', error);
+        logger.error('🎙️ Siri: Failed to parse stored data:', error);
       }
     }
   };
@@ -83,7 +84,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   // (handles the case where the app is already open and in view)
   useEffect(() => {
     const handleSiriReady = () => {
-      console.log('🎙️ Siri: Received siri-query-ready event');
+      logger.log('🎙️ Siri: Received siri-query-ready event');
       loadSiriFromSessionStorage();
     };
 
@@ -146,7 +147,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
     }
 
     setSiriPrefilled(true);
-    console.log('🎙️ Siri: Pre-filled form with parsed data:', parsedData);
+    logger.log('🎙️ Siri: Pre-filled form with parsed data:', parsedData);
   }, [parsedData, siriPrefilled, appSettings?.paymentSources]);
 
   const handleClose = () => {
@@ -181,8 +182,8 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
     const [year, month, day] = date.split('-').map(Number);
     const transactionDate = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone issues
     
-    console.log('📅 Selected date:', date);
-    console.log('📅 Parsed date:', transactionDate.toISOString());
+    logger.log('📅 Selected date:', date);
+    logger.log('📅 Parsed date:', transactionDate.toISOString());
 
     try {
       // Validate date against current budget month
@@ -216,9 +217,9 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
             reconciled: false,
             paymentMethod: selectedPaymentMethod || undefined,
             splitGroupId
-          }).catch(err => console.error('Failed to create transaction:', err))
+          }).catch(err => logger.error('Failed to create transaction:', err))
         )
-      ).catch(err => console.error('Failed to create transactions:', err));
+      ).catch(err => logger.error('Failed to create transactions:', err));
 
       // Navigate/close immediately - don't wait for Firebase
       if (onSaved) {
@@ -230,7 +231,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
         navigate('/');
       }
     } catch (error) {
-      console.error('Error saving transaction:', error);
+      logger.error('Error saving transaction:', error);
       alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };

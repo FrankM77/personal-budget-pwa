@@ -3,6 +3,7 @@ import type { Unsubscribe } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Envelope, Transaction, IncomeSource, EnvelopeAllocation } from '../models/types';
 import { fromFirestore } from '../mappers/transaction';
+import logger from '../utils/logger';
 import { toISOString } from '../utils/dateUtils';
 
 export interface CleanupReport {
@@ -38,7 +39,7 @@ export class BudgetService {
    */
   async restoreUserData(userId: string, backupData: any): Promise<void> {
     try {
-      console.log('🔄 BudgetService.restoreUserData: STARTING RESTORE for user:', userId);
+      logger.log('🔄 BudgetService.restoreUserData: STARTING RESTORE for user:', userId);
 
       // 1. Wipe existing data
       await this.deleteAllUserData(userId);
@@ -83,7 +84,7 @@ export class BudgetService {
         }
       }
 
-      console.log(`📦 Prepared ${operations.length} items for restoration.`);
+      logger.log(`📦 Prepared ${operations.length} items for restoration.`);
 
       // 3. Execute Batches (max 500 per batch)
       const BATCH_SIZE = 450; // Safety margin
@@ -95,14 +96,14 @@ export class BudgetService {
           batch.set(op.ref, op.data);
         });
 
-        console.log(`🚀 Committing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(operations.length / BATCH_SIZE)}...`);
+        logger.log(`🚀 Committing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(operations.length / BATCH_SIZE)}...`);
         await batch.commit();
       }
 
-      console.log('✨ Restore completed successfully.');
+      logger.log('✨ Restore completed successfully.');
 
     } catch (error) {
-      console.error('❌ BudgetService.restoreUserData failed:', error);
+      logger.warn(`❌ BudgetService.restoreUserData failed: ${error}`);
       throw new Error(`Failed to restore user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -114,7 +115,7 @@ export class BudgetService {
    */
   async getEnvelopes(userId: string): Promise<Envelope[]> {
     try {
-      console.log('📡 BudgetService.getEnvelopes called for user:', userId);
+      logger.log('📡 BudgetService.getEnvelopes called for user:', userId);
       
       const collectionRef = collection(db, 'users', userId, 'envelopes');
       const snapshot = await getDocs(collectionRef);
@@ -133,10 +134,10 @@ export class BudgetService {
         return aIndex - bIndex;
       });
       
-      console.log('✅ Fetched envelopes:', sortedEnvelopes.length);
+      logger.log('✅ Fetched envelopes:', sortedEnvelopes.length);
       return sortedEnvelopes;
     } catch (error) {
-      console.error('❌ BudgetService.getEnvelopes failed:', error);
+      logger.warn(`❌ BudgetService.getEnvelopes failed: ${error}`);
       throw new Error(`Failed to fetch envelopes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -148,7 +149,7 @@ export class BudgetService {
    */
   async getTransactions(userId: string): Promise<Transaction[]> {
     try {
-      console.log('📊 BudgetService.getTransactions: Fetching for user', userId);
+      logger.log('📊 BudgetService.getTransactions: Fetching for user', userId);
       
       const collectionRef = collection(db, 'users', userId, 'transactions');
       const q = query(collectionRef, orderBy('date', 'desc'));
@@ -159,11 +160,77 @@ export class BudgetService {
         return fromFirestore(firebaseTx);
       });
       
-      console.log(`📋 Fetched ${transactions.length} transactions`);
+      logger.log(`📋 Fetched ${transactions.length} transactions`);
       return transactions;
     } catch (error) {
-      console.error('❌ BudgetService.getTransactions failed:', error);
+      logger.warn(`❌ BudgetService.getTransactions failed: ${error}`);
       throw new Error(`Failed to fetch transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Fetch transactions for a specific month
+   * @param userId - User ID
+   * @param month - Month string (YYYY-MM)
+   * @returns Promise<Transaction[]>
+   */
+  async getTransactionsByMonth(userId: string, month: string): Promise<Transaction[]> {
+    try {
+      logger.log(`📊 BudgetService.getTransactionsByMonth: Fetching for user ${userId}, month ${month}`);
+      
+      const collectionRef = collection(db, 'users', userId, 'transactions');
+      // Note: This requires a composite index on [month, date] in Firestore
+      // If index is missing, it will throw an error with a link to create it
+      const q = query(
+        collectionRef, 
+        where('month', '==', month),
+        orderBy('date', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      const transactions = snapshot.docs.map(doc => {
+        const firebaseTx = { id: doc.id, ...doc.data() } as any;
+        return fromFirestore(firebaseTx);
+      });
+      
+      logger.log(`📋 Fetched ${transactions.length} transactions for ${month}`);
+      return transactions;
+    } catch (error) {
+      logger.warn(`❌ BudgetService.getTransactionsByMonth failed: ${error}`);
+      throw new Error(`Failed to fetch transactions for month ${month}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Fetch all transactions for a specific envelope
+   * @param userId - User ID
+   * @param envelopeId - Envelope ID
+   * @returns Promise<Transaction[]>
+   */
+  async getTransactionsByEnvelope(userId: string, envelopeId: string): Promise<Transaction[]> {
+    try {
+      logger.log(`📊 BudgetService.getTransactionsByEnvelope: Fetching for user ${userId}, envelope ${envelopeId}`);
+      
+      const collectionRef = collection(db, 'users', userId, 'transactions');
+      const q = query(
+        collectionRef, 
+        where('envelopeId', '==', envelopeId),
+        orderBy('date', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      const transactions = snapshot.docs.map(doc => {
+        const firebaseTx = { id: doc.id, ...doc.data() } as any;
+        return fromFirestore(firebaseTx);
+      });
+      
+      logger.log(`📋 Fetched ${transactions.length} transactions for envelope ${envelopeId}`);
+      return transactions;
+    } catch (error) {
+      logger.warn(`❌ BudgetService.getTransactionsByEnvelope failed: ${error}`);
+      throw new Error(`Failed to fetch transactions for envelope ${envelopeId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -174,7 +241,7 @@ export class BudgetService {
    */
   async createEnvelope(envelope: Omit<Envelope, 'id'> & { userId: string }): Promise<Envelope> {
     try {
-      console.log('📡 BudgetService.createEnvelope called for user:', envelope.userId);
+      logger.log('📡 BudgetService.createEnvelope called for user:', envelope.userId);
       
       const collectionRef = collection(db, 'users', envelope.userId, 'envelopes');
       const docRef = doc(collectionRef);
@@ -187,7 +254,7 @@ export class BudgetService {
       };
 
       // Optimistic write - do not await
-      setDoc(docRef, newEnvelopeData).catch(err => console.error("Create env failed", err));
+      setDoc(docRef, newEnvelopeData).catch(err => logger.warn(`Create env failed: ${err}`));
       
       const createdEnvelope: Envelope = {
         ...envelope,
@@ -196,10 +263,10 @@ export class BudgetService {
         lastUpdated: toISOString(now)
       };
       
-      console.log('✅ Created envelope (optimistic):', createdEnvelope.id);
+      logger.log('✅ Created envelope (optimistic):', createdEnvelope.id);
       return createdEnvelope;
     } catch (error) {
-      console.error('❌ BudgetService.createEnvelope failed:', error);
+      logger.warn(`❌ BudgetService.createEnvelope failed: ${error}`);
       throw new Error(`Failed to create envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -212,7 +279,7 @@ export class BudgetService {
    */
   async updateEnvelope(userId: string, envelope: Envelope): Promise<void> {
     try {
-      console.log('📡 BudgetService.updateEnvelope called for envelope:', envelope.id);
+      logger.log('📡 BudgetService.updateEnvelope called for envelope:', envelope.id);
       
       const docRef = doc(db, 'users', userId, 'envelopes', envelope.id);
       
@@ -220,11 +287,11 @@ export class BudgetService {
       setDoc(docRef, {
         ...envelope,
         lastUpdated: Timestamp.now()
-      }, { merge: true }).catch(err => console.error("Update env failed", err));
+      }, { merge: true }).catch(err => logger.warn(`Update env failed: ${err}`));
       
-      console.log('✅ Updated envelope (optimistic):', envelope.id);
+      logger.log('✅ Updated envelope (optimistic):', envelope.id);
     } catch (error) {
-      console.error('❌ BudgetService.updateEnvelope failed:', error);
+      logger.warn(`❌ BudgetService.updateEnvelope failed: ${error}`);
       throw new Error(`Failed to update envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -254,9 +321,9 @@ export class BudgetService {
         ...deletePromises
       ]);
       
-      console.log('✅ Deleted envelope and associated transactions from Firestore:', envelopeId);
+      logger.log('✅ Deleted envelope and associated transactions from Firestore:', envelopeId);
     } catch (error) {
-      console.error('❌ BudgetService.deleteEnvelope failed:', error);
+      logger.warn(`❌ BudgetService.deleteEnvelope failed: ${error}`);
       throw new Error(`Failed to delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -269,7 +336,7 @@ export class BudgetService {
    */
   async reorderEnvelopes(userId: string, envelopes: Envelope[]): Promise<void> {
     try {
-      console.log('📡 BudgetService.reorderEnvelopes called for user:', userId);
+      logger.log('📡 BudgetService.reorderEnvelopes called for user:', userId);
       
       const updatePromises = envelopes.map(envelope => {
         const docRef = doc(db, 'users', userId, 'envelopes', envelope.id);
@@ -280,10 +347,10 @@ export class BudgetService {
       });
       
       // Optimistic batch update - do not await
-      Promise.all(updatePromises).catch(err => console.error("Reorder env failed", err));
-      console.log('✅ Reordered envelopes (optimistic)');
+      Promise.all(updatePromises).catch(err => logger.warn(`Reorder env failed: ${err}`));
+      logger.log('✅ Reordered envelopes (optimistic)');
     } catch (error) {
-      console.error('❌ BudgetService.reorderEnvelopes failed:', error);
+      logger.warn(`❌ BudgetService.reorderEnvelopes failed: ${error}`);
       throw new Error(`Failed to reorder envelopes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -295,7 +362,7 @@ export class BudgetService {
    */
   async createTransaction(transaction: Omit<Transaction, 'id'> & { userId: string }): Promise<Transaction> {
     try {
-      console.log('📡 BudgetService.createTransaction called for user:', transaction.userId);
+      logger.log('📡 BudgetService.createTransaction called for user:', transaction.userId);
       
       const collectionRef = collection(db, 'users', transaction.userId, 'transactions');
       const docRef = doc(collectionRef);
@@ -321,17 +388,17 @@ export class BudgetService {
       };
 
       // Optimistic write - do not await
-      setDoc(docRef, newTransactionData).catch(err => console.error("Create tx failed", err));
+      setDoc(docRef, newTransactionData).catch(err => logger.warn(`Create tx failed: ${err}`));
       
       const createdTransaction: Transaction = {
         ...transaction,
         id: docRef.id
       };
       
-      console.log('✅ Created transaction (optimistic):', createdTransaction.id);
+      logger.log('✅ Created transaction (optimistic):', createdTransaction.id);
       return createdTransaction;
     } catch (error) {
-      console.error('❌ BudgetService.createTransaction failed:', error);
+      logger.warn(`❌ BudgetService.createTransaction failed: ${error}`);
       throw new Error(`Failed to create transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -344,7 +411,7 @@ export class BudgetService {
    */
   async updateTransaction(userId: string, transaction: Transaction): Promise<void> {
     try {
-      console.log('📡 BudgetService.updateTransaction called for transaction:', transaction.id);
+      logger.log('📡 BudgetService.updateTransaction called for transaction:', transaction.id);
       
       // Sanitize nested paymentMethod object
       if (transaction.paymentMethod) {
@@ -363,11 +430,11 @@ export class BudgetService {
       const docRef = doc(db, 'users', userId, 'transactions', transaction.id);
       
       // Optimistic update - do not await
-      setDoc(docRef, cleanTransaction, { merge: true }).catch(err => console.error("Update tx failed", err));
+      setDoc(docRef, cleanTransaction, { merge: true }).catch(err => logger.warn(`Update tx failed: ${err}`));
       
-      console.log('✅ Updated transaction (optimistic):', transaction.id);
+      logger.log('✅ Updated transaction (optimistic):', transaction.id);
     } catch (error) {
-      console.error('❌ BudgetService.updateTransaction failed:', error);
+      logger.warn(`❌ BudgetService.updateTransaction failed: ${error}`);
       throw new Error(`Failed to update transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -380,16 +447,16 @@ export class BudgetService {
    */
   async deleteTransaction(userId: string, transactionId: string): Promise<void> {
     try {
-      console.log('📡 BudgetService.deleteTransaction called for transaction:', transactionId);
+      logger.log('📡 BudgetService.deleteTransaction called for transaction:', transactionId);
       
       const docRef = doc(db, 'users', userId, 'transactions', transactionId);
       
       // Optimistic delete - do not await
-      deleteDoc(docRef).catch(err => console.error("Delete tx failed", err));
+      deleteDoc(docRef).catch(err => logger.warn(`Delete tx failed: ${err}`));
       
-      console.log('✅ Deleted transaction (optimistic):', transactionId);
+      logger.log('✅ Deleted transaction (optimistic):', transactionId);
     } catch (error) {
-      console.error('❌ BudgetService.deleteTransaction failed:', error);
+      logger.warn(`❌ BudgetService.deleteTransaction failed: ${error}`);
       throw new Error(`Failed to delete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -398,7 +465,7 @@ export class BudgetService {
 
   async createIncomeSource(source: Omit<IncomeSource, 'id' | 'createdAt' | 'updatedAt'> & { userId: string }): Promise<IncomeSource> {
     try {
-      console.log('📡 BudgetService.createIncomeSource (Embedded) called for user:', source.userId);
+      logger.log('📡 BudgetService.createIncomeSource (Embedded) called for user:', source.userId);
       const docRef = doc(db, 'users', source.userId, 'monthlyBudgets', source.month);
       const now = Timestamp.now();
       
@@ -430,9 +497,9 @@ export class BudgetService {
             allocations: {},
             totalIncome: 0,
             availableToBudget: 0
-          }).catch(e => console.error("Failed to create monthly budget doc", e));
+          }).catch(e => logger.warn(`Failed to create monthly budget doc: ${e}`));
         } else {
-          console.error("Create income failed", err);
+          logger.warn(`Create income failed: ${err}`);
         }
       });
       
@@ -443,17 +510,17 @@ export class BudgetService {
         createdAt: toISOString(now),
         updatedAt: toISOString(now)
       };
-      console.log('✅ Created income source (optimistic/embedded):', newSource.id);
+      logger.log('✅ Created income source (optimistic/embedded):', newSource.id);
       return newSource;
     } catch (error) {
-      console.error('❌ BudgetService.createIncomeSource failed:', error);
+      logger.warn(`❌ BudgetService.createIncomeSource failed: ${error}`);
       throw new Error(`Failed to create income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async updateIncomeSource(userId: string, sourceId: string, month: string, updates: Partial<IncomeSource>): Promise<void> {
     try {
-      console.log('📡 BudgetService.updateIncomeSource (Embedded) called for source:', sourceId);
+      logger.log('📡 BudgetService.updateIncomeSource (Embedded) called for source:', sourceId);
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
       // Read-modify-write pattern for array update
@@ -475,18 +542,18 @@ export class BudgetService {
           incomeSources: updatedSources,
           updatedAt: Timestamp.now()
         });
-      }).catch((err: any) => console.error("Update income failed", err));
+      }).catch((err: any) => logger.warn(`Update income failed: ${err}`));
 
-      console.log('✅ Updated income source (optimistic/embedded):', sourceId);
+      logger.log('✅ Updated income source (optimistic/embedded):', sourceId);
     } catch (error) {
-      console.error('❌ BudgetService.updateIncomeSource failed:', error);
+      logger.warn(`❌ BudgetService.updateIncomeSource failed: ${error}`);
       throw error;
     }
   }
 
   async deleteIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
     try {
-      console.log('📡 BudgetService.deleteIncomeSource (Embedded) called for source:', sourceId);
+      logger.log('📡 BudgetService.deleteIncomeSource (Embedded) called for source:', sourceId);
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
       // Read-modify-write pattern for array deletion
@@ -500,11 +567,11 @@ export class BudgetService {
           incomeSources: updatedSources,
           updatedAt: Timestamp.now()
         });
-      }).catch((err: any) => console.error("Delete income failed", err));
+      }).catch((err: any) => logger.warn(`Delete income failed: ${err}`));
 
-      console.log('✅ Deleted income source (optimistic/embedded):', sourceId);
+      logger.log('✅ Deleted income source (optimistic/embedded):', sourceId);
     } catch (error) {
-      console.error('❌ BudgetService.deleteIncomeSource failed:', error);
+      logger.warn(`❌ BudgetService.deleteIncomeSource failed: ${error}`);
       throw new Error(`Failed to delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -513,7 +580,7 @@ export class BudgetService {
 
   async createEnvelopeAllocation(allocation: Omit<EnvelopeAllocation, 'id' | 'createdAt' | 'updatedAt'> & { userId: string }): Promise<EnvelopeAllocation> {
     try {
-      console.log('📡 BudgetService.createEnvelopeAllocation (Embedded) called for user:', allocation.userId);
+      logger.log('📡 BudgetService.createEnvelopeAllocation (Embedded) called for user:', allocation.userId);
       const docRef = doc(db, 'users', allocation.userId, 'monthlyBudgets', allocation.month);
       const now = Timestamp.now();
       
@@ -535,9 +602,9 @@ export class BudgetService {
             allocations: { [allocation.envelopeId]: Number(allocation.budgetedAmount) },
             totalIncome: 0,
             availableToBudget: 0
-          }).catch(e => console.error("Failed to create monthly budget doc", e));
+          }).catch(e => logger.warn(`Failed to create monthly budget doc: ${e}`));
         } else {
-          console.error("Create allocation failed", err);
+          logger.warn(`Create allocation failed: ${err}`);
         }
       });
       
@@ -547,17 +614,17 @@ export class BudgetService {
         createdAt: toISOString(now),
         updatedAt: toISOString(now)
       };
-      console.log('✅ Created allocation (optimistic/embedded):', newAllocation.id);
+      logger.log('✅ Created allocation (optimistic/embedded):', newAllocation.id);
       return newAllocation;
     } catch (error) {
-      console.error('❌ BudgetService.createEnvelopeAllocation failed:', error);
+      logger.warn(`❌ BudgetService.createEnvelopeAllocation failed: ${error}`);
       throw new Error(`Failed to create envelope allocation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async updateEnvelopeAllocation(userId: string, envelopeId: string, month: string, updates: Partial<EnvelopeAllocation>): Promise<void> {
     try {
-      console.log('📡 BudgetService.updateEnvelopeAllocation (Embedded) called for envelope:', envelopeId);
+      logger.log('📡 BudgetService.updateEnvelopeAllocation (Embedded) called for envelope:', envelopeId);
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
       const updateData: any = {
@@ -569,28 +636,28 @@ export class BudgetService {
       }
 
       // Optimistic update
-      updateDoc(docRef, updateData).catch(err => console.error("Update allocation failed", err));
-      console.log('✅ Updated allocation (optimistic/embedded):', envelopeId);
+      updateDoc(docRef, updateData).catch(err => logger.warn(`Update allocation failed: ${err}`));
+      logger.log('✅ Updated allocation (optimistic/embedded):', envelopeId);
     } catch (error) {
-      console.error('❌ BudgetService.updateEnvelopeAllocation failed:', error);
+      logger.warn(`❌ BudgetService.updateEnvelopeAllocation failed: ${error}`);
       throw new Error(`Failed to update envelope allocation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async deleteEnvelopeAllocation(userId: string, envelopeId: string, month: string): Promise<void> {
     try {
-      console.log('📡 BudgetService.deleteEnvelopeAllocation (Embedded) called for envelope:', envelopeId);
+      logger.log('📡 BudgetService.deleteEnvelopeAllocation (Embedded) called for envelope:', envelopeId);
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
       // Optimistic delete using deleteField
       updateDoc(docRef, {
         [`allocations.${envelopeId}`]: deleteField(),
         updatedAt: Timestamp.now()
-      }).catch(err => console.error("Delete allocation failed", err));
+      }).catch(err => logger.warn(`Delete allocation failed: ${err}`));
       
-      console.log('✅ Deleted allocation (optimistic/embedded):', envelopeId);
+      logger.log('✅ Deleted allocation (optimistic/embedded):', envelopeId);
     } catch (error) {
-      console.error('❌ BudgetService.deleteEnvelopeAllocation failed:', error);
+      logger.warn(`❌ BudgetService.deleteEnvelopeAllocation failed: ${error}`);
       throw new Error(`Failed to delete envelope allocation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -606,13 +673,13 @@ export class BudgetService {
     allocations: EnvelopeAllocation[];
   }> {
     try {
-      console.log(`📅 BudgetService.getMonthData (Embedded): Fetching for user ${userId}, month ${monthStr}`);
+      logger.log(`📅 BudgetService.getMonthData (Embedded): Fetching for user ${userId}, month ${monthStr}`);
       
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', monthStr);
       const snap = await getDoc(docRef);
       
       if (!snap.exists()) {
-        console.log(`ℹ️ No budget data found for ${monthStr}, returning empty defaults.`);
+        logger.log(`ℹ️ No budget data found for ${monthStr}, returning empty defaults.`);
         return { incomeSources: [], allocations: [] };
       }
 
@@ -638,14 +705,14 @@ export class BudgetService {
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
       })).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-      console.log(`📊 Fetched ${incomeSources.length} income sources and ${allocations.length} allocations for ${monthStr}`);
+      logger.log(`📊 Fetched ${incomeSources.length} income sources and ${allocations.length} allocations for ${monthStr}`);
       
       return {
         incomeSources,
         allocations
       };
     } catch (error) {
-      console.error('❌ BudgetService.getMonthData failed:', error);
+      logger.warn(`❌ BudgetService.getMonthData failed: ${error}`);
       throw new Error(`Failed to fetch month data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -657,7 +724,7 @@ export class BudgetService {
    */
   async cleanupOrphanedData(userId: string): Promise<CleanupReport> {
     try {
-      console.log('🧹 BudgetService.cleanupOrphanedData: Starting cleanup for user:', userId);
+      logger.log('🧹 BudgetService.cleanupOrphanedData: Starting cleanup for user:', userId);
       
       const report: CleanupReport = {
         orphanedAllocationsDeleted: 0,
@@ -672,7 +739,7 @@ export class BudgetService {
       // Step 1: Get all existing envelopes
       const envelopes = await this.getEnvelopes(userId);
       const envelopeIds = new Set(envelopes.map(env => env.id));
-      console.log(`📋 Found ${envelopes.length} existing envelopes`);
+      logger.log(`📋 Found ${envelopes.length} existing envelopes`);
 
       // Step 2: Get all allocations across all months and clean orphaned ones
       const allocationsCollection = collection(db, 'users', userId, 'envelopeAllocations');
@@ -688,7 +755,7 @@ export class BudgetService {
         // Check if the envelope still exists
         if (!envelopeIds.has(allocation.envelopeId)) {
           orphanedAllocations.push(doc.id);
-          console.log(`🗑️ Found orphaned allocation: ${doc.id} for envelope ${allocation.envelopeId} in month ${allocation.month}`);
+          logger.log(`🗑️ Found orphaned allocation: ${doc.id} for envelope ${allocation.envelopeId} in month ${allocation.month}`);
         }
       }
 
@@ -700,7 +767,7 @@ export class BudgetService {
         await Promise.all(deletePromises);
         report.orphanedAllocationsDeleted += orphanedAllocations.length;
         report.details.deletedAllocationIds.push(...orphanedAllocations);
-        console.log(`🗑️ Deleted ${orphanedAllocations.length} orphaned allocations (legacy)`);
+        logger.log(`🗑️ Deleted ${orphanedAllocations.length} orphaned allocations (legacy)`);
       }
 
       // Step 2b: Clean up embedded allocations in monthlyBudgets
@@ -717,7 +784,7 @@ export class BudgetService {
           if (!envelopeIds.has(envelopeId)) {
              updates[`allocations.${envelopeId}`] = deleteField();
              hasUpdates = true;
-             console.log(`🗑️ Found orphaned embedded allocation in ${docSnap.id} for envelope ${envelopeId}`);
+             logger.log(`🗑️ Found orphaned embedded allocation in ${docSnap.id} for envelope ${envelopeId}`);
              report.orphanedAllocationsDeleted++;
              report.details.deletedAllocationIds.push(`${docSnap.id}_${envelopeId}`);
           }
@@ -738,7 +805,7 @@ export class BudgetService {
         // Check if the envelope still exists
         if (!envelopeIds.has(transaction.envelopeId)) {
           orphanedTransactions.push(transaction.id);
-          console.log(`🗑️ Found orphaned transaction: ${transaction.id} for envelope ${transaction.envelopeId}`);
+          logger.log(`🗑️ Found orphaned transaction: ${transaction.id} for envelope ${transaction.envelopeId}`);
         }
       }
 
@@ -750,12 +817,12 @@ export class BudgetService {
         await Promise.all(deletePromises);
         report.orphanedTransactionsDeleted = orphanedTransactions.length;
         report.details.deletedTransactionIds = orphanedTransactions;
-        console.log(`🗑️ Deleted ${orphanedTransactions.length} orphaned transactions`);
+        logger.log(`🗑️ Deleted ${orphanedTransactions.length} orphaned transactions`);
       }
 
       report.details.monthsProcessed = Array.from(monthsProcessed);
       
-      console.log('✅ Cleanup completed:', {
+      logger.log('✅ Cleanup completed:', {
         orphanedAllocationsDeleted: report.orphanedAllocationsDeleted,
         orphanedTransactionsDeleted: report.orphanedTransactionsDeleted,
         monthsProcessed: report.details.monthsProcessed.length
@@ -763,7 +830,7 @@ export class BudgetService {
 
       return report;
     } catch (error) {
-      console.error('❌ BudgetService.cleanupOrphanedData failed:', error);
+      logger.warn(`❌ BudgetService.cleanupOrphanedData failed: ${error}`);
       throw new Error(`Failed to cleanup orphaned data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -860,7 +927,7 @@ export class BudgetService {
    */
   async deleteAllUserData(userId: string): Promise<void> {
     try {
-      console.log('🔥 BudgetService.deleteAllUserData: STARTING DELETION for user:', userId);
+      logger.log('🔥 BudgetService.deleteAllUserData: STARTING DELETION for user:', userId);
 
       const collections = [
         'envelopes',
@@ -873,23 +940,23 @@ export class BudgetService {
       ];
 
       for (const collectionName of collections) {
-        console.log(`🗑️ Deleting collection: ${collectionName}...`);
+        logger.log(`🗑️ Deleting collection: ${collectionName}...`);
         const collectionRef = collection(db, 'users', userId, collectionName);
         const snapshot = await getDocs(collectionRef);
         
         if (snapshot.empty) {
-          console.log(`   (Empty collection)`);
+          logger.log(`   (Empty collection)`);
           continue;
         }
 
         const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
         await Promise.all(deletePromises);
-        console.log(`   ✅ Deleted ${snapshot.size} documents from ${collectionName}`);
+        logger.log(`   ✅ Deleted ${snapshot.size} documents from ${collectionName}`);
       }
 
-      console.log('✨ All user data deleted successfully.');
+      logger.log('✨ All user data deleted successfully.');
     } catch (error) {
-      console.error('❌ BudgetService.deleteAllUserData failed:', error);
+      logger.warn(`❌ BudgetService.deleteAllUserData failed: ${error}`);
       throw new Error(`Failed to delete all user data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { DistributionTemplate } from '../models/types';
+import logger from '../utils/logger';
 
 // The path to the collection: users/{userId}/distributionTemplates
 const getCollectionRef = (userId: string) =>
@@ -57,18 +58,18 @@ export const DistributionTemplateService = {
     if (!userId) {
       throw new Error('User ID is required to create distribution template');
     }
-    console.log(`📝 DistributionTemplateService.createDistributionTemplate: Adding template for user ${userId}:`, templateData);
+    logger.log(`📝 DistributionTemplateService.createDistributionTemplate: Adding template for user ${userId}:`, templateData);
 
     try {
       const docRef = await addDoc(getCollectionRef(userId), templateData);
-      console.log(`📄 Template addDoc succeeded, docRef:`, docRef);
+      logger.log(`📄 Template addDoc succeeded, docRef:`, docRef);
 
       // Create result with the real Firebase ID
       const result = { id: docRef.id, ...templateData, userId };
-      console.log(`📤 Final template result object:`, result);
+      logger.log(`📤 Final template result object:`, result);
       return result;
     } catch (error) {
-      console.error(`💥 Template addDoc failed:`, error);
+      logger.error(`💥 Template addDoc failed:`, error);
       throw error;
     }
   },
@@ -87,9 +88,9 @@ export const DistributionTemplateService = {
 
   // 6. DELETE
   deleteDistributionTemplate: async (userId: string, templateId: string) => {
-    console.log(`🗑️ DistributionTemplateService.deleteDistributionTemplate: Deleting template ${templateId} for user ${userId}`);
+    logger.log(`🗑️ DistributionTemplateService.deleteDistributionTemplate: Deleting template ${templateId} for user ${userId}`);
     const docRef = doc(db, 'users', userId, 'distributionTemplates', templateId);
     await deleteDoc(docRef);
-    console.log(`✅ DistributionTemplateService.deleteDistributionTemplate: Successfully deleted template ${templateId}`);
+    logger.log(`✅ DistributionTemplateService.deleteDistributionTemplate: Successfully deleted template ${templateId}`);
   }
 };

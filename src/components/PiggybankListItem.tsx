@@ -3,12 +3,11 @@ import { PiggyBank, TrendingUp, Pause, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLongPress, LongPressEventType } from 'use-long-press';
 import type { Envelope } from '../models/types';
-import { Decimal } from 'decimal.js';
 import { triggerHaptic } from '../utils/haptics';
 
 interface PiggybankListItemProps {
   piggybank: Envelope;
-  balance: Decimal;
+  balance: number;
   onNavigate: (id: string) => void;
   setMoveableRef?: (el: HTMLDivElement | null) => void;
   isReorderingActive?: boolean;
@@ -46,7 +45,7 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   const color = piggybank.piggybankConfig?.color || '#3B82F6';
   const isPaused = piggybank.piggybankConfig?.paused || false;
   
-  const balanceNum = typeof balance === 'number' ? balance : balance.toNumber();
+  const balanceNum = balance; // Balance is already a number
   const hexToRgba = (hex: string, alpha = 1) => {
     const normalizedHex = hex.replace('#', '');
     const bigint = parseInt(normalizedHex, 16);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit2, GripVertical } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
+import logger from '../utils/logger';
 import Moveable from 'moveable';
 import { useLongPress, LongPressEventType } from 'use-long-press';
 
@@ -60,15 +61,15 @@ export const CategorySettingsView: React.FC = () => {
   }, [isReordering]);
 
   const handleLongPressTrigger = useCallback((e: any, id: string) => {
-    console.log('🎯 Long press triggered for category:', id);
+    logger.log('🎯 Long press triggered for category:', id);
     const instance = moveableInstances.current[id];
     if (instance) {
-      console.log('✅ Moveable instance found, starting drag');
+      logger.log('✅ Moveable instance found, starting drag');
       isManualDrag.current = true;
       const event = e.nativeEvent || e;
       instance.dragStart(event);
     } else {
-      console.log('❌ No moveable instance found for:', id);
+      logger.log('❌ No moveable instance found for:', id);
     }
   }, []);
 
@@ -92,7 +93,7 @@ export const CategorySettingsView: React.FC = () => {
       setIsAdding(false);
       showToast('Category added', 'success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       showToast('Failed to add category', 'error');
     }
   };
@@ -107,7 +108,7 @@ export const CategorySettingsView: React.FC = () => {
       setEditingId(null);
       showToast('Category updated', 'success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       showToast('Failed to update category', 'error');
     }
   };
@@ -118,7 +119,7 @@ export const CategorySettingsView: React.FC = () => {
       await deleteCategory(id);
       showToast('Category deleted', 'success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       showToast('Failed to delete category', 'error');
     }
   };
@@ -132,7 +133,7 @@ export const CategorySettingsView: React.FC = () => {
     try {
       await reorderCategories(orderedIds);
     } catch (error) {
-      console.error('Failed to persist category order:', error);
+      logger.error('Failed to persist category order:', error);
       showToast('Failed to save category order', 'error');
     }
   }, [reorderCategories, showToast]);
@@ -167,19 +168,19 @@ export const CategorySettingsView: React.FC = () => {
         });
 
         moveable.on('dragStart', (e: any) => {
-          console.log('🚀 Moveable dragStart event', { isManualDrag: isManualDrag.current, categoryId: category.id });
+          logger.log('🚀 Moveable dragStart event', { isManualDrag: isManualDrag.current, categoryId: category.id });
           if (!isManualDrag.current) { 
-            console.log('⏭️ Stopping drag - not manual');
+            logger.log('⏭️ Stopping drag - not manual');
             e.stop(); 
             return; 
           }
           const target = e.inputEvent.target as HTMLElement;
           if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.closest('button')) { 
-            console.log('⏭️ Stopping drag - clicked on button/input');
+            logger.log('⏭️ Stopping drag - clicked on button/input');
             e.stop(); 
             return; 
           }
-          console.log('✅ Drag starting for category:', category.id);
+          logger.log('✅ Drag starting for category:', category.id);
 
           const startIndex = localOrderRef.current.findIndex(cat => cat.id === category.id);
           const targetEl = e.target as HTMLElement;

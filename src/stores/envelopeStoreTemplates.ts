@@ -1,5 +1,6 @@
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import type { DistributionTemplate, Envelope } from '../models/types';
+import logger from '../utils/logger';
 
 type SliceParams = {
   set: (partial: any) => void;
@@ -14,7 +15,7 @@ type SliceParams = {
 export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError }: SliceParams) => {
   return {
     saveTemplate: async (name: string, distributions: Record<string, number>, note: string) => {
-      console.log('📝 saveTemplate called with:', { name, distributions, note });
+      logger.log('📝 saveTemplate called with:', { name, distributions, note });
       try {
         const userId = getCurrentUserId();
         const templateData: DistributionTemplate = {
@@ -26,8 +27,8 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
           distributions
         };
 
-        console.log('🔄 Attempting Firebase template save...');
-        console.log('📶 Current online status:', navigator.onLine);
+        logger.log('🔄 Attempting Firebase template save...');
+        logger.log('📶 Current online status:', navigator.onLine);
 
         // Try Firebase save first with timeout for offline detection
         try {
@@ -36,20 +37,20 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
             setTimeout(() => reject(new Error('Firebase timeout - likely offline')), 5000)
           );
           const savedTemplate = await Promise.race([firebasePromise, timeoutPromise]) as DistributionTemplate;
-          console.log('✅ Firebase template save succeeded (online mode):', savedTemplate);
+          logger.log('✅ Firebase template save succeeded (online mode):', savedTemplate);
 
           // Don't update local state - real-time subscription handles it
-          console.log('✅ Template saved to Firebase - real-time subscription will update local state');
+          logger.log('✅ Template saved to Firebase - real-time subscription will update local state');
 
-          console.log('✅ Template saved to Firebase:', savedTemplate);
-          console.log('📊 Store now has templates:', get().distributionTemplates.length);
+          logger.log('✅ Template saved to Firebase:', savedTemplate);
+          logger.log('📊 Store now has templates:', get().distributionTemplates.length);
         } catch (firebaseError: any) {
-          console.log('🔥 Firebase template save failed or timed out:', firebaseError.message);
+          logger.log('🔥 Firebase template save failed or timed out:', firebaseError.message);
           throw firebaseError; // Re-throw to trigger local fallback
         }
       } catch (error) {
-        console.error('❌ Failed to save template to Firebase, saving locally:', error);
-        console.log('🔍 Error details:', {
+        logger.error('❌ Failed to save template to Firebase, saving locally:', error);
+        logger.log('🔍 Error details:', {
           name: (error as any)?.name || 'Unknown',
           message: (error as any)?.message || 'Unknown',
           code: (error as any)?.code || 'Unknown',
@@ -67,15 +68,15 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
           distributions
         };
 
-        console.log('💾 Saving template locally (offline):', localTemplate);
+        logger.log('💾 Saving template locally (offline):', localTemplate);
 
         set((state: any) => ({
           distributionTemplates: [...state.distributionTemplates, localTemplate],
           pendingSync: true // Mark for later sync
         }));
 
-        console.log('✅ Template saved locally as fallback:', localTemplate);
-        console.log('📊 Store now has templates:', get().distributionTemplates.length);
+        logger.log('✅ Template saved locally as fallback:', localTemplate);
+        logger.log('📊 Store now has templates:', get().distributionTemplates.length);
       }
     },
 
@@ -95,9 +96,9 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
           )
         }));
 
-        console.log('✅ Template updated in Firebase:', template.id);
+        logger.log('✅ Template updated in Firebase:', template.id);
       } catch (error) {
-        console.error('❌ Failed to update template in Firebase:', error);
+        logger.error('❌ Failed to update template in Firebase:', error);
         throw error;
       }
     },
@@ -111,15 +112,15 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
           distributionTemplates: state.distributionTemplates.filter((t: DistributionTemplate) => t.id !== templateId)
         }));
 
-        console.log('✅ Template deleted from Firebase:', templateId);
+        logger.log('✅ Template deleted from Firebase:', templateId);
       } catch (error) {
-        console.error('❌ Failed to delete template from Firebase:', error);
+        logger.error('❌ Failed to delete template from Firebase:', error);
         throw error;
       }
     },
 
     cleanupOrphanedTemplates: async () => {
-      console.log('🧹 Cleaning up orphaned templates...');
+      logger.log('🧹 Cleaning up orphaned templates...');
       const templates = get().distributionTemplates;
       const envelopes = get().envelopes;
       const envelopeIds = new Set(envelopes.map(env => env.id));
@@ -138,14 +139,14 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
 
         // If template has no valid distributions left, delete it
         if (Object.keys(cleanedDistributions).length === 0) {
-          console.log(`🗑️ Deleting orphaned template: ${template.name}`);
+          logger.log(`🗑️ Deleting orphaned template: ${template.name}`);
           const userId = getCurrentUserId();
           await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
           cleanedCount++;
         }
         // If template changed, update it
         else if (JSON.stringify(cleanedDistributions) !== JSON.stringify(originalDistributions)) {
-          console.log(`🔧 Updating template ${template.name} - removed orphaned envelope references`);
+          logger.log(`🔧 Updating template ${template.name} - removed orphaned envelope references`);
           const userId = getCurrentUserId();
           await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
             distributions: cleanedDistributions
@@ -155,14 +156,14 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
       }
 
       if (cleanedCount > 0) {
-        console.log(`✅ Cleaned up ${cleanedCount} templates`);
+        logger.log(`✅ Cleaned up ${cleanedCount} templates`);
       } else {
-        console.log('✅ No orphaned templates found');
+        logger.log('✅ No orphaned templates found');
       }
     },
 
     updateTemplateEnvelopeReferences: async (oldEnvelopeId: string, newEnvelopeId: string) => {
-      console.log(`🔄 Updating template references: ${oldEnvelopeId} → ${newEnvelopeId}`);
+      logger.log(`🔄 Updating template references: ${oldEnvelopeId} → ${newEnvelopeId}`);
       const templates = get().distributionTemplates;
       let updatedCount = 0;
 
@@ -172,7 +173,7 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
           updatedDistributions[newEnvelopeId] = updatedDistributions[oldEnvelopeId];
           delete updatedDistributions[oldEnvelopeId];
 
-          console.log(`📝 Updating template: ${template.name}`);
+          logger.log(`📝 Updating template: ${template.name}`);
           const userId = getCurrentUserId();
           await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
             distributions: updatedDistributions
@@ -182,12 +183,12 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
       }
 
       if (updatedCount > 0) {
-        console.log(`✅ Updated ${updatedCount} templates with new envelope reference`);
+        logger.log(`✅ Updated ${updatedCount} templates with new envelope reference`);
       }
     },
 
     removeEnvelopeFromTemplates: async (envelopeId: string) => {
-      console.log(`🗑️ Removing envelope ${envelopeId} from all templates`);
+      logger.log(`🗑️ Removing envelope ${envelopeId} from all templates`);
       const templates = get().distributionTemplates;
       let updatedCount = 0;
       let deletedCount = 0;
@@ -199,12 +200,12 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
 
           // If no distributions left, delete the template
           if (Object.keys(updatedDistributions).length === 0) {
-            console.log(`🗑️ Deleting template ${template.name} - no envelopes left`);
+            logger.log(`🗑️ Deleting template ${template.name} - no envelopes left`);
             const userId = getCurrentUserId();
             await DistributionTemplateService.deleteDistributionTemplate(userId, template.id);
             deletedCount++;
           } else {
-            console.log(`📝 Removing envelope from template: ${template.name}`);
+            logger.log(`📝 Removing envelope from template: ${template.name}`);
             const userId = getCurrentUserId();
             await DistributionTemplateService.updateDistributionTemplate(userId, template.id, {
               distributions: updatedDistributions
@@ -215,7 +216,7 @@ export const createTemplateSlice = ({ set, get, getCurrentUserId, isNetworkError
       }
 
       if (updatedCount > 0 || deletedCount > 0) {
-        console.log(`✅ Updated ${updatedCount} templates, deleted ${deletedCount} empty templates`);
+        logger.log(`✅ Updated ${updatedCount} templates, deleted ${deletedCount} empty templates`);
       }
     }
   };

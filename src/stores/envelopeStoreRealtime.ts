@@ -6,6 +6,7 @@ import { CategoryService } from '../services/CategoryService';
 import { budgetService } from '../services/budgetService';
 import type { Transaction, Envelope, AppSettings, Category } from '../models/types';
 import { fromFirestore } from '../mappers/transaction';
+import logger from '../utils/logger';
 
 type BudgetStoreLike = {
   getState: () => {
@@ -58,19 +59,19 @@ const convertFirebaseCategory = (firebaseCat: any): Category => ({
 const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Prevent duplicate subscriptions
   if ((window as any).__firebaseUnsubscribers) {
-    console.log('⚠️ Real-time subscriptions already active, skipping setup');
+    logger.log('⚠️ Real-time subscriptions already active, skipping setup');
     return;
   }
 
-  console.log('🔄 Setting up real-time Firebase subscriptions...');
+  logger.log('🔄 Setting up real-time Firebase subscriptions...');
 
   // Get current month for income sources and allocations
   const currentMonth = budgetStore.getState().currentMonth;
-  console.log('📅 Current month for subscriptions:', currentMonth);
+  logger.log('📅 Current month for subscriptions:', currentMonth);
 
   // Subscribe to envelopes
   const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(userId, (firebaseEnvelopes) => {
-    console.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
+    logger.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
     const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope);
     
     // Get current state to preserve locally deleted envelopes
@@ -90,7 +91,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
 
   // Subscribe to transactions
   const unsubscribeTransactions = TransactionService.subscribeToTransactions(userId, (firebaseTransactions) => {
-    console.log('🔄 Real-time sync: Transactions updated', firebaseTransactions.length);
+    logger.log('🔄 Real-time sync: Transactions updated', firebaseTransactions.length);
     const transactions = firebaseTransactions.map(convertFirebaseTransaction);
     
     // Get current state to preserve locally deleted transactions
@@ -111,14 +112,14 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Subscribe to categories
   const categoryService = CategoryService.getInstance();
   const unsubscribeCategories = categoryService.subscribeToCategories(userId, (firebaseCategories) => {
-    console.log('🔄 Real-time sync: Categories updated', firebaseCategories.length);
+    logger.log('🔄 Real-time sync: Categories updated', firebaseCategories.length);
     const categories = firebaseCategories.map(convertFirebaseCategory);
     
     // Deduplicate categories by ID to prevent UI glitches
     const uniqueCategories = Array.from(new Map(categories.map(c => [c.id, c])).values());
     
     if (uniqueCategories.length !== categories.length) {
-      console.warn('⚠️ Duplicate categories detected in real-time update, deduplicating...');
+      logger.warn('⚠️ Duplicate categories detected in real-time update, deduplicating...');
     }
     
     budgetStore.setState({ categories: uniqueCategories });
@@ -126,14 +127,14 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
 
   // Subscribe to distribution templates
   const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(userId, (firebaseTemplates) => {
-    console.log('🔄 Real-time sync: Templates updated from Firebase', firebaseTemplates.length);
+    logger.log('🔄 Real-time sync: Templates updated from Firebase', firebaseTemplates.length);
     // TODO: Add distributionTemplates to BudgetStore if needed
     // budgetStore.setState({ distributionTemplates });
   });
 
   // Subscribe to app settings
   const unsubscribeSettings = AppSettingsService.subscribeToAppSettings(userId, (firebaseSettings: AppSettings | null) => {
-    console.log('🔄 Real-time sync: Settings updated', firebaseSettings ? 'found' : 'null');
+    logger.log('🔄 Real-time sync: Settings updated', firebaseSettings ? 'found' : 'null');
     
     // Get current state to preserve local changes
     const currentState = budgetStore.getState();
@@ -152,13 +153,13 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     } else {
       // If Firebase settings are null, keep current local state
       // This prevents losing local data during sync issues
-      console.log('⚠️ Firebase settings null, preserving local state');
+      logger.log('⚠️ Firebase settings null, preserving local state');
     }
   });
 
   // Subscribe to monthly budget (Income Sources & Allocations)
   const unsubscribeMonthlyBudget = budgetService.subscribeToMonthlyBudget(userId, currentMonth, (data) => {
-      console.log(`🔄 Real-time sync: Monthly budget updated (${data.incomeSources.length} sources, ${data.allocations.length} allocations)`);
+      logger.log(`🔄 Real-time sync: Monthly budget updated (${data.incomeSources.length} sources, ${data.allocations.length} allocations)`);
       const currentState = budgetStore.getState();
       budgetStore.setState({ 
         incomeSources: {
@@ -182,7 +183,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     monthlyBudget: unsubscribeMonthlyBudget
   };
 
-  console.log('✅ Real-time subscriptions active - cross-device sync enabled');
+  logger.log('✅ Real-time subscriptions active - cross-device sync enabled');
 };
 
 export const setupEnvelopeStoreRealtime = (params: {
@@ -197,12 +198,12 @@ export const setupEnvelopeStoreRealtime = (params: {
 
   // Listen to browser online/offline events
   window.addEventListener('online', async () => {
-    console.log('📡 Browser online event detected');
+    logger.log('📡 Browser online event detected');
     useBudgetStore.setState({ isOnline: true });
   });
 
   window.addEventListener('offline', () => {
-    console.log('📴 Browser offline event detected');
+    logger.log('📴 Browser offline event detected');
     useBudgetStore.setState({ isOnline: false });
   });
 
@@ -212,7 +213,7 @@ export const setupEnvelopeStoreRealtime = (params: {
   // Check if user is already authenticated on app load
   const initialAuthState = useAuthStore.getState();
   if (initialAuthState.isAuthenticated && initialAuthState.currentUser) {
-    console.log('✅ User already authenticated on app load, setting up real-time subscriptions');
+    logger.log('✅ User already authenticated on app load, setting up real-time subscriptions');
     setupRealtimeSubscriptions(useBudgetStore, getCurrentUserId());
   }
 
@@ -220,11 +221,11 @@ export const setupEnvelopeStoreRealtime = (params: {
   useAuthStore.subscribe((state) => {
     if (state.isAuthenticated && state.currentUser) {
       // User has logged in, set up real-time subscriptions
-      console.log('✅ User authenticated, setting up real-time subscriptions');
+      logger.log('✅ User authenticated, setting up real-time subscriptions');
       setupRealtimeSubscriptions(useBudgetStore, getCurrentUserId());
     } else if (!state.isAuthenticated && !state.isLoading) {
       // User has logged out, clear their data and unsubscribe
-      console.log('👋 User logged out, clearing data and unsubscribing');
+      logger.log('👋 User logged out, clearing data and unsubscribing');
 
       // Clean up Firebase subscriptions
       if ((window as any).__firebaseUnsubscribers) {
@@ -236,7 +237,7 @@ export const setupEnvelopeStoreRealtime = (params: {
         if (unsubscribers.settings) unsubscribers.settings();
         if (unsubscribers.monthlyBudget) unsubscribers.monthlyBudget();
         delete (window as any).__firebaseUnsubscribers;
-        console.log('🧹 Cleaned up Firebase subscriptions');
+        logger.log('🧹 Cleaned up Firebase subscriptions');
       }
 
       useBudgetStore.getState().handleUserLogout();
@@ -247,7 +248,7 @@ export const setupEnvelopeStoreRealtime = (params: {
   let lastMonth = useBudgetStore.getState().currentMonth;
   useBudgetStore.subscribe((state) => {
     if (state.currentMonth !== lastMonth && state.isAuthenticated) {
-      console.log('📅 Month changed from', lastMonth, 'to', state.currentMonth);
+      logger.log('📅 Month changed from', lastMonth, 'to', state.currentMonth);
       lastMonth = state.currentMonth;
       
       // Update subscriptions
@@ -258,11 +259,11 @@ export const setupEnvelopeStoreRealtime = (params: {
         // Unsubscribe from old month
         if (unsubscribers.monthlyBudget) unsubscribers.monthlyBudget();
         
-        console.log('🔄 Unsubscribed from old month data');
+        logger.log('🔄 Unsubscribed from old month data');
         
         // Subscribe to new month
         unsubscribers.monthlyBudget = budgetService.subscribeToMonthlyBudget(userId, state.currentMonth, (data) => {
-            console.log('🔄 Real-time sync: Monthly budget updated for new month');
+            logger.log('🔄 Real-time sync: Monthly budget updated for new month');
             const currentState = useBudgetStore.getState();
             useBudgetStore.setState({ 
               incomeSources: {
@@ -276,7 +277,7 @@ export const setupEnvelopeStoreRealtime = (params: {
             });
         });
         
-        console.log('✅ Subscribed to monthly data for new month:', state.currentMonth);
+        logger.log('✅ Subscribed to monthly data for new month:', state.currentMonth);
       }
     }
   });

@@ -16,6 +16,7 @@ import {
 import type { User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase';
 import type { User } from '../models/types';
+import logger from '../utils/logger';
 
 // Helper for verification redirects
 const getActionCodeSettings = () => ({
@@ -80,9 +81,9 @@ export const useAuthStore = create<AuthStore>()(
           const firebaseUser = userCredential.user;
 
           // Check if email is verified
-          console.log(`🔍 Checking email verification for: ${firebaseUser.email}`);
-          console.log(`🔍 emailVerified status:`, firebaseUser.emailVerified);
-          console.log(`🔍 Firebase user object:`, {
+          logger.log(`🔍 Checking email verification for: ${firebaseUser.email}`);
+          logger.log(`🔍 emailVerified status:`, firebaseUser.emailVerified);
+          logger.log(`🔍 Firebase user object:`, {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             emailVerified: firebaseUser.emailVerified,
@@ -90,7 +91,7 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           if (!firebaseUser.emailVerified) {
-            console.log(`❌ BLOCKING LOGIN: Email not verified for ${firebaseUser.email}`);
+            logger.log(`❌ BLOCKING LOGIN: Email not verified for ${firebaseUser.email}`);
             // Sign out the user since they can't access the app without verification
             await firebaseSignOut(auth);
             set({
@@ -99,11 +100,11 @@ export const useAuthStore = create<AuthStore>()(
               isLoading: false,
               loginError: 'Please verify your email address before signing in. Check your email for a verification link.'
             });
-            console.log(`❌ Login blocked: ${firebaseUser.email} not verified`);
+            logger.log(`❌ Login blocked: ${firebaseUser.email} not verified`);
             return false;
           }
 
-          console.log(`✅ EMAIL VERIFIED: Allowing login for ${firebaseUser.email}`);
+          logger.log(`✅ EMAIL VERIFIED: Allowing login for ${firebaseUser.email}`);
 
           const user = firebaseUserToUser(firebaseUser);
 
@@ -114,12 +115,12 @@ export const useAuthStore = create<AuthStore>()(
             loginError: null,
             lastAuthTime: Date.now() // Record successful auth time
           });
-          console.log(`✅ User logged in: ${user.email}`);
+          logger.log(`✅ User logged in: ${user.email}`);
           return true;
         } catch (error: any) {
-          console.error('Login error:', error);
-          console.error('Error code:', error.code);
-          console.error('Error message:', error.message);
+          logger.error('Login error:', error);
+          logger.error('Error code:', error.code);
+          logger.error('Error message:', error.message);
 
           let errorMessage = 'Login failed. Please try again.';
 
@@ -149,13 +150,13 @@ export const useAuthStore = create<AuthStore>()(
                 break;
               default:
                 // For debugging - show the actual error code
-                console.warn(`Unhandled Firebase error code: ${error.code}`);
+                logger.warn(`Unhandled Firebase error code: ${error.code}`);
                 errorMessage = 'Authentication failed. Please try again.';
                 break;
             }
           } else {
             // Handle non-Firebase errors
-            console.warn('Non-Firebase error in login:', error);
+            logger.warn('Non-Firebase error in login:', error);
             errorMessage = 'An unexpected error occurred. Please try again.';
           }
 
@@ -191,10 +192,10 @@ export const useAuthStore = create<AuthStore>()(
             loginError: null,
             lastVerificationEmailSent: Date.now() // Record verification email sent time
           });
-          console.log(`✅ User registered: ${user.email}, verification email sent`);
+          logger.log(`✅ User registered: ${user.email}, verification email sent`);
           return true;
         } catch (error: any) {
-          console.error('Registration error:', error);
+          logger.error('Registration error:', error);
           let errorMessage = 'Registration failed. Please try again.';
 
           switch (error.code) {
@@ -225,9 +226,9 @@ export const useAuthStore = create<AuthStore>()(
       logout: async () => {
         try {
           await firebaseSignOut(auth);
-          console.log('👋 User logged out');
+          logger.log('👋 User logged out');
         } catch (error) {
-          console.error('Logout error:', error);
+          logger.error('Logout error:', error);
         }
         // Firebase auth state listener will handle the state update
       },
@@ -244,7 +245,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: false });
           return true;
         } catch (error: any) {
-          console.error('Password reset error:', error);
+          logger.error('Password reset error:', error);
           let errorMessage = 'Failed to send password reset email. Please try again.';
 
           switch (error.code) {
@@ -282,10 +283,10 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             lastVerificationEmailSent: Date.now()
           });
-          console.log(`✅ Verification email sent to: ${currentUser.email}`);
+          logger.log(`✅ Verification email sent to: ${currentUser.email}`);
           return true;
         } catch (error: any) {
-          console.error('Email verification error:', error);
+          logger.error('Email verification error:', error);
           let errorMessage = 'Failed to send verification email. Please try again.';
 
           switch (error.code) {
@@ -338,12 +339,12 @@ export const useAuthStore = create<AuthStore>()(
               isAuthenticated: true,
               lastAuthTime: Date.now()
             });
-            console.log(`✅ Email verified for: ${updatedUser.email}`);
+            logger.log(`✅ Email verified for: ${updatedUser.email}`);
             return true;
           }
           return false;
         } catch (error) {
-          console.error('Error checking verification status:', error);
+          logger.error('Error checking verification status:', error);
           return false;
         }
       },
@@ -377,10 +378,10 @@ export const useAuthStore = create<AuthStore>()(
             lastAuthTime: null
           });
 
-          console.log(`✅ Account permanently deleted: ${currentUser.email}`);
+          logger.log(`✅ Account permanently deleted: ${currentUser.email}`);
           return true;
         } catch (error: any) {
-          console.error('Account deletion error:', error);
+          logger.error('Account deletion error:', error);
           let errorMessage = 'Failed to delete account. Please try again.';
 
           switch (error.code) {
@@ -412,10 +413,10 @@ export const useAuthStore = create<AuthStore>()(
         try {
           await confirmPasswordReset(auth, oobCode, newPassword);
           set({ isLoading: false });
-          console.log('✅ Password reset successful');
+          logger.log('✅ Password reset successful');
           return true;
         } catch (error: any) {
-          console.error('Password reset confirmation error:', error);
+          logger.error('Password reset confirmation error:', error);
           let errorMessage = 'Failed to reset password. The link may be expired or invalid.';
 
           switch (error.code) {
@@ -481,26 +482,26 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           if (effectiveUser) {
-            console.log(`🔄 Auth state: User is signed in (${effectiveUser.email})`,
+            logger.log(`🔄 Auth state: User is signed in (${effectiveUser.email})`,
               shouldGrantOfflineAccess ? '(offline grace period)' : isVerified ? '(verified)' : '(unverified)');
 
             // Check if we should start onboarding for new users
-            console.log('🔍 Onboarding check:', {
+            logger.log('🔍 Onboarding check:', {
               isVerified,
               shouldGrantOfflineAccess,
               willCheckOnboarding: isVerified && !shouldGrantOfflineAccess
             });
             
             if (isVerified && !shouldGrantOfflineAccess) {
-              console.log('🔍 Loading budgetStore to check onboarding...');
+              logger.log('🔍 Loading budgetStore to check onboarding...');
               const budgetStore = await import('./budgetStore').then(m => m.useBudgetStore.getState());
-              console.log('🔍 Calling budgetStore.checkAndStartOnboarding()...');
+              logger.log('🔍 Calling budgetStore.checkAndStartOnboarding()...');
               await budgetStore.checkAndStartOnboarding();
             } else {
-              console.log('⏭️ Skipping onboarding check (not verified or offline grace period)');
+              logger.log('⏭️ Skipping onboarding check (not verified or offline grace period)');
             }
           } else {
-            console.log('🔄 Auth state: User is signed out');
+            logger.log('🔄 Auth state: User is signed out');
           }
         });
 

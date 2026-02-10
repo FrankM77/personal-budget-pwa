@@ -3,6 +3,7 @@ import { LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useBudgetStore } from '../../stores/budgetStore';
 import { useNavigate } from 'react-router-dom';
+import logger from '../../utils/logger';
 
 export const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,7 +38,7 @@ export const UserMenu = () => {
         navigate('/');
         setIsOpen(false);
       } catch (error) {
-        console.error('Logout failed:', error);
+        logger.error('Logout failed:', error);
       }
     }
   };

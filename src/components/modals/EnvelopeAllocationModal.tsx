@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
 import { useToastStore } from '../../stores/toastStore';
 import type { EnvelopeAllocation } from '../../models/types';
+import logger from '../../utils/logger';
 
 interface EnvelopeAllocationModalProps {
   isVisible: boolean;
@@ -77,7 +78,7 @@ const EnvelopeAllocationModal: React.FC<EnvelopeAllocationModalProps> = ({
 
       onClose();
     } catch (error) {
-      console.error('Error saving envelope allocation:', error);
+      logger.error('Error saving envelope allocation:', error);
       showToast('Failed to save budget amount', 'error');
     } finally {
       setIsSubmitting(false);

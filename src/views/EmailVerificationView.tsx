@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Mail, RefreshCw, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import logger from '../utils/logger';
 
 export const EmailVerificationView = () => {
   const [isResending, setIsResending] = useState(false);
@@ -10,14 +11,14 @@ export const EmailVerificationView = () => {
   // Redirect if no current user (shouldn't happen in normal flow)
   useEffect(() => {
     if (!currentUser) {
-      console.warn('EmailVerificationView: No current user, this should not happen');
+      logger.warn('EmailVerificationView: No current user, this should not happen');
     }
   }, [currentUser]);
 
   // Auto-check when window regains focus
   useEffect(() => {
     const handleFocus = () => {
-      console.log('Window focused, checking verification status...');
+      logger.log('Window focused, checking verification status...');
       checkVerificationStatus();
     };
 

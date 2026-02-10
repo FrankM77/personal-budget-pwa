@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
 import type { Transaction } from '../models/types';
+import logger from '../utils/logger';
 
 interface Props {
   transaction: Transaction;
@@ -48,7 +49,7 @@ const formatDateSafe = (date: any) => {
     }).format(d);
 
   } catch (e) {
-    console.error("Date error:", e);
+    logger.error("Date error:", e);
     return "Error";
   }
 };
@@ -77,7 +78,7 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
   // 1. Defensive Check: If transaction is missing, return nothing (don't crash)
   if (!transaction) return null;
 
-  console.log('🔍 Transaction payment method:', transaction.paymentMethod);
+  logger.log('🔍 Transaction payment method:', transaction.paymentMethod);
 
   const isIncome = transaction.type === 'Income';
   const isExpense = transaction.type === 'Expense';

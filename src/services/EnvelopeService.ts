@@ -12,6 +12,7 @@ import {
   } from 'firebase/firestore';
   import { db } from '../firebase'; // Ensure you have your firebase config initialized here
   import type { Envelope } from '../models/types';
+  import logger from '../utils/logger';
 
   // The path to the collection: users/{userId}/envelopes
   const getCollectionRef = (userId: string) =>
@@ -50,7 +51,7 @@ import {
     // 2. GET ALL (For store.fetchData)
     getAllEnvelopes: async (userId: string): Promise<Envelope[]> => {
       try {
-        console.log('📡 EnvelopeService.getAllEnvelopes called for user:', userId);
+        logger.log('📡 EnvelopeService.getAllEnvelopes called for user:', userId);
         
         // Fetch ALL documents without ordering first (ensures we get all envelopes)
         // Then sort in memory to handle missing orderIndex fields gracefully
@@ -77,10 +78,10 @@ import {
           return aIndex - bIndex;
         });
         
-        console.log('✅ Fetched envelopes:', sortedEnvelopes.length);
+        logger.log('✅ Fetched envelopes:', sortedEnvelopes.length);
         return sortedEnvelopes;
       } catch (error) {
-        console.error('❌ EnvelopeService.getAllEnvelopes failed:', error);
+        logger.error('❌ EnvelopeService.getAllEnvelopes failed:', error);
         return [];
       }
     },
@@ -98,7 +99,7 @@ import {
         const result = { id: docRef.id, ...envelopeData, userId };
         return result;
       } catch (error) {
-        console.error(`💥 Envelope addDoc failed:`, error);
+        logger.error(`💥 Envelope addDoc failed:`, error);
         throw error;
       }
     },
@@ -123,9 +124,9 @@ import {
 
     // 6. DELETE
     deleteEnvelope: async (userId: string, envelopeId: string) => {
-      console.log(`🗑️ EnvelopeService.deleteEnvelope: Deleting envelope ${envelopeId} for user ${userId}`);
+      logger.log(`🗑️ EnvelopeService.deleteEnvelope: Deleting envelope ${envelopeId} for user ${userId}`);
       const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
       await deleteDoc(docRef);
-      console.log(`✅ EnvelopeService.deleteEnvelope: Successfully deleted envelope ${envelopeId}`);
+      logger.log(`✅ EnvelopeService.deleteEnvelope: Successfully deleted envelope ${envelopeId}`);
     }
   };

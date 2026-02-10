@@ -2,8 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
-import { Decimal } from 'decimal.js';
 import type { IncomeSource } from '../models/types';
+import logger from '../utils/logger';
 
 // Helper function to safely convert various date formats to JavaScript Date
 const safeDateConversion = (dateValue: any): Date | null => {
@@ -91,12 +91,12 @@ export const useEnvelopeList = () => {
     if (envelope?.isPiggybank) {
       // For piggybanks, use store's cumulative balance (no month param)
       const balance = useBudgetStore.getState().getEnvelopeBalance(envelopeId);
-      return new Decimal(balance);
+      return balance; // Return as number
     }
     
     // For regular envelopes, use store's monthly balance (pass currentMonth)
     const balance = useBudgetStore.getState().getEnvelopeBalance(envelopeId, currentMonth);
-    return new Decimal(balance);
+    return balance; // Return as number
   }, [envelopes, currentMonth]);
 
   // Calculate piggybanks with sorting
@@ -112,7 +112,7 @@ export const useEnvelopeList = () => {
           
           // Check if the date conversion was successful
           if (!createdDate) {
-            console.error(`🐷 Invalid creation date for piggybank ${env.name}:`, env.createdAt);
+            logger.error(`🐷 Invalid creation date for piggybank ${env.name}:`, env.createdAt);
             return false; // Hide piggybanks with invalid dates
           }
           
@@ -122,7 +122,7 @@ export const useEnvelopeList = () => {
           // Only show if current viewing month is >= creation month
           return currentMonth >= createdMonth;
         } catch (error) {
-          console.error(`🐷 Error processing piggybank ${env.name}:`, error, {
+          logger.error(`🐷 Error processing piggybank ${env.name}:`, error, {
             createdAt: env.createdAt,
             typeofCreatedAt: typeof env.createdAt
           });
@@ -226,7 +226,7 @@ export const useEnvelopeList = () => {
     try {
       await reorderEnvelopes(orderedIds);
     } catch (error) {
-      console.error('Failed to persist envelope order:', error);
+      logger.error('Failed to persist envelope order:', error);
       showToast('Failed to save envelope order', 'error');
     }
   }, [reorderEnvelopes, showToast]);
@@ -238,7 +238,7 @@ export const useEnvelopeList = () => {
 
   // Delete income source with toast
   const deleteIncomeSourceWithToast = useCallback((incomeSource: IncomeSource) => {
-    deleteIncomeSource(currentMonth, incomeSource.id).catch(console.error);
+    deleteIncomeSource(currentMonth, incomeSource.id).catch(logger.error);
 
     showToast(
       `Deleted "${incomeSource.name}"`,
@@ -250,11 +250,11 @@ export const useEnvelopeList = () => {
   const copyFromPreviousMonthWithToast = useCallback(async (targetMonth?: string) => {
     try {
       const monthToUse = targetMonth || currentMonth;
-      console.log('🔧 Copying to month:', monthToUse);
+      logger.log('🔧 Copying to month:', monthToUse);
       await copyPreviousMonthAllocations(monthToUse);
       showToast('Previous month budget copied', 'success');
     } catch (error) {
-      console.error('Error copying previous month:', error);
+      logger.error('Error copying previous month:', error);
       showToast('Failed to copy previous month', 'error');
     }
   }, [copyPreviousMonthAllocations, showToast, currentMonth]);
@@ -275,7 +275,7 @@ export const useEnvelopeList = () => {
         'success'
       );
     } catch (error) {
-      console.error('Error clearing month data:', error);
+      logger.error('Error clearing month data:', error);
       showToast('Failed to clear month data', 'error');
     }
   }, [currentUser, currentMonth, showToast]);
@@ -326,7 +326,7 @@ export const useEnvelopeList = () => {
         }
       }, 100);
     } catch (error) {
-      console.error('Failed to set allocation:', error);
+      logger.error('Failed to set allocation:', error);
       showToast('Failed to update budget', 'error');
     }
   }, [setEnvelopeAllocation, showToast]);

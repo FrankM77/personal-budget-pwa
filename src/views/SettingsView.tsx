@@ -5,6 +5,7 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import { budgetService, type CleanupReport } from '../services/budgetService';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
+import logger from '../utils/logger';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     if (!appSettings) {
       initializeAppSettings().catch((error: unknown) => {
-        console.error('Failed to initialize app settings:', error);
+        logger.error('Failed to initialize app settings:', error);
       });
     }
   }, [initializeAppSettings, appSettings]);
@@ -111,7 +112,7 @@ export const SettingsView: React.FC = () => {
 
   const handleBackup = () => {
     try {
-      console.log(' Creating backup...');
+      logger.log(' Creating backup...');
       const backupData = {
         appVersion: __APP_VERSION__,
         backupDate: Date.now(),
@@ -155,7 +156,7 @@ export const SettingsView: React.FC = () => {
 
       setOperationResult({ success: true, message: 'Backup downloaded successfully.' });
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       setOperationResult({
         success: false,
         message: 'Failed to create backup file.',
@@ -236,7 +237,7 @@ export const SettingsView: React.FC = () => {
       URL.revokeObjectURL(url);
       setOperationResult({ success: true, message: 'Transactions CSV exported successfully.' });
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       setOperationResult({
         success: false,
         message: 'Failed to export CSV. Please try again.',
@@ -270,7 +271,7 @@ export const SettingsView: React.FC = () => {
           try {
             await updateAppSettings({ theme: parsed.appSettings.theme });
           } catch (error) {
-            console.error('Failed to update imported settings:', error);
+            logger.error('Failed to update imported settings:', error);
           }
         }
 
@@ -279,7 +280,7 @@ export const SettingsView: React.FC = () => {
           `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions.`
         );
       } catch (error) {
-        console.error(error);
+        logger.error(error);
         showStatus('error', 'Invalid backup file. Please verify the JSON.');
       }
     };
@@ -299,7 +300,7 @@ export const SettingsView: React.FC = () => {
         showStatus('success', 'All data has been permanently deleted.');
         navigate('/');
       } catch (error) {
-        console.error('Reset failed:', error);
+        logger.error('Reset failed:', error);
         showStatus('error', 'Failed to delete all data. Some data may remain.');
       }
     }
@@ -325,7 +326,7 @@ export const SettingsView: React.FC = () => {
         showStatus('error', 'Failed to delete account. Please try again.');
       }
     } catch (error) {
-      console.error('Account deletion failed:', error);
+      logger.error('Account deletion failed:', error);
       showStatus('error', 'Failed to delete account. Please try again.');
     } finally {
       setIsDeletingAccount(false);
@@ -353,7 +354,7 @@ export const SettingsView: React.FC = () => {
         showStatus('success', 'No orphaned data found. Your database is already clean!');
       }
     } catch (error) {
-      console.error('Cleanup failed:', error);
+      logger.error('Cleanup failed:', error);
       showStatus('error', 'Failed to clean up orphaned data. Please try again.');
     } finally {
       setIsCleaningData(false);
@@ -381,7 +382,7 @@ export const SettingsView: React.FC = () => {
         logout(); // Clear auth state
         navigate('/');
       } catch (error) {
-        console.error('Logout failed:', error);
+        logger.error('Logout failed:', error);
       }
     }
   };
@@ -516,7 +517,7 @@ export const SettingsView: React.FC = () => {
                       try {
                         await updateAppSettings({ theme: option.value });
                       } catch (error) {
-                        console.error('Failed to update theme setting:', error);
+                        logger.error('Failed to update theme setting:', error);
                       }
                     }}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${ 
@@ -556,7 +557,7 @@ export const SettingsView: React.FC = () => {
                       try {
                         await updateAppSettings({ fontSize: option.value });
                       } catch (error) {
-                        console.error('Failed to update font size setting:', error);
+                        logger.error('Failed to update font size setting:', error);
                       }
                     }}
                     className={`flex-1 py-2 rounded-lg font-medium border transition-colors flex items-center justify-center ${ 

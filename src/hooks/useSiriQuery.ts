@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { parseSiriQuery } from '../services/SiriService';
 import type { ParsedTransaction } from '../utils/smartTransactionParser';
+import logger from '../utils/logger';
 
 /**
  * Hook that detects a `?query=` search parameter in the URL,
@@ -31,11 +32,11 @@ export function useSiriQuery() {
 
     parseSiriQuery(query, envelopes)
       .then((result) => {
-        console.log('🎙️ Siri: Parsed result:', result);
+        logger.log('🎙️ Siri: Parsed result:', result);
         setParsedData(result);
       })
       .catch((error) => {
-        console.error('🎙️ Siri: Parse failed:', error);
+        logger.error('🎙️ Siri: Parse failed:', error);
         setParsedData(null);
       })
       .finally(() => {

@@ -98,7 +98,7 @@ export const AnalyticsView: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('totals');
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('12m');
-  const { currentMonth, fetchMonthData, incomeSources } = useBudgetStore();
+  const { currentMonth, fetchMonthData, incomeSources, loadedTransactionMonths } = useBudgetStore();
 
   const yearOptions = useMemo(() => getYearOptions(), []);
 
@@ -107,11 +107,16 @@ export const AnalyticsView: React.FC = () => {
     const months = getMonthsForTimeFrame(timeFrame, currentMonth);
     months.forEach((m) => {
       // Only fetch if not already in store
-      if (incomeSources[m] === undefined) {
+      // Check both incomeSources AND loadedTransactionMonths
+      const isMissingData = 
+        incomeSources[m] === undefined || 
+        !loadedTransactionMonths.includes(m);
+
+      if (isMissingData) {
         fetchMonthData(m);
       }
     });
-  }, [timeFrame, currentMonth, fetchMonthData, incomeSources]);
+  }, [timeFrame, currentMonth, fetchMonthData, incomeSources, loadedTransactionMonths]);
 
   const {
     spendingTotals,

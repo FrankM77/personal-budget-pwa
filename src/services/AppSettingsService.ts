@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { AppSettings } from '../models/types';
+import logger from '../utils/logger';
 
 // The path to the collection: users/{userId}/appSettings
 const getCollectionRef = (userId: string) =>
@@ -67,18 +68,18 @@ export const AppSettingsService = {
     if (!userId) {
       throw new Error('User ID is required to create app settings');
     }
-    console.log(`📝 AppSettingsService.createAppSettings: Creating settings for user ${userId}:`, settingsData);
+    logger.log(`📝 AppSettingsService.createAppSettings: Creating settings for user ${userId}:`, settingsData);
 
     try {
       const docRef = await addDoc(getCollectionRef(userId), settingsData);
-      console.log(`📄 Settings addDoc succeeded, docRef:`, docRef);
+      logger.log(`📄 Settings addDoc succeeded, docRef:`, docRef);
 
       // Create result with the real Firebase ID
       const result = { id: docRef.id, ...settingsData, userId };
-      console.log(`📤 Final settings result object:`, result);
+      logger.log(`📤 Final settings result object:`, result);
       return result;
     } catch (error) {
-      console.error(`💥 Settings addDoc failed:`, error);
+      logger.error(`💥 Settings addDoc failed:`, error);
       throw error;
     }
   },
@@ -97,9 +98,9 @@ export const AppSettingsService = {
 
   // 6. DELETE (Rarely used, but available)
   deleteAppSettings: async (userId: string, settingsId: string) => {
-    console.log(`🗑️ AppSettingsService.deleteAppSettings: Deleting settings ${settingsId} for user ${userId}`);
+    logger.log(`🗑️ AppSettingsService.deleteAppSettings: Deleting settings ${settingsId} for user ${userId}`);
     const docRef = doc(db, 'users', userId, 'appSettings', settingsId);
     await deleteDoc(docRef);
-    console.log(`✅ AppSettingsService.deleteAppSettings: Successfully deleted settings ${settingsId}`);
+    logger.log(`✅ AppSettingsService.deleteAppSettings: Successfully deleted settings ${settingsId}`);
   }
 };

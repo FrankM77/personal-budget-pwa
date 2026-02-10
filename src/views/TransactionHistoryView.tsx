@@ -8,11 +8,23 @@ import { SwipeableRow } from '../components/ui/SwipeableRow';
 import EnvelopeTransactionRow from '../components/EnvelopeTransactionRow';
 import TransactionModal from '../components/modals/TransactionModal';
 import type { Transaction } from '../models/types';
+import logger from '../utils/logger';
 
 export const TransactionHistoryView: React.FC = () => {
   const navigate = useNavigate();
   // Added deleteTransaction to the destructuring
-  const { transactions, envelopes, updateTransaction, deleteTransaction, restoreTransaction, currentMonth, appSettings } = useBudgetStore(); 
+  const { 
+    transactions, 
+    envelopes, 
+    updateTransaction, 
+    deleteTransaction, 
+    restoreTransaction, 
+    currentMonth, 
+    appSettings,
+    fetchAllTransactions,
+    areAllTransactionsLoaded,
+    isLoading 
+  } = useBudgetStore(); 
   const { showToast } = useToastStore(); 
   
   // --- 1. Filter State (Matching Swift @State) ---
@@ -38,7 +50,7 @@ export const TransactionHistoryView: React.FC = () => {
 
   // --- 3. The Filter Logic (Matching Swift Computed Property) ---
   const filteredTransactions = useMemo(() => {
-    console.log('🔍 Filtering transactions:', {
+    logger.log('🔍 Filtering transactions:', {
       totalTransactions: transactions.length,
       showAllTime,
       currentMonth,
@@ -49,7 +61,7 @@ export const TransactionHistoryView: React.FC = () => {
     let filteredByMonth = transactions;
     if (!showAllTime) {
       filteredByMonth = transactions.filter(t => t.month === currentMonth || !t.month);
-      console.log('📅 After month filter:', {
+      logger.log('📅 After month filter:', {
         remaining: filteredByMonth.length,
         currentMonth,
         filteredTransactions: filteredByMonth.map(t => ({
@@ -148,7 +160,7 @@ export const TransactionHistoryView: React.FC = () => {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth, isDateFilterActive]);
 
-  console.log('✅ Final filtered transactions:', {
+  logger.log('✅ Final filtered transactions:', {
     count: filteredTransactions.length,
     transactions: filteredTransactions.map(t => ({
       id: t.id,
@@ -256,10 +268,21 @@ export const TransactionHistoryView: React.FC = () => {
       <div className="px-4 py-2 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 flex justify-between items-center">
         <div className="text-sm font-medium text-gray-700 dark:text-zinc-300">Month: {currentMonth}</div>
         <button 
-          onClick={() => setShowAllTime(!showAllTime)}
-          className={`text-sm px-3 py-1 rounded-md ${showAllTime ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-800 dark:bg-zinc-800 dark:text-zinc-300'}`}
+          onClick={() => {
+            const newValue = !showAllTime;
+            setShowAllTime(newValue);
+            if (newValue && !areAllTransactionsLoaded) {
+              fetchAllTransactions();
+            }
+          }}
+          disabled={isLoading}
+          className={`text-sm px-3 py-1 rounded-md transition-colors ${
+            showAllTime 
+              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' 
+              : 'bg-gray-100 text-gray-800 dark:bg-zinc-800 dark:text-zinc-300'
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {showAllTime ? 'Current Month Only' : 'All Time'}
+          {isLoading ? 'Loading...' : (showAllTime ? 'Current Month Only' : 'All Time')}
         </button>
       </div>
 

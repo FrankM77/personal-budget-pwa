@@ -14,6 +14,7 @@ import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
 import { AddTransactionView } from './views/AddTransactionView';
 import { auth } from './firebase';
+import logger from './utils/logger';
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
@@ -45,16 +46,16 @@ function App() {
       const oobCode = urlParams.get('oobCode');
 
       if (mode === 'resetPassword' && oobCode) {
-        console.log('🔗 Processing password reset from URL');
+        logger.log('🔗 Processing password reset from URL');
         setResetPasswordCode(oobCode);
         return;
       }
 
       if (mode === 'verifyEmail' && oobCode) {
-        console.log('🔗 Processing email verification from URL');
+        logger.log('🔗 Processing email verification from URL');
         try {
           await applyActionCode(auth, oobCode);
-          console.log('✅ Email verification successful');
+          logger.log('✅ Email verification successful');
 
           // Clean up URL parameters
           const newUrl = window.location.pathname;
@@ -65,7 +66,7 @@ function App() {
           alert('Email verified successfully! You can now sign in.');
 
         } catch (error: any) {
-          console.error('❌ Email verification failed:', error);
+          logger.error('❌ Email verification failed:', error);
           alert('Email verification failed. The link may be expired or invalid.');
         }
       }
