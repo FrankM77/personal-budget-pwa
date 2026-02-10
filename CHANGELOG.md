@@ -2,6 +2,36 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.9.4] - 2026-02-10
+
+### 🏗️ **ARCHITECTURE**
+- **BudgetStore Refactoring**: Split the massive 1,920-line `budgetStore.ts` into 7 focused slice files:
+  - `budgetStoreTypes.ts` - shared types and interfaces
+  - `budgetStoreTransactions.ts` - transaction CRUD and fetch actions
+  - `budgetStoreEnvelopes.ts` - envelope CRUD and piggybank management
+  - `budgetStoreAllocations.ts` - allocation/income CRUD and copyPreviousMonth
+  - `budgetStoreCategories.ts` - category CRUD and reorder
+  - `budgetStoreOnboarding.ts` - onboarding logic
+  - `budgetStoreSettings.ts` - app settings and online status
+  - `budgetStoreData.ts` - init, fetchData, resetData, importData
+- Main `budgetStore.ts` is now a ~75-line composition file
+- Zero breaking changes - all 21 consumer files continue to import unchanged
+
+### 🔒 **SECURITY**
+- **Cloud Function Rate Limiting**: Added 30 calls/minute per user rate limiting to prevent Vertex AI cost abuse
+- **Input Validation**: Added 500 character limit to Cloud Function inputs to prevent oversized requests
+
+### 🧹 **CODE CLEANUP**
+- **Dead Code Removal**: Removed 11 unused debug files and components
+- **Console Logging**: Replaced 269 `console.log` statements with environment-aware logger
+- **Duplicate Types**: Consolidated duplicate type definitions into canonical source
+- **Dependencies**: Removed unused `decimal.js` dependency, reducing bundle size by 33KB
+
+### ⚡ **PERFORMANCE**
+- **Lazy Loading**: Only fetch current month transactions on initial load, with lazy loading for historical data
+- **Auth Pattern**: Eliminated repeated dynamic imports and auth checking patterns
+- **Bundle Size**: Optimized imports and removed dead code
+
 ## [1.9.3] - 2026-02-10
 
 ### ✨ **IMPROVEMENTS**
