@@ -741,9 +741,25 @@ export const SettingsView: React.FC = () => {
                       navigator.clipboard.writeText(appSettings.siriToken!);
                       showStatus('success', 'Token copied to clipboard');
                     }}
-                    className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                    className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    title="Copy token"
                   >
-                    Copy
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">Copy</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to regenerate your Siri token? You will need to update your Shortcut.')) {
+                        const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+                        await updateAppSettings({ siriToken: token });
+                        showStatus('success', 'Siri token regenerated');
+                      }
+                    }}
+                    className="p-2 bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-zinc-300 rounded-lg hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors"
+                    title="Regenerate token"
+                  >
+                    <RefreshCw size={20} />
                   </button>
                 </div>
               ) : (
