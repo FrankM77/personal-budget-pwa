@@ -2,6 +2,21 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.9.3] - 2026-02-10
+
+### ✨ **IMPROVEMENTS**
+- **Transaction Editing**: Envelope selector now displays envelopes in the same order as the main budget view (sorted by orderIndex, then by name, and filtered to show only active envelopes).
+
+## [1.9.2] - 2026-02-10
+
+### 🐛 **BUG FIXES**
+- **Transaction Modal**: Fixed scrolling issue where the background page would scroll instead of the modal content when the envelope selector expanded beyond the viewport height.
+
+## [1.9.1] - 2026-02-10
+
+### ✨ **IMPROVEMENTS**
+- **Transaction Editing**: Replaced simple envelope dropdown with SplitTransactionHelper component for consistency with AddTransactionView. The envelope selector now appears in the same position (after date) and uses the same UI component across the app.
+
 ## [1.9.0] - 2026-02-10
 
 ### ✨ **NEW FEATURES**

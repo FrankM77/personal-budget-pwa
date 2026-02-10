@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
 import type { Transaction, Envelope, PaymentSource } from '../../models/types';
 import CardStack from '../ui/CardStack';
+import { SplitTransactionHelper } from '../SplitTransactionHelper';
 import '../../styles/CardStack.css';
 
 interface Props {
@@ -24,6 +25,20 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD for input
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
   const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
+  const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
+
+  // Sort envelopes by orderIndex (creation order) with name as fallback
+  // Only show active envelopes (filter out deleted ones)
+  const sortedEnvelopes = envelopes ? [...envelopes]
+    .filter(env => env.isActive !== false)
+    .sort((a, b) => {
+      const aOrder = a.orderIndex ?? 0;
+      const bOrder = b.orderIndex ?? 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return a.name.localeCompare(b.name);
+    }) : [];
 
   // Reset or Populate when opening
   useEffect(() => {
@@ -38,6 +53,8 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       if (envelopes) {
         const transactionEnvelope = envelopes.find(e => e.id === initialTransaction.envelopeId);
         setSelectedEnvelope(transactionEnvelope || currentEnvelope);
+        // Initialize splitAmounts with the full amount in the current envelope
+        setSplitAmounts({ [initialTransaction.envelopeId]: initialTransaction.amount });
       }
       try {
         const d = new Date(initialTransaction.date);
@@ -57,6 +74,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       setNote('');
       setDate(new Date().toISOString().split('T')[0]);
       setSelectedEnvelope(currentEnvelope); // For add/spend modes, use current envelope
+      setSplitAmounts({}); // Reset split amounts for add/spend modes
       // Don't forcefully nullify if we want to keep the default, 
       // but CardStack relies on null to trigger default selection.
       // With setTimeout removed, the race condition should be resolved.
@@ -72,7 +90,10 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       return;
     }
 
-    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: (selectedEnvelope || currentEnvelope).id, paymentMethod: selectedPaymentMethod });
+    // For edit mode, check if we have split amounts
+    const hasSplitTransactions = mode === 'edit' && Object.keys(splitAmounts).length > 0;
+    
+    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, splitAmounts, paymentMethod: selectedPaymentMethod });
 
     try {
       // Validate date against current budget month
@@ -112,15 +133,30 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         });
       } else if (mode === 'edit' && initialTransaction) {
         console.log('✏️ Updating transaction');
-        await updateTransaction({
-          ...initialTransaction,
-          amount: numAmount,
-          description: note,
-          merchant: merchant || undefined,
-          date: new Date(date).toISOString(),
-          envelopeId: (selectedEnvelope || currentEnvelope).id!,
-          paymentMethod: selectedPaymentMethod || undefined
-        });
+        if (hasSplitTransactions) {
+          // Handle split transaction - for now, just update the original transaction
+          // In a future enhancement, we could delete the original and create new split transactions
+          await updateTransaction({
+            ...initialTransaction,
+            amount: numAmount,
+            description: note,
+            merchant: merchant || undefined,
+            date: new Date(date).toISOString(),
+            envelopeId: Object.keys(splitAmounts)[0] || initialTransaction.envelopeId, // Use first split envelope
+            paymentMethod: selectedPaymentMethod || undefined
+          });
+        } else {
+          // Normal single envelope update
+          await updateTransaction({
+            ...initialTransaction,
+            amount: numAmount,
+            description: note,
+            merchant: merchant || undefined,
+            date: new Date(date).toISOString(),
+            envelopeId: (selectedEnvelope || currentEnvelope).id!,
+            paymentMethod: selectedPaymentMethod || undefined
+          });
+        }
       }
       console.log('✅ Transaction saved successfully');
       onClose();
@@ -158,7 +194,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-2xl overflow-hidden relative z-10"
+            className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
           >
             {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-zinc-800">
@@ -174,7 +210,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 overflow-y-auto">
               
               {/* Amount Input */}
               <div className="text-center">
@@ -220,28 +256,6 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                   disabled={initialTransaction?.isAutomatic}
                 />
               </div>
-
-              {/* Envelope Selector - Only show in edit mode */}
-              {mode === 'edit' && envelopes && (
-                <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
-                  <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Envelope</label>
-                  <select
-                    value={selectedEnvelope?.id || currentEnvelope.id}
-                    onChange={(e) => {
-                      const envelope = envelopes.find(env => env.id === e.target.value);
-                      setSelectedEnvelope(envelope || currentEnvelope);
-                    }}
-                    className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
-                    disabled={initialTransaction?.isAutomatic}
-                  >
-                    {envelopes.map(envelope => (
-                      <option key={envelope.id} value={envelope.id}>
-                        {envelope.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {/* Payment Method - Hide for automatic transactions */}
               {!initialTransaction?.isAutomatic && (
@@ -294,6 +308,18 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                   className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark] disabled:opacity-80"
                 />
               </div>
+
+              {/* Envelope Selection with Split Support - Only show in edit mode */}
+              {mode === 'edit' && envelopes && (
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 transition-colors">
+                  <SplitTransactionHelper
+                    envelopes={sortedEnvelopes}
+                    transactionAmount={parseFloat(amount) || 0}
+                    onSplitChange={setSplitAmounts}
+                    initialSelectedEnvelopeId={initialTransaction?.envelopeId}
+                  />
+                </div>
+              )}
 
               {/* Delete Button - Only show in edit mode and NOT for automatic transactions */}
               {mode === 'edit' && !initialTransaction?.isAutomatic && (
