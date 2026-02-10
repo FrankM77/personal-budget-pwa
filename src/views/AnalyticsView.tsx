@@ -124,8 +124,8 @@ export const AnalyticsView: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200/50 dark:border-zinc-800/50">
-        <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+      <div className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200/50 dark:border-zinc-800/50 safe-area-top">
+        <div className="flex items-center gap-3 px-4 pt-2 pb-2">
           <button
             onClick={() => navigate(-1)}
             className="p-2 -ml-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -136,14 +136,14 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {/* Segmented Control */}
-        <div className="px-4 pb-2 overflow-x-auto scrollbar-hide">
-          <div className="inline-flex bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 min-w-max">
+        <div className="px-4 pb-2">
+          <div className="flex flex-wrap gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
             {TAB_LABELS.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
                 className={`
-                  px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200
+                  flex-1 min-w-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
                   ${activeTab === key
                     ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
                     : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
@@ -240,7 +240,7 @@ const SpendingTotalsTab: React.FC<{
     <div className="space-y-4">
       {/* Donut Chart */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800">
-        <div className="relative">
+        <div className="relative no-select-chart">
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
@@ -253,6 +253,7 @@ const SpendingTotalsTab: React.FC<{
                 outerRadius="80%"
                 paddingAngle={2}
                 strokeWidth={0}
+                isAnimationActive={false}
               >
                 {items.map((item, i) => (
                   <Cell key={i} fill={item.color} />
@@ -275,11 +276,18 @@ const SpendingTotalsTab: React.FC<{
                     </div>
                   );
                 }}
+                contentStyle={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  borderRadius: 0,
+                  boxShadow: 'none'
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
           {/* Center label overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
             <span className="text-sm text-zinc-500 dark:text-zinc-400">Total Spent</span>
             <span className="text-2xl font-bold text-zinc-900 dark:text-white">{fmt(total)}</span>
           </div>

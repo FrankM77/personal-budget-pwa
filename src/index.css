@@ -2,6 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe area support for mobile PWA */
+@layer utilities {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .pt-safe-or-4 {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+}
+
+/* Hide chart selection outlines and focus rings */
+.recharts-wrapper {
+  outline: none !important;
+  border: none !important;
+}
+
+.recharts-surface {
+  outline: none !important;
+  border: none !important;
+}
+
+.recharts-pie-sector {
+  outline: none !important;
+  stroke: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove any blue selection boxes */
+.recharts-active-shape {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  filter: none !important;
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Target all possible Recharts elements */
+.recharts-layer,
+.recharts-curve,
+.recharts-area,
+.recharts-bar,
+.recharts-line,
+.recharts-dot {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove focus states */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-pie-sector:focus,
+.recharts-active-shape:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove any selection or highlight styles */
+* {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Specific chart container to prevent selection */
+.no-select-chart,
+.no-select-chart * {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.no-select-chart svg,
+.no-select-chart svg * {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  stroke: none !important;
+  filter: none !important;
+}
+
 /* Remove default arrow spinners on number inputs */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

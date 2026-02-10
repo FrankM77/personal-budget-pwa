@@ -339,6 +339,26 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 *Document created: December 27, 2025*
 *Last updated: February 10, 2026*
 
+## Recent Bug Fixes & Improvements (2026-02-10)
+
+### 🐛 **Analytics UI Bug Fixes**
+- **Donut Chart Tooltip Z-Index**: Fixed tooltips appearing behind center label by adding proper z-index hierarchy
+- **Blue Selection Box Removal**: Eliminated blue rectangular selection boxes when tapping donut chart segments using comprehensive CSS overrides
+- **Mobile Status Bar Overlap**: Fixed Analytics header being hidden behind phone's system status bar with safe area CSS utilities
+- **Tab Selector Layout**: Changed from horizontal scrolling to two-row wrap layout for better mobile fit on iPhone
+
+### 📱 **Mobile PWA Improvements**
+- **Safe Area Support**: Added `safe-area-top` utility class using `env(safe-area-inset-top)` for proper mobile PWA handling
+- **Touch Interaction**: Improved touch feedback and removed unwanted visual artifacts from chart interactions
+- **Responsive Design**: Tab selector now wraps to two rows (Spending Totals/Spending Breakdown on top, Monthly Income/Savings on bottom)
+- **Chart Experience**: Clean tooltips without selection boxes on mobile devices
+
+### 🎨 **UI/UX Enhancements**
+- **Clean Chart Visuals**: Removed all visual selection artifacts from donut charts using aggressive CSS overrides
+- **Proper Visual Hierarchy**: Ensured tooltips and overlays display in correct z-index order
+- **Mobile-First Analytics**: Optimized entire Analytics view for mobile phone usage
+- **Consistent Interaction States**: Maintained design consistency across all touch and hover states
+
 ## Recent Bug Fixes & Improvements (2026-01-04)
 
 ### 🐛 **Critical Bug Fixes**

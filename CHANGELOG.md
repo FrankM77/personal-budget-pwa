@@ -2,6 +2,28 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.8.3] - 2026-02-10
+
+### 🐛 **BUG FIXES**
+- **Donut Chart Tooltip Z-Index**: Fixed tooltips appearing behind center label by adding proper z-index hierarchy
+- **Blue Selection Box Removal**: Eliminated blue rectangular selection boxes when tapping donut chart segments
+- **Mobile Status Bar Overlap**: Fixed Analytics header being hidden behind phone's system status bar
+- **Tab Selector Layout**: Changed from horizontal scrolling to two-row wrap layout for better mobile fit
+
+### 📱 **MOBILE IMPROVEMENTS**
+- **Safe Area Support**: Added CSS utilities for proper mobile PWA safe area handling
+- **Touch Interaction**: Improved touch feedback and removed unwanted visual artifacts
+- **Responsive Layout**: Tab selector now wraps to two rows on smaller screens
+- **Chart Interaction**: Clean tooltips without selection boxes on mobile devices
+
+### 🎨 **UI/UX ENHANCEMENTS**
+- **Clean Chart Experience**: Removed all visual selection artifacts from donut charts
+- **Proper Layering**: Ensured tooltips and overlays display in correct visual hierarchy
+- **Mobile-First**: Optimized Analytics view for mobile phone usage
+- **Consistent Styling**: Maintained design consistency across all interaction states
+
+---
+
 ## [1.8.2] - 2026-02-10
 
 ### 🆕 **NEW FEATURES**
