@@ -354,16 +354,20 @@ const SpendingBreakdownTab: React.FC<{
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip content={(props) => <StackedBarTooltip {...props} colorMap={colorMap} nameMap={nameMap} />} />
+            <Tooltip
+              cursor={false}
+              content={(props) => <StackedBarTooltip {...props} colorMap={colorMap} nameMap={nameMap} />}
+            />
             <ReferenceLine
               y={average}
-              stroke="#94A3B8"
-              strokeDasharray="6 4"
-              strokeWidth={1.5}
+              stroke="currentColor"
+              strokeDasharray="8 4"
+              strokeWidth={3}
+              className="text-black dark:text-white"
               label={{
                 value: `${fmt(average)} (avg)`,
                 position: 'insideTopRight',
-                fill: '#94A3B8',
+                fill: document.documentElement.classList.contains('dark') ? '#ffffff' : '#000000',
                 fontSize: 11,
                 fontWeight: 600,
               }}
@@ -376,6 +380,9 @@ const SpendingBreakdownTab: React.FC<{
                 fill={colorMap[key]}
                 radius={[0, 0, 0, 0]}
                 name={nameMap[key] || key}
+                isAnimationActive={false}
+                animationBegin={0}
+                animationDuration={0}
               />
             ))}
           </BarChart>
@@ -427,16 +434,20 @@ const MonthlyIncomeTab: React.FC<{
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip content={(props) => <StackedBarTooltip {...props} colorMap={colorMap} nameMap={nameMap} />} />
+            <Tooltip
+              cursor={false}
+              content={(props) => <StackedBarTooltip {...props} colorMap={colorMap} nameMap={nameMap} />}
+            />
             <ReferenceLine
               y={average}
-              stroke="#94A3B8"
-              strokeDasharray="6 4"
-              strokeWidth={1.5}
+              stroke="currentColor"
+              strokeDasharray="8 4"
+              strokeWidth={3}
+              className="text-black dark:text-white"
               label={{
                 value: `${fmt(average)} (avg)`,
                 position: 'insideTopRight',
-                fill: '#94A3B8',
+                fill: document.documentElement.classList.contains('dark') ? '#ffffff' : '#000000',
                 fontSize: 11,
                 fontWeight: 600,
               }}
@@ -449,6 +460,9 @@ const MonthlyIncomeTab: React.FC<{
                 fill={colorMap[key]}
                 radius={[0, 0, 0, 0]}
                 name={key}
+                isAnimationActive={false}
+                animationBegin={0}
+                animationDuration={0}
               />
             ))}
           </BarChart>

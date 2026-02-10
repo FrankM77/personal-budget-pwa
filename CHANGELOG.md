@@ -2,6 +2,15 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.8.5] - 2026-02-10
+
+### 🐛 **BUG FIXES**
+- **Analytics Charts: Bar Highlight**: Removed the grey highlight behind bars by disabling the Recharts tooltip cursor in Spending Breakdown and Monthly Income
+- **Analytics Charts: Focus Outline**: Removed the white focus outline rectangle that appeared when tapping chart areas
+
+### 🧹 **MAINTENANCE**
+- Removed accumulated Recharts CSS override rules from `src/index.css` and replaced with a minimal focus-outline fix
+
 ## [1.8.4] - 2026-02-10
 
 ### 🐛 **BUG FIXES**
