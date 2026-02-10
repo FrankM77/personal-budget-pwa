@@ -506,6 +506,7 @@ export const TransactionHistoryView: React.FC = () => {
         mode="edit"
         currentEnvelope={activeEnvelope || {} as any}
         initialTransaction={editingTransaction}
+        envelopes={envelopes}
       />
     </div>
   );

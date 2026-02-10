@@ -2,6 +2,11 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.9.0] - 2026-02-10
+
+### ✨ **NEW FEATURES**
+- **Transaction Editing**: Added ability to change the envelope when editing a transaction. Users can now easily move transactions between envelopes if they accidentally categorize them incorrectly.
+
 ## [1.8.9] - 2026-02-10
 
 ### ✨ **NEW FEATURES**

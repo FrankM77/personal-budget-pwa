@@ -12,9 +12,10 @@ interface Props {
   mode: 'add' | 'spend' | 'edit';
   currentEnvelope: Envelope;
   initialTransaction?: Transaction | null;
+  envelopes?: Envelope[]; // Add envelopes prop for edit mode
 }
 
-const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction }) => {
+const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction, envelopes }) => {
   const { addTransaction, updateTransaction, deleteTransaction, currentMonth } = useBudgetStore();
   
   const [amount, setAmount] = useState('');
@@ -22,6 +23,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD for input
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentSource | null>(null);
+  const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
 
   // Reset or Populate when opening
   useEffect(() => {
@@ -32,6 +34,11 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       setMerchant(initialTransaction.merchant || '');
       setNote(initialTransaction.description);
       setSelectedPaymentMethod(initialTransaction.paymentMethod || null);
+      // Set selected envelope to the transaction's current envelope
+      if (envelopes) {
+        const transactionEnvelope = envelopes.find(e => e.id === initialTransaction.envelopeId);
+        setSelectedEnvelope(transactionEnvelope || currentEnvelope);
+      }
       try {
         const d = new Date(initialTransaction.date);
         if (!isNaN(d.getTime())) {
@@ -49,11 +56,12 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       setMerchant('');
       setNote('');
       setDate(new Date().toISOString().split('T')[0]);
+      setSelectedEnvelope(currentEnvelope); // For add/spend modes, use current envelope
       // Don't forcefully nullify if we want to keep the default, 
       // but CardStack relies on null to trigger default selection.
       // With setTimeout removed, the race condition should be resolved.
     }
-  }, [isVisible, mode, initialTransaction]);
+  }, [isVisible, mode, initialTransaction, currentEnvelope, envelopes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +72,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       return;
     }
 
-    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: currentEnvelope.id, paymentMethod: selectedPaymentMethod });
+    console.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, envelopeId: (selectedEnvelope || currentEnvelope).id, paymentMethod: selectedPaymentMethod });
 
     try {
       // Validate date against current budget month
@@ -85,7 +93,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           description: note,
           merchant: merchant || undefined,
           date: new Date(date).toISOString(),
-          envelopeId: currentEnvelope.id!,
+          envelopeId: (selectedEnvelope || currentEnvelope).id!,
           type: 'Income',
           reconciled: false,
           paymentMethod: selectedPaymentMethod || undefined
@@ -97,7 +105,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           description: note,
           merchant: merchant || undefined,
           date: new Date(date).toISOString(),
-          envelopeId: currentEnvelope.id!,
+          envelopeId: (selectedEnvelope || currentEnvelope).id!,
           type: 'Expense',
           reconciled: false,
           paymentMethod: selectedPaymentMethod || undefined
@@ -110,6 +118,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           description: note,
           merchant: merchant || undefined,
           date: new Date(date).toISOString(),
+          envelopeId: (selectedEnvelope || currentEnvelope).id!,
           paymentMethod: selectedPaymentMethod || undefined
         });
       }
@@ -211,6 +220,28 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                   disabled={initialTransaction?.isAutomatic}
                 />
               </div>
+
+              {/* Envelope Selector - Only show in edit mode */}
+              {mode === 'edit' && envelopes && (
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border border-gray-200 dark:border-zinc-800 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-colors">
+                  <label className="block text-xs text-gray-500 dark:text-zinc-400 mb-1">Envelope</label>
+                  <select
+                    value={selectedEnvelope?.id || currentEnvelope.id}
+                    onChange={(e) => {
+                      const envelope = envelopes.find(env => env.id === e.target.value);
+                      setSelectedEnvelope(envelope || currentEnvelope);
+                    }}
+                    className="w-full bg-transparent text-gray-900 dark:text-white focus:outline-none [color-scheme:dark]"
+                    disabled={initialTransaction?.isAutomatic}
+                  >
+                    {envelopes.map(envelope => (
+                      <option key={envelope.id} value={envelope.id}>
+                        {envelope.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Payment Method - Hide for automatic transactions */}
               {!initialTransaction?.isAutomatic && (
