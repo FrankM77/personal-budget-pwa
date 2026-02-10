@@ -2,6 +2,13 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.8.6] - 2026-02-10
+
+### 🐛 **BUG FIXES**
+- **Siri Shortcuts**: Fixed issue where Siri Shortcuts deep links failed if the app was already open and in the foreground.
+  - Updated `useSiriQuery` to react to URL parameter changes while mounted.
+  - Updated `SiriQueryHandler` to use real-time Firestore listeners instead of polling, ensuring immediate detection of new queries even when the app is focused.
+
 ## [1.8.5] - 2026-02-10
 
 ### 🐛 **BUG FIXES**

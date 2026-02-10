@@ -46,7 +46,7 @@ export function useSiriQuery() {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('query');
     setSearchParams(newParams, { replace: true });
-  }, []); // Run once on mount — query param is consumed immediately
+  }, [searchParams, envelopes]); // Re-run when query param changes
 
   const clearParsedData = useCallback(() => {
     setParsedData(null);
