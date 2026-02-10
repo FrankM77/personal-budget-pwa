@@ -2,6 +2,14 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.8.7] - 2026-02-10
+
+### 🐛 **BUG FIXES**
+- **Siri Shortcuts**: Fixed foreground interaction where Siri Shortcuts failed to pre-fill data when the app was already open and in view.
+  - Added cache-busting query param to navigation (`/add-transaction?siri=${timestamp}`) to force route re-evaluation
+  - Added custom DOM event (`siri-query-ready`) to notify AddTransactionView to re-read sessionStorage in real-time
+  - Extracted sessionStorage reading logic into reusable helper function
+
 ## [1.8.6] - 2026-02-10
 
 ### 🐛 **BUG FIXES**

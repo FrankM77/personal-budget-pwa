@@ -57,8 +57,13 @@ export const SiriQueryHandler: React.FC = () => {
         sessionStorage.setItem('siriParsedData', JSON.stringify(result));
         sessionStorage.setItem('siriQuery', data.query);
 
-        // Navigate to add transaction
-        navigate('/add-transaction');
+        // Navigate to add transaction with a cache-busting param
+        // This ensures React Router treats it as a new navigation even if already on /add-transaction
+        navigate(`/add-transaction?siri=${Date.now()}`);
+
+        // Also dispatch a custom event so AddTransactionView can re-read sessionStorage
+        // (handles the case where the component is already mounted)
+        window.dispatchEvent(new CustomEvent('siri-query-ready'));
       } catch (error) {
         console.error('🎙️ Siri: Error processing query:', error);
       } finally {

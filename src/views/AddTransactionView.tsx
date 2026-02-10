@@ -18,12 +18,12 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
-  // Check for Siri data from sessionStorage (for webapp URL scheme handling)
-  useEffect(() => {
+  // Helper to load Siri data from sessionStorage and pre-fill the form
+  const loadSiriFromSessionStorage = () => {
     const storedSiriData = sessionStorage.getItem('siriParsedData');
     const storedSiriQuery = sessionStorage.getItem('siriQuery');
     
-    if (storedSiriData && storedSiriQuery && !parsedData && !siriQuery) {
+    if (storedSiriData && storedSiriQuery) {
       try {
         const data = JSON.parse(storedSiriData);
         console.log('🎙️ Siri: Loaded stored data from sessionStorage:', data);
@@ -48,7 +48,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
         // Payment method prefill
         if (data.paymentMethodName && appSettings?.paymentSources?.length) {
           const normalized = data.paymentMethodName.toLowerCase();
-          const matched = appSettings.paymentSources.find((p) => {
+          const matched = appSettings.paymentSources.find((p: PaymentSource) => {
             const name = p.name.toLowerCase();
             return name === normalized || name.includes(normalized) || normalized.includes(name);
           });
@@ -70,7 +70,26 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
         console.error('🎙️ Siri: Failed to parse stored data:', error);
       }
     }
+  };
+
+  // Check for Siri data from sessionStorage on mount (for webapp URL scheme handling)
+  useEffect(() => {
+    if (!parsedData && !siriQuery) {
+      loadSiriFromSessionStorage();
+    }
   }, [parsedData, siriQuery, appSettings?.paymentSources]);
+
+  // Listen for real-time Siri queries dispatched by SiriQueryHandler
+  // (handles the case where the app is already open and in view)
+  useEffect(() => {
+    const handleSiriReady = () => {
+      console.log('🎙️ Siri: Received siri-query-ready event');
+      loadSiriFromSessionStorage();
+    };
+
+    window.addEventListener('siri-query-ready', handleSiriReady);
+    return () => window.removeEventListener('siri-query-ready', handleSiriReady);
+  }, [appSettings?.paymentSources]);
 
   // Form state
   const [amount, setAmount] = useState('');
