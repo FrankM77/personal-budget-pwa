@@ -2,6 +2,11 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.8.9] - 2026-02-10
+
+### ✨ **NEW FEATURES**
+- **Siri Integration**: Added comprehensive user documentation for Siri setup with step-by-step instructions, troubleshooting, and advanced tips.
+
 ## [1.8.8] - 2026-02-10
 
 ### ✨ **NEW FEATURES**
