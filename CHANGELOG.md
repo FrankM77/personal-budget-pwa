@@ -2,6 +2,20 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.8.4] - 2026-02-10
+
+### 🐛 **BUG FIXES**
+- **Transaction Undo Functionality**: Fixed issue where deleted transactions didn't immediately reappear after tapping "Undo" in toast messages
+- **UI State Synchronization**: Restored transactions now immediately update the UI without requiring navigation away and back
+- **State Management**: Improved `restoreTransaction` to properly add deleted transactions back to the state array
+
+### 🔧 **TECHNICAL IMPROVEMENTS**
+- **Budget Store Enhancement**: Rewrote `restoreTransaction` to handle both existing and deleted transaction scenarios
+- **Immediate Feedback**: Users now see instant visual confirmation that undo actions worked correctly
+- **Consistent Experience**: Fix applies to all transaction views (Transaction History, Envelope Detail, etc.)
+
+---
+
 ## [1.8.3] - 2026-02-10
 
 ### 🐛 **BUG FIXES**

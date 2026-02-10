@@ -846,8 +846,56 @@ export const useBudgetStore = create<BudgetState>()(
             }
         },
         restoreTransaction: async (transaction: Transaction): Promise<void> => {
-            // For now, restore is the same as update (re-adds the transaction)
-            await get().updateTransaction(transaction);
+            try {
+                set({ isLoading: true, error: null });
+                
+                // Get current user
+                const authStore = await import('./authStore').then(m => m.useAuthStore.getState());
+                const currentUser = authStore.currentUser;
+                if (!currentUser) {
+                    throw new Error('No authenticated user found');
+                }
+                
+                // Ensure month is set
+                const txDate = new Date(transaction.date);
+                const month = transaction.month || `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                
+                const restoredTransaction = { ...transaction, month };
+
+                // Update in backend
+                await budgetService.updateTransaction(currentUser.id, restoredTransaction);
+                
+                // Update local state - add back if not present, or update if present
+                set(state => {
+                    const existingIndex = state.transactions.findIndex(tx => tx.id === transaction.id);
+                    let newTransactions;
+                    
+                    if (existingIndex >= 0) {
+                        // Transaction exists, update it
+                        newTransactions = state.transactions.map(tx => 
+                            tx.id === transaction.id ? restoredTransaction : tx
+                        );
+                    } else {
+                        // Transaction was deleted, add it back
+                        newTransactions = [...state.transactions, restoredTransaction];
+                    }
+                    
+                    return {
+                        transactions: newTransactions,
+                        isLoading: false
+                    };
+                });
+                
+                console.log('✅ Restored transaction:', transaction.id);
+                
+            } catch (error) {
+                console.error('❌ restoreTransaction failed:', error);
+                set({ 
+                    isLoading: false, 
+                    error: error instanceof Error ? error.message : 'Failed to restore transaction' 
+                });
+                throw error;
+            }
         },
         transferFunds: async (fromEnvelopeId: string, toEnvelopeId: string, amount: number, _note: string, date?: Date | string): Promise<void> => {
             try {
