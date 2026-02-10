@@ -17,11 +17,11 @@ export default defineConfig(({ mode }) => {
     base: '/personal-budget-pwa/',
     server: {
       port: 3000,
-      host: '127.0.0.1'
+      host: '0.0.0.0'
     },
     preview: {
       port: 4000,
-      host: '127.0.0.1'
+      host: '0.0.0.0'
     },
     // Explicitly define environment variables to expose to your client-side code
     define: {

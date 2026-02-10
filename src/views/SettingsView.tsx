@@ -12,6 +12,7 @@ export const SettingsView: React.FC = () => {
   const { 
     envelopes, 
     transactions, 
+    categories,
     resetData, 
     importData, 
     getEnvelopeBalance, 
@@ -128,6 +129,7 @@ export const SettingsView: React.FC = () => {
           lastUpdated: new Date().toISOString()
         })),
         transactions,
+        categories,
         allocations,
         incomeSources,
       };

@@ -1,6 +1,6 @@
 # Siri Integration Strategy for Personal Budget PWA
 
-**Status:** ✅ Complete (v1.8.0) - Full End-to-End Working
+**Status:** ✅ Complete (v1.7.0) - Full End-to-End Working
 **Complexity:** Medium (Code) / High (User Setup)
 
 ---
@@ -33,7 +33,8 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 | `src/utils/smartTransactionParser.ts` | Regex-based NLP parser (fallback) — extracts amount, merchant, envelope, payment method, and transaction type from natural language |
 | `src/services/SiriService.ts` | Service layer — calls Firebase Cloud Function for AI parsing, falls back to regex parser if offline or on failure |
 | `src/hooks/useSiriQuery.ts` | React hook — detects `?query=` URL parameter, triggers parsing, returns pre-filled data |
-| `src/components/SiriQueryHandler.tsx` | NEW: Checks Firestore for pending Siri queries on mount and visibility change, stores parsed data in sessionStorage, navigates to /add-transaction |
+| `src/components/SiriQueryHandler.tsx` | Checks Firestore for pending Siri queries on mount and visibility change, stores parsed data in sessionStorage, navigates to /add-transaction |
+| `src/components/SiriPasteBanner.tsx` | Visual banner component that shows when Siri data is detected, provides clear feedback and one-tap access to pre-filled form |
 | `src/views/AddTransactionView.tsx` | Updated — reads parsed data from sessionStorage, pre-fills amount, merchant, note, type, envelope, and payment method |
 | `src/views/SettingsView.tsx` | Updated — UI to generate and copy a unique Siri token for use in Shortcuts |
 | `src/models/types.ts` | Updated — added `siriToken?: string` to AppSettings interface |
@@ -56,11 +57,17 @@ Since we are building a PWA (web app) and not a native iOS app (Swift), we canno
 - Extracts merchant from remaining text after amount/envelope/payment extraction
 - Returns confidence score (0-1) based on how many fields were matched
 
-### ✅ Backend (Complete — Deployed)
+### Backend (Complete — Deployed v1.7.0)
 
 Two Firebase Cloud Functions deployed:
 - `parseTransaction`: AI-powered transaction parsing with Gemini (for useSiriQuery hook)
-- `siriStoreQuery`: HTTP endpoint for Siri Shortcuts to store queries in Firestore (NEW)
+- `siriStoreQuery`: HTTP endpoint for Siri Shortcuts to store queries in Firestore
+
+**Backend Infrastructure:**
+- Firebase Functions project initialized with TypeScript
+- Vertex AI Gemini 2.0 Flash model integration
+- Firestore `siriQueries` collection for temporary storage
+- Security rules and rate limiting implemented
 
 ---
 
@@ -89,13 +96,17 @@ cd functions
 npm install @google-cloud/vertexai
 ```
 
-### Step 3: Create the Cloud Function
+### Step 3: Create the Cloud Functions
 
-Create `functions/src/index.ts`:
+Create `functions/src/index.ts` with both functions:
 
 ```typescript
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { VertexAI } from '@google-cloud/vertexai';
+import * as admin from 'firebase-admin';
+
+// Initialize Firebase Admin SDK
+admin.initializeApp();
 
 const vertexAI = new VertexAI({
   project: process.env.GCLOUD_PROJECT || 'your-project-id',
@@ -169,6 +180,42 @@ Respond with ONLY the JSON object, no markdown, no explanation.`;
     throw new HttpsError('internal', 'Failed to parse transaction: ' + error.message);
   }
 });
+
+export const siriStoreQuery = onRequest(async (req, res) => {
+  // Enable CORS for all requests
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { query, token } = req.query;
+
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid query parameter' });
+  }
+
+  if (!token || typeof token !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid token parameter' });
+  }
+
+  try {
+    const docId = `${token}_${Date.now()}`;
+    await admin.firestore().collection('siriQueries').doc(docId).set({
+      query,
+      token,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      processed: false
+    });
+
+    res.status(200).json({ success: true, docId });
+  } catch (error: any) {
+    console.error('siriStoreQuery error:', error);
+    res.status(500).json({ error: 'Failed to store query' });
+  }
+});
 ```
 
 ### Step 4: Configure Firebase Project
@@ -181,17 +228,28 @@ firebase use your-project-id
 # https://console.cloud.google.com/apis/library/aiplatform.googleapis.com
 ```
 
-### Step 5: Deploy the Cloud Function
+### Step 5: Deploy the Cloud Functions
 
 ```bash
 firebase deploy --only functions
 ```
 
+**Deployment includes:**
+- `parseTransaction` - AI-powered parsing with Gemini
+- `siriStoreQuery` - HTTP endpoint for Siri Shortcuts
+- Firestore security rules for `siriQueries` collection
+
 ### Step 6: Verify
 
-Test the function by navigating to:
+Test the functions by navigating to:
 ```
 https://frankm77.github.io/personal-budget-pwa/#/add-transaction?query=Spent%2045%20at%20Target%20for%20groceries
+```
+
+**Test Cloud Function directly:**
+```bash
+# Test siriStoreQuery endpoint
+curl "https://us-central1-personal-budget-pwa-5defb.cloudfunctions.net/siriStoreQuery?query=test&token=your-token"
 ```
 
 ### Step 7: Create the Apple Shortcut (Complete)
@@ -211,9 +269,38 @@ Create an iOS Shortcut with these actions:
 - Tap "Generate Siri Token" 
 - Copy the token and paste it into step 2
 
+**Visual Feedback:**
+- Purple Siri banner appears when data is detected
+- Shows parsed merchant, amount, envelope, and payment method
+- One-tap access to pre-filled Add Transaction form
+
 Name it "Add Transaction" so the user can say: **"Hey Siri, Add Transaction"**
 
-**Why this works:** The Cloud Function stores the query in Firestore, bypassing iOS URL scheme limitations. The PWA then retrieves and processes the query.
+**Why this works:** The Cloud Function stores the query in Firestore, bypassing iOS URL scheme limitations. The PWA then retrieves and processes the query with visual feedback through the Siri banner.
+
+---
+
+## User Experience Flow
+
+### 1. Setup (One-time)
+1. User opens PWA Settings → Siri Integration
+2. Taps "Generate Siri Token" → copies token
+3. Creates iOS Shortcut with the token
+4. Names shortcut "Add Transaction"
+
+### 2. Daily Use
+1. User says "Hey Siri, Add Transaction"
+2. Siri asks "What's the text?"
+3. User speaks natural language: "Grocery transaction at Walmart for $33.28 with Chase Amazon"
+4. PWA opens with purple Siri banner showing parsed data
+5. User reviews pre-filled form and taps "Save"
+6. Transaction is added with all fields correctly populated
+
+### 3. Error Handling
+- If AI parsing fails, falls back to regex parser
+- If no envelope matches, shows "Uncategorized" 
+- If payment method not found, leaves field empty
+- Banner shows confidence score and allows manual corrections
 
 ---
 

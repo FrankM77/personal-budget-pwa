@@ -7,6 +7,7 @@ House Budget PWA is a zero-based budgeting app inspired by the envelope method a
 - **Zero-based budgeting** with an “Available to Budget” pool.
 - **Monthly budgets** with income sources and envelope allocations.
 - **Piggybanks** (savings goals) with auto-contributions and progress tracking.
+- **Analytics Dashboard** with spending totals, breakdowns, income tracking, and savings analysis.
 - **Offline-first** experience with automatic sync when back online.
 - **PWA installable** with service worker caching.
 - **Firebase sync** for cross-device data updates.

@@ -47,6 +47,7 @@ export class BudgetService {
       const collectionsToRestore: { name: string; data: any[] }[] = [
         { name: 'envelopes', data: backupData.envelopes || [] },
         { name: 'transactions', data: backupData.transactions || [] },
+        { name: 'categories', data: backupData.categories || [] },
         { name: 'envelopeAllocations', data: backupData.allocations ? Object.values(backupData.allocations).flat() : [] },
         // Handle monthly budgets with embedded income sources
         { name: 'monthlyBudgets', data: this.prepareMonthlyBudgetsData(backupData.allocations, backupData.incomeSources) },
@@ -864,6 +865,7 @@ export class BudgetService {
       const collections = [
         'envelopes',
         'transactions',
+        'categories',
         'incomeSources',
         'envelopeAllocations',
         'monthlyBudgets',

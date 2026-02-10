@@ -43,17 +43,21 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
   - Auto-contribution engine capped to the real-world current month so navigating to future months no longer queues premature deposits
   - Piggybank balances on the list now reflect cumulative savings to stay in sync with detail view totals
 
-### 6. Enhanced Envelope System
+### 6. Enhanced Envelope System ✅ COMPLETED
 - **Envelope Allocation**: Allocate specific amounts from income to envelopes
 - **Envelope Limits**: Set spending limits for each envelope
 - **Envelope Categories**: Organize envelopes by type (Essentials, Wants, Savings, Debt)
 - **Envelope Transfers**: Move money between envelopes within the same month
+- **Drag & Drop Reordering**: Reorder payment methods in card stack with visual feedback ✅ COMPLETED v1.6.9
 
-### 7. Budget Analytics
-- **Monthly Comparison**: Compare spending vs budget by month
-- **Category Analysis**: See spending patterns across categories
-- **Budget Performance**: Track how well you stick to your budget
-- **Trend Analysis**: Identify spending trends over time
+### 7. Budget Analytics ✅ COMPLETED v1.8.2
+- **Spending Totals**: Donut chart showing total spent by category with percentage breakdown
+- **Spending Breakdown**: Stacked bar chart by month and category with average spending line
+- **Monthly Income**: Stacked bar chart showing income sources over time with average reference
+- **Savings Analysis**: 100% stacked bar chart showing savings vs spending percentage over time
+- **Time Frame Selection**: Flexible time periods (1, 3, 6, 9, 12 months) or specific years
+- **Interactive Charts**: Tooltips, legends, and responsive design using Recharts
+- **Color-Coded Categories**: Consistent color mapping across all analytics views
 
 ## Technical Implementation Plan
 
@@ -179,7 +183,7 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 
 ### Phase 5: Advanced Features & Integrations
 
-#### 1. Siri Shortcuts Integration
+#### 1. Siri Shortcuts Integration ✅ COMPLETED v1.7.0
 - **Voice Transaction Entry**: "Hey Siri, add a grocery transaction at Walmart for $33.28, payment method was Chase Amazon"
 - **Natural Language Processing**: Parse merchant, amount, category, and payment method from voice input
 - **Quick Envelope Funding**: "Hey Siri, add $50 to my grocery envelope"
@@ -187,6 +191,9 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 - **Spending Updates**: "Hey Siri, how much have I spent on groceries this month?"
 - **Custom Shortcuts**: User-created voice commands for frequent actions
 - **Confirmation Feedback**: Siri confirms successful entries with details
+- **Smart Transaction Parser**: AI-powered parsing of merchant names, amounts, and payment methods
+- **Siri Paste Banner**: Visual interface for Siri-powered transaction entry
+- **Payment Method Extraction**: Automatic detection of payment methods from voice input
 
 #### 2. Enhanced Onboarding & First-Time User Experience
 - **Interactive Onboarding Tour**: Step-by-step guided tour when new users first enter the main screen
@@ -254,13 +261,16 @@ Transform the Personal Budget PWA into a comprehensive **zero-based budgeting** 
 1. **✅ COMPLETED**: Month management, income tracking, basic allocation (Phase 1)
 2. **✅ COMPLETED**: Full income and envelope allocation management with interactive UI (Phase 2)
 3. **✅ COMPLETED**: Split transactions (Phase 3)
-4. **✅ COMPLETED**: Piggybanks (savings goals) and enhanced analytics
-5. **🎯 NEXT PRIORITY**: Phase 5 Advanced Features (Enhanced Onboarding, CSV Import, Enhanced Analytics, Automation Rules, Debt Management, Net Worth Tracking)
-6. **Low Priority**: Enhanced analytics, advanced features, integrations
+4. **✅ COMPLETED**: Piggybanks (savings goals) (Phase 4)
+5. **✅ COMPLETED**: Budget Analytics with interactive charts (v1.8.2) (Phase 4)
+6. **✅ COMPLETED**: Payment method drag-and-drop reordering (v1.6.9)
+7. **✅ COMPLETED**: Siri Shortcuts Integration with AI parsing (v1.7.0)
+8. **🎯 NEXT PRIORITY**: Phase 5 Advanced Features (Enhanced Onboarding, CSV Import, Automation Rules, Debt Management, Net Worth Tracking)
+9. **Low Priority**: Advanced features, integrations
 
 ## Current Status: Phase 5 In Progress - Siri Integration Complete! ✅
 
-Phase 4 (Enhanced Analytics) has been fully implemented. Phase 5 has begun with Siri Shortcuts Integration complete (v1.7.0). The app now provides a complete monthly budgeting experience with:
+Phase 4 (Enhanced Analytics) has been fully implemented. Phase 5 has begun with multiple major completions. The app now provides a complete monthly budgeting experience with:
 
 - **Interactive Income Management**: Add/edit/delete income sources with swipe and tap gestures   ✅ COMPLETED
 - **Interactive Envelope Allocation**: Edit envelope names and amounts with identical UX patterns   ✅ COMPLETED
@@ -268,7 +278,10 @@ Phase 4 (Enhanced Analytics) has been fully implemented. Phase 5 has begun with 
 - **Zero-Based Budgeting Logic**: EveryDollar-style allocation workflow   ✅ COMPLETED
 - **Split Transactions**: Multi-envelope support with validation and UI polish ✅ COMPLETED
 - **Piggybanks (Savings Goals)**: Complete with reordering, month-scoping, and auto-contributions ✅ COMPLETED
+- **Budget Analytics**: Interactive charts with spending totals, breakdowns, income tracking, and savings analysis ✅ COMPLETED v1.8.2
+- **Payment Method Reordering**: Drag-and-drop card stack with visual feedback ✅ COMPLETED v1.6.9
 - **Siri Shortcuts Integration**: Voice-powered transaction entry with AI parsing and payment method extraction ✅ COMPLETED v1.7.0
+- **Firebase Functions**: Backend infrastructure for advanced features ✅ COMPLETED v1.7.0
 
 The foundation is now ready for the remaining Phase 5 Advanced Features & Integrations.
 
@@ -305,13 +318,15 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 ### 🎯 **Next Steps - Phase 5**
 - **🚀 IMMEDIATE FOCUS - Phase 5 Advanced Features**: Enhanced Onboarding & First-Time User Experience, CSV Import, Enhanced Analytics, Automation Rules, Debt Management, Net Worth Tracking
 - **Implementation Order**: 
-  1. ✅ **Siri Shortcuts Integration** (Voice-driven user experience) - **COMPLETED v1.7.0**
-  2. Enhanced Onboarding & First-Time User Experience (Interactive guided tour for new users)
-  3. CSV Import with Smart Categorization (Bank statement processing)
-  4. Enhanced Analytics & Insights (AI-powered spending analysis)
-  5. Automation & Rules (Recurring transactions and smart alerts)
-  6. Debt Management Features (Comprehensive debt tracking)
-  7. Net Worth Tracking (Complete financial picture)
+  1. ✅ **Payment Method Reordering** (Drag-and-drop card stack) - **COMPLETED v1.6.9**
+  2. ✅ **Siri Shortcuts Integration** (Voice-driven user experience) - **COMPLETED v1.7.0**
+  3. ✅ **Firebase Functions** (Backend infrastructure) - **COMPLETED v1.7.0**
+  4. Enhanced Onboarding & First-Time User Experience (Interactive guided tour for new users)
+  5. CSV Import with Smart Categorization (Bank statement processing)
+  6. Enhanced Analytics & Insights (AI-powered spending analysis)
+  7. Automation & Rules (Recurring transactions and smart alerts)
+  8. Debt Management Features (Comprehensive debt tracking)
+  9. Net Worth Tracking (Complete financial picture)
 - **Transaction Management Enhancements**: Advanced filtering/editing capabilities
 
 ### 📱 **Mobile/Desktop UX Patterns Established**
@@ -322,7 +337,7 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 
 ---
 *Document created: December 27, 2025*
-*Last updated: January 23, 2026*
+*Last updated: February 10, 2026*
 
 ## Recent Bug Fixes & Improvements (2026-01-04)
 
