@@ -5,7 +5,8 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import { budgetService, type CleanupReport } from '../services/budgetService';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
-import logger from '../utils/logger';
+import LogViewer from '../components/ui/LogViewer';
+import logger from '../utils/enhancedLogger';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
@@ -41,6 +42,29 @@ export const SettingsView: React.FC = () => {
   const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
   const [isCleaningData, setIsCleaningData] = useState(false);
   const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
+  const [showLogViewer, setShowLogViewer] = useState(false);
+  const [versionPressTimer, setVersionPressTimer] = useState<number | null>(null);
+
+  // Version press handlers for accessing logs
+  const handleVersionMouseDown = () => {
+    const timer = window.setTimeout(() => {
+      setShowLogViewer(true);
+      logger.info('Settings', 'Log viewer opened via long press');
+    }, 500); // 500ms for long press
+    setVersionPressTimer(timer);
+  };
+
+  const handleVersionMouseUp = () => {
+    if (versionPressTimer) {
+      clearTimeout(versionPressTimer);
+      setVersionPressTimer(null);
+    }
+  };
+
+  const handleVersionDoubleClick = () => {
+    setShowLogViewer(true);
+    logger.info('Settings', 'Log viewer opened via double click');
+  };
 
   // Dummy usage to satisfy TypeScript linter (operationResult IS used in JSX)
 
@@ -54,7 +78,7 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     if (!appSettings) {
       initializeAppSettings().catch((error: unknown) => {
-        logger.error('Failed to initialize app settings:', error);
+        logger.error('Settings', 'Failed to initialize app settings', { error });
       });
     }
   }, [initializeAppSettings, appSettings]);
@@ -113,7 +137,7 @@ export const SettingsView: React.FC = () => {
 
   const handleBackup = () => {
     try {
-      logger.log(' Creating backup...');
+      logger.info('Settings', 'Creating backup...');
       const backupData = {
         appVersion: __APP_VERSION__,
         backupDate: Date.now(),
@@ -157,7 +181,7 @@ export const SettingsView: React.FC = () => {
 
       setOperationResult({ success: true, message: 'Backup downloaded successfully.' });
     } catch (error) {
-      logger.error(error);
+      logger.error('Settings', 'Backup creation failed', { error });
       setOperationResult({
         success: false,
         message: 'Failed to create backup file.',
@@ -238,7 +262,7 @@ export const SettingsView: React.FC = () => {
       URL.revokeObjectURL(url);
       setOperationResult({ success: true, message: 'Transactions CSV exported successfully.' });
     } catch (error) {
-      logger.error(error);
+      logger.error('Settings', 'CSV export failed', { error });
       setOperationResult({
         success: false,
         message: 'Failed to export CSV. Please try again.',
@@ -272,7 +296,7 @@ export const SettingsView: React.FC = () => {
           try {
             await updateAppSettings({ theme: parsed.appSettings.theme });
           } catch (error) {
-            logger.error('Failed to update imported settings:', error);
+            logger.error('Settings', 'Failed to update imported settings', { error });
           }
         }
 
@@ -281,7 +305,7 @@ export const SettingsView: React.FC = () => {
           `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions.`
         );
       } catch (error) {
-        logger.error(error);
+        logger.error('Settings', 'Import failed', { error });
         showStatus('error', 'Invalid backup file. Please verify the JSON.');
       }
     };
@@ -301,7 +325,7 @@ export const SettingsView: React.FC = () => {
         showStatus('success', 'All data has been permanently deleted.');
         navigate('/');
       } catch (error) {
-        logger.error('Reset failed:', error);
+        logger.error('Settings', 'Reset failed', { error });
         showStatus('error', 'Failed to delete all data. Some data may remain.');
       }
     }
@@ -327,7 +351,7 @@ export const SettingsView: React.FC = () => {
         showStatus('error', 'Failed to delete account. Please try again.');
       }
     } catch (error) {
-      logger.error('Account deletion failed:', error);
+      logger.error('Settings', 'Account deletion failed', { error });
       showStatus('error', 'Failed to delete account. Please try again.');
     } finally {
       setIsDeletingAccount(false);
@@ -355,7 +379,7 @@ export const SettingsView: React.FC = () => {
         showStatus('success', 'No orphaned data found. Your database is already clean!');
       }
     } catch (error) {
-      logger.error('Cleanup failed:', error);
+      logger.error('Settings', 'Cleanup failed', { error });
       showStatus('error', 'Failed to clean up orphaned data. Please try again.');
     } finally {
       setIsCleaningData(false);
@@ -383,7 +407,7 @@ export const SettingsView: React.FC = () => {
         logout(); // Clear auth state
         navigate('/');
       } catch (error) {
-        logger.error('Logout failed:', error);
+        logger.error('Settings', 'Logout failed', { error });
       }
     }
   };
@@ -518,7 +542,7 @@ export const SettingsView: React.FC = () => {
                       try {
                         await updateAppSettings({ theme: option.value });
                       } catch (error) {
-                        logger.error('Failed to update theme setting:', error);
+                        logger.error('Settings', 'Failed to update theme setting', { error });
                       }
                     }}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${ 
@@ -558,7 +582,7 @@ export const SettingsView: React.FC = () => {
                       try {
                         await updateAppSettings({ fontSize: option.value });
                       } catch (error) {
-                        logger.error('Failed to update font size setting:', error);
+                        logger.error('Settings', 'Failed to update font size setting', { error });
                       }
                     }}
                     className={`flex-1 py-2 rounded-lg font-medium border transition-colors flex items-center justify-center ${ 
@@ -798,7 +822,17 @@ export const SettingsView: React.FC = () => {
 
         {/* App Version */}
         <div className="text-center py-4">
-                      <p className="text-xs text-gray-400 dark:text-zinc-500">Version {__APP_VERSION__} (PWA)</p>        </div>
+          <p 
+            className="text-xs text-gray-400 dark:text-zinc-500 cursor-pointer select-none hover:text-gray-300 dark:hover:text-zinc-400 transition-colors"
+            onMouseDown={handleVersionMouseDown}
+            onMouseUp={handleVersionMouseUp}
+            onMouseLeave={handleVersionMouseUp}
+            onDoubleClick={handleVersionDoubleClick}
+            title="Long press or double-click to view logs"
+          >
+            Version {__APP_VERSION__} (PWA)
+          </p>
+        </div>
 
         {/* Operation Result Modal */}
         {operationResult && (
@@ -891,6 +925,12 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* LogViewer Modal */}
+        <LogViewer 
+          isOpen={showLogViewer} 
+          onClose={() => setShowLogViewer(false)} 
+        />
 
       </div>
     </div>
