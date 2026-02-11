@@ -61,6 +61,23 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleVersionTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent mouse events on mobile
+    const timer = window.setTimeout(() => {
+      setShowLogViewer(true);
+      logger.info('Settings', 'Log viewer opened via long press (mobile)');
+    }, 500); // 500ms for long press
+    setVersionPressTimer(timer);
+  };
+
+  const handleVersionTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent mouse events on mobile
+    if (versionPressTimer) {
+      clearTimeout(versionPressTimer);
+      setVersionPressTimer(null);
+    }
+  };
+
   const handleVersionDoubleClick = () => {
     setShowLogViewer(true);
     logger.info('Settings', 'Log viewer opened via double click');
@@ -827,6 +844,9 @@ export const SettingsView: React.FC = () => {
             onMouseDown={handleVersionMouseDown}
             onMouseUp={handleVersionMouseUp}
             onMouseLeave={handleVersionMouseUp}
+            onTouchStart={handleVersionTouchStart}
+            onTouchEnd={handleVersionTouchEnd}
+            onTouchCancel={handleVersionTouchEnd}
             onDoubleClick={handleVersionDoubleClick}
             title="Long press or double-click to view logs"
           >
