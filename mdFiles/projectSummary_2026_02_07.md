@@ -1,6 +1,19 @@
-# House Budget PWA: Project Summary - 2026-02-07
+# House Budget PWA: Project Summary - 2026-02-11
 
 ## Changelog (Highlights)
+- **2026-02-11**: **Major Security Enhancement: Firebase App Check Enforcement**: Complete security coverage across all Firebase services.
+  - **App Check Implementation**: Firebase App Check with reCAPTCHA Enterprise provider for comprehensive protection.
+  - **Three-Layer Security**: API key restrictions + Rate limiting + App Check enforcement.
+  - **Full Enforcement**: Cloud Firestore, Authentication, and Cloud Functions all protected.
+  - **Enhanced Logging System**: Real-time log collection with filtering, export, and mobile/desktop access.
+  - **Mobile Bug Fix**: Touch event handlers for long-press LogViewer access on mobile devices.
+- **2026-02-07**: **Major Feature: Siri Integration**: Implemented voice-powered transaction entry with AI parsing.
+  - **AI-Powered Parsing**: Firebase Cloud Function with Gemini AI parses natural language input into structured transaction data.
+  - **Regex Fallback**: Local parser ensures graceful degradation when offline or AI fails.
+  - **Payment Method Support**: Recognizes "with" or "using" to auto-select payment methods (e.g., "with Chase Amazon").
+  - **Fuzzy Envelope Matching**: AI matches common variations (e.g., "Grocery" → "Groceries").
+  - **Pre-filled Forms**: Amount, merchant, envelope, payment method, and transaction type are auto-populated.
+  - **iOS Shortcuts**: Users can create shortcuts to add transactions via Siri voice commands.
 - **2026-02-04**: **Major Feature: Categories**: Implemented full category support for organizing envelopes.
   - **Category Management**: Added a new settings view to create, rename, delete, and reorder categories.
   - **Envelope Grouping**: The main envelope list is now grouped by user-defined categories instead of a single list.
@@ -22,19 +35,11 @@
 - **2026-02-04**: **UI/UX Decluttering: Hidden Internal Transactions**: Improved the transaction history and envelope detail views by hiding auto-generated allocation transactions.
   - **Transaction List Filtering**: "Budgeted" and "Piggybank Contribution" transactions are now hidden from the Envelope Detail and All Transactions views.
   - **Cleaner CSV Exports**: These internal transactions are also excluded from CSV exports to ensure the data is focused on actual spending and income.
-- **2026-02-07**: **Major Feature: Siri Integration**: Implemented voice-powered transaction entry with AI parsing.
-  - **AI-Powered Parsing**: Firebase Cloud Function with Gemini AI parses natural language input into structured transaction data.
-  - **Regex Fallback**: Local parser ensures graceful degradation when offline or AI fails.
-  - **Payment Method Support**: Recognizes "with" or "using" to auto-select payment methods (e.g., "with Chase Amazon").
-  - **Fuzzy Envelope Matching**: AI matches common variations (e.g., "Grocery" → "Groceries").
-  - **Pre-filled Forms**: Amount, merchant, envelope, payment method, and transaction type are auto-populated.
-  - **iOS Shortcuts**: Users can create shortcuts to add transactions via Siri voice commands.
 
 ## 1. Executive Summary
 
 - Transformation from iOS app to high-performance PWA with full feature parity.
 - Complete Firebase cloud synchronization with real-time cross-device updates.
-- Robust offline-first architecture with optimistic UI updates and automatic recovery.
 - **🏆 Recent Achievements**:
   - **UI/UX Polish**: Successfully implemented Category grouping and compressed the UI for better information density.
   - **Interactive Reordering**: Restored the preferred long-press drag-and-drop logic within the new category structure.
@@ -57,20 +62,142 @@
 | New features | `npm version minor` | 1.0.0 → 1.1.0 | Backwards compatible new features |
 | Breaking changes | `npm version major` | 1.0.0 → 2.0.0 | Breaking changes requiring migration |
 
-## 4. Next Steps & Roadmap
+## 4. Security Architecture
 
-### Current Priorities ✅
+### Firebase App Check Implementation (Complete)
+
+**Three-Layer Security Stack:**
+1. **API Key Restrictions** - Prevent unauthorized API usage
+2. **Rate Limiting** - 30 calls/minute per user for Cloud Functions  
+3. **App Check** - Verify requests come from legitimate app instances
+
+#### Services Protected 
+- **Cloud Firestore** - Budget data protection
+- **Authentication** - User account protection
+- **Cloud Functions** - Siri integration protection
+
+#### Configuration Details
+- **Provider**: reCAPTCHA Enterprise
+- **Site Key**: `6Lf31GMsAAAAAHqILQS1jVjTe51WHK6lfIyxmsFT`
+- **Enforcement**: All Firebase services enforced
+- **Rate Limiting**: 30 calls/minute per user (parseTransaction function)
+
+#### Security Benefits
+- API key restricted to authorized domains
+- Cloud Function cost protection
+- Billing alerts ($5/month cap)
+- Protection against automated abuse
+- Enterprise-grade security posture
+
+### Enhanced Logging System
+
+**Real-time Log Collection:**
+- **LogViewer Component**: Professional UI with filtering, search, export
+- **Access Methods**: Long-press (mobile) or double-click (desktop) on version info
+- **Log Levels**: DEBUG, INFO, WARN, ERROR with color coding
+- **Smart Source Extraction**: Auto-categorizes logs from component names
+- **Export Capability**: Download logs as JSON with full metadata
+- **Mobile Support**: Touch event handlers for proper mobile interaction
+
+**Coverage:**
+- All 39 components automatically feed into enhanced logger
+- Authentication events, budget operations, Siri integration
+- Real-time sync, error tracking, performance monitoring
+- Session tracking with user association
+
+---
+
+## 5. Siri Integration Architecture
+
+### Overview
+Voice-powered transaction entry using AI parsing with iOS Shortcuts integration.
+
+### The Architecture: "Cloud Function Bridge"
+
+**Workflow:**
+1. **User**: Says "Hey Siri, Add Transaction..."
+2. **Siri**: Asks "What's the text?"
+3. **User**: "Grocery transaction at Walmart for $33.28 with Chase Amazon"
+4. **Shortcuts App**: 
+   - Calls Cloud Function to store query in Firestore
+   - Waits 3 seconds
+   - Opens PWA via custom URL scheme
+5. **PWA**: Retrieves query, parses with AI, pre-fills form
+6. **User**: Reviews and saves transaction
+
+### Implementation Details
+
+#### Frontend Components
+- **`smartTransactionParser.ts`**: Regex-based fallback parser
+- **`SiriService.ts`**: Service layer with AI/regex fallback logic
+- **`useSiriQuery.ts`**: React hook for URL parameter detection
+- **`SiriQueryHandler.tsx`**: Firestore listener for pending queries
+- **`SiriPasteBanner.tsx`**: Visual feedback component
+- **`AddTransactionView.tsx`**: Pre-fill form integration
+
+#### Backend Cloud Functions
+- **`parseTransaction`**: AI-powered parsing with Gemini 2.0 Flash
+- **`siriStoreQuery`**: HTTP endpoint for Siri Shortcuts
+
+#### AI Capabilities
+- **Natural Language Processing**: Extracts amount, merchant, envelope, payment method
+- **Fuzzy Matching**: "Grocery" → "Groceries", "Restaurant" → "Restaurants"
+- **Payment Detection**: "with Chase Amazon", "using Venmo"
+- **Income Detection**: "paycheck", "salary", "refund" → Income type
+- **Confidence Scoring**: AI (0.9) vs Regex fallback (0.7)
+
+### User Experience
+
+#### Setup (One-time)
+1. Generate Siri token in PWA Settings
+2. Create iOS Shortcut with token
+3. Name shortcut "Add Transaction"
+
+#### Daily Use
+1. Say "Hey Siri, Add Transaction"
+2. Speak naturally: "$45 at Target for groceries"
+3. PWA opens with purple Siri banner
+4. Review pre-filled form
+5. Tap "Save Transaction"
+
+#### Error Handling
+- AI parsing fails → Falls back to regex parser
+- No envelope match → Shows "Uncategorized"
+- Payment method not found → Leaves field empty
+- Banner shows confidence score and allows corrections
+
+### Security & Performance
+
+#### Security Measures
+- **Authentication Required**: Cloud Functions require user login
+- **Rate Limiting**: 30 calls/minute per user
+- **Token-based Access**: Unique revocable tokens per user
+- **App Check Protection**: All Cloud Functions protected
+
+#### Cost Estimate
+- **Gemini API**: ~$0.00025 per 1K tokens
+- **Cloud Functions**: $0.40 per million invocations
+- **Estimated**: ~$0.05 for 100 transactions/month
+
+---
+
+## 6. Next Steps & Roadmap
+
+### Current Priorities 
 - Categories Implementation (Done)
 - UI UX Compression (Done)
 - Reorder Restoration (Done)
 - Firebase Configuration Security (Done)
+- Firebase App Check Enforcement (Done)
+- Siri Integration (Done)
+- Enhanced Logging System (Done)
 
 ### Future Enhancements
 - **Database Migration (High Priority)**: Normalize Firestore data types and embed allocations to reduce reads.
 - Advanced reporting and analytics.
 - Data visualization.
 
-## 5. API Key Rotation Guide
+## 7. API Key Rotation Guide
 
 ### When to Rotate API Keys
 - **Security**: If key is accidentally exposed or compromised
