@@ -10,7 +10,6 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNavigation } from './components/BottomNavigation';
 import { AppRoutes } from './components/AppRoutes';
 import { SiriQueryHandler } from './components/SiriQueryHandler';
-import { DebugOverlay } from './components/DebugOverlay';
 import { GuidedTutorialOverlay } from './components/ui/guidedTutorialOverlay';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
@@ -260,12 +259,6 @@ function App() {
             <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
           )}
         </HashRouter>
-
-        {/* Global Toast Notifications */}
-        <Toast />
-        
-        {/* Debug Overlay - Mobile Debug Console */}
-        <DebugOverlay />
       </ErrorBoundary>
     </>
   );
