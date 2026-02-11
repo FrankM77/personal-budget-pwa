@@ -18,6 +18,14 @@ export const LogViewer: React.FC<LogViewerProps> = ({ isOpen, onClose }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
 
+  // Lock body scroll when log viewer is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
+    }
+  }, [isOpen]);
+
   // Subscribe to log updates
   useEffect(() => {
     const unsubscribe = logger.subscribe((newLogs: LogEntry[]) => {
@@ -109,7 +117,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ isOpen, onClose }) => {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-zinc-800"
+          className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-zinc-800 overscroll-contain"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -255,7 +263,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ isOpen, onClose }) => {
           {/* Log Entries */}
           <div 
             id="log-container"
-            className="flex-1 overflow-y-auto p-4 space-y-1 font-mono text-sm"
+            className="flex-1 overflow-y-auto p-4 space-y-1 font-mono text-sm overscroll-contain touch-pan-y"
             style={{ maxHeight: 'calc(90vh - 280px)' }}
           >
             {filteredLogs.length === 0 ? (
