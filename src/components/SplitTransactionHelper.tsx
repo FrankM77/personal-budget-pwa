@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Check } from 'lucide-react';
+import { useBudgetStore } from '../stores/budgetStore';
 import type { Envelope } from '../models/types';
 
 interface SplitTransactionHelperProps {
@@ -14,8 +16,10 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
   onSplitChange,
   initialSelectedEnvelopeId
 }) => {
+  const { categories } = useBudgetStore();
   const [selectedEnvelopes, setSelectedEnvelopes] = useState<string[]>([]);
   const [hasAppliedInitial, setHasAppliedInitial] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-select envelope from Siri pre-fill
   useEffect(() => {
@@ -29,6 +33,37 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
   }, [initialSelectedEnvelopeId, envelopes, hasAppliedInitial]);
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
   const [remaining, setRemaining] = useState(transactionAmount);
+
+  // Group envelopes by category (matching main page order)
+  const groupedEnvelopes = useMemo(() => {
+    const groups: { name: string; id: string; envelopes: Envelope[] }[] = [];
+    const uncategorized: Envelope[] = [];
+
+    const catMap: Record<string, Envelope[]> = {};
+    categories.forEach(cat => { catMap[cat.id] = []; });
+
+    envelopes.forEach(env => {
+      if (env.categoryId && catMap[env.categoryId]) {
+        catMap[env.categoryId].push(env);
+      } else {
+        uncategorized.push(env);
+      }
+    });
+
+    categories
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+      .forEach(cat => {
+        if (catMap[cat.id].length > 0) {
+          groups.push({ name: cat.name, id: cat.id, envelopes: catMap[cat.id] });
+        }
+      });
+
+    if (uncategorized.length > 0) {
+      groups.push({ name: 'Other', id: 'uncategorized', envelopes: uncategorized });
+    }
+
+    return groups;
+  }, [envelopes, categories]);
 
   const toggleEnvelopeSelection = (envelopeId: string) => {
     setSelectedEnvelopes(prev => {
@@ -85,6 +120,25 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
     }
   }, [selectedEnvelopes, splitAmounts]);
 
+  // Prevent scroll from bubbling to parent on touch devices
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleTouchStart = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      // If at top, allow only downward scroll; if at bottom, allow only upward scroll
+      if (scrollTop === 0) {
+        el.scrollTop = 1;
+      } else if (scrollTop + clientHeight >= scrollHeight) {
+        el.scrollTop = scrollHeight - clientHeight - 1;
+      }
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    return () => el.removeEventListener('touchstart', handleTouchStart);
+  }, []);
+
   const clearAll = () => {
     setSelectedEnvelopes([]);
     setSplitAmounts({});
@@ -138,34 +192,63 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
         )}
       </div>
       
-      <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-zinc-800 rounded-lg">
-        {envelopes.map(env => (
-          <div 
-            key={env.id} 
-            className="flex items-center py-3 px-3 border-b border-gray-100 dark:border-zinc-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
-          >
-            <input
-              type="checkbox"
-              checked={selectedEnvelopes.includes(env.id)}
-              onChange={() => toggleEnvelopeSelection(env.id)}
-              className="mr-3 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="flex-1 text-gray-900 dark:text-white">{env.name}</span>
-            
-            {selectedEnvelopes.includes(env.id) && selectedEnvelopes.length > 1 && (
-              <div className="flex items-center">
-                <span className="mr-1 text-gray-500 dark:text-zinc-400">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={splitAmounts[env.id] || ''}
-                  onChange={(e) => handleSplitAmountChange(env.id, parseFloat(e.target.value) || 0)}
-                  className="w-24 px-2 py-1 border border-gray-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                />
-              </div>
-            )}
+      <div
+        ref={scrollRef}
+        className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-zinc-800 overscroll-contain"
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+      >
+        {groupedEnvelopes.map((group) => (
+          <div key={group.id}>
+            {/* Category Header */}
+            <div className="sticky top-0 z-10 px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700">
+              <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                {group.name}
+              </span>
+            </div>
+
+            {/* Envelopes in Category */}
+            {group.envelopes.map(env => {
+              const isSelected = selectedEnvelopes.includes(env.id);
+              return (
+                <div
+                  key={env.id}
+                  onClick={() => toggleEnvelopeSelection(env.id)}
+                  className={`flex items-center py-3 px-3 border-b border-gray-100 dark:border-zinc-800 last:border-b-0 transition-colors cursor-pointer active:bg-gray-100 dark:active:bg-zinc-700 ${
+                    isSelected
+                      ? 'bg-blue-50 dark:bg-blue-900/20'
+                      : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
+                  }`}
+                >
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 transition-colors ${
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'border-gray-300 dark:border-zinc-600'
+                  }`}>
+                    {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
+                  </div>
+                  <span className={`flex-1 text-sm ${
+                    isSelected
+                      ? 'text-blue-900 dark:text-blue-100 font-medium'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>{env.name}</span>
+                  
+                  {isSelected && selectedEnvelopes.length > 1 && (
+                    <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <span className="mr-1 text-gray-500 dark:text-zinc-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={splitAmounts[env.id] || ''}
+                        onChange={(e) => handleSplitAmountChange(env.id, parseFloat(e.target.value) || 0)}
+                        className="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

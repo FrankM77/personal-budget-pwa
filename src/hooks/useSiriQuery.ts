@@ -22,11 +22,15 @@ export function useSiriQuery() {
 
   useEffect(() => {
     const query = searchParams.get('query');
+    logger.log('🎙️ Siri: Hook checking URL params - query:', query);
+    
     if (!query || query.trim().length === 0) {
+      logger.log('🎙️ Siri: No query parameter found');
       setSiriQuery(null);
       return;
     }
 
+    logger.log('🎙️ Siri: Found query parameter, parsing:', query);
     setSiriQuery(query);
     setIsParsing(true);
 
@@ -47,7 +51,7 @@ export function useSiriQuery() {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('query');
     setSearchParams(newParams, { replace: true });
-  }, [searchParams, envelopes]); // Re-run when query param changes
+  }, [searchParams, envelopes, parseSiriQuery]); // Re-run when query param or parsing function changes
 
   const clearParsedData = useCallback(() => {
     setParsedData(null);

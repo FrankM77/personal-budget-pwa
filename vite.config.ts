@@ -55,18 +55,44 @@ export default defineConfig(({ mode }) => {
           orientation: 'portrait',
           scope: '/personal-budget-pwa/',
           start_url: '/personal-budget-pwa/',
+          shortcuts: [
+            {
+              name: 'Add Transaction',
+              short_name: 'Add',
+              description: 'Quickly add a new transaction',
+              url: '/personal-budget-pwa/#/add-transaction',
+              icons: [
+                {
+                  src: 'icon-192.png',
+                  sizes: '192x192'
+                }
+              ]
+            }
+          ],
           icons: [
             {
-              src: 'icon-192.png', // Ensure these exist in your public folder later
+              src: 'icon-192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any maskable' // Add this - tells Android how to handle the icon
+              purpose: 'any'
+            },
+            {
+              src: 'icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
             },
             {
               src: 'icon-512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable' // Add this - tells Android how to handle the icon
+              purpose: 'any'
+            },
+            {
+              src: 'icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         },

@@ -1,6 +1,7 @@
 import {
     collection,
     query,
+    where,
     orderBy,
     onSnapshot,
     addDoc,
@@ -37,6 +38,31 @@ import {
 
       // Return the unsubscribe function so we can clean up (like .cancellable in Swift)
       return unsubscribe;
+    },
+
+    /**
+     * Subscribe to transactions for a specific month
+     * This is more efficient than subscribing to the entire collection
+     */
+    subscribeToTransactionsByMonth: (
+      userId: string,
+      month: string,
+      onUpdate: (transactions: Transaction[]) => void
+    ) => {
+      logger.log(`📡 TransactionService: Subscribing to transactions for ${month}`);
+      
+      const q = query(
+        getCollectionRef(userId),
+        where('month', '==', month),
+        orderBy('date', 'desc')
+      );
+
+      return onSnapshot(q, (snapshot) => {
+        const transactions = snapshot.docs.map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
+        onUpdate(transactions);
+      }, (error) => {
+        logger.error(`❌ TransactionService: Subscription failed for ${month}:`, error);
+      });
     },
 
     // 2. GET ALL (For store.fetchData)

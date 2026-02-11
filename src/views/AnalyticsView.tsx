@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BarChart3 } from 'lucide-react';
 import {
@@ -98,25 +98,50 @@ export const AnalyticsView: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('totals');
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('12m');
-  const { currentMonth, fetchMonthData, incomeSources, loadedTransactionMonths } = useBudgetStore();
+  const { currentMonth } = useBudgetStore();
+  const fetchMonthData = useBudgetStore(s => s.fetchMonthData);
 
   const yearOptions = useMemo(() => getYearOptions(), []);
+
+  // Track which months we've already kicked off a fetch for to prevent duplicate fetches
+  const fetchedMonthsRef = useRef<Set<string>>(new Set());
 
   // Pre-fetch month data for all months in the selected time frame
   useEffect(() => {
     const months = getMonthsForTimeFrame(timeFrame, currentMonth);
-    months.forEach((m) => {
-      // Only fetch if not already in store
-      // Check both incomeSources AND loadedTransactionMonths
-      const isMissingData = 
-        incomeSources[m] === undefined || 
-        !loadedTransactionMonths.includes(m);
-
-      if (isMissingData) {
-        fetchMonthData(m);
-      }
+    
+    // Read current store state directly (not as a reactive dependency)
+    const state = useBudgetStore.getState();
+    
+    // Determine which months still need fetching
+    const monthsToFetch = months.filter(m => {
+      if (fetchedMonthsRef.current.has(m)) return false; // Already fetched/fetching
+      if (state.areAllTransactionsLoaded) return false;
+      const hasIncome = state.incomeSources[m] !== undefined;
+      const hasTransactions = state.loadedTransactionMonths.includes(m);
+      return !hasIncome || !hasTransactions;
     });
-  }, [timeFrame, currentMonth, fetchMonthData, incomeSources, loadedTransactionMonths]);
+
+    if (monthsToFetch.length === 0) return;
+
+    // Mark all as fetching immediately to prevent re-entry
+    monthsToFetch.forEach(m => fetchedMonthsRef.current.add(m));
+
+    // Fetch months sequentially to avoid race conditions
+    const fetchMonthsSequentially = async () => {
+      for (const m of monthsToFetch) {
+        try {
+          await fetchMonthData(m);
+        } catch (error) {
+          console.error(`Failed to fetch data for month ${m}:`, error);
+          // Remove from ref so it can be retried on next timeFrame change
+          fetchedMonthsRef.current.delete(m);
+        }
+      }
+    };
+
+    fetchMonthsSequentially();
+  }, [timeFrame, currentMonth, fetchMonthData]);
 
   const {
     spendingTotals,

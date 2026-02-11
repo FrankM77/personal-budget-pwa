@@ -20,12 +20,18 @@ export const SiriQueryHandler: React.FC = () => {
 
   useEffect(() => {
     const siriToken = appSettings?.siriToken;
-    if (!siriToken || envelopes.length === 0) return;
+    logger.log('🎙️ Siri: Handler checking - siriToken:', siriToken, 'envelopes count:', envelopes.length);
+    if (!siriToken || envelopes.length === 0) {
+      logger.log('🎙️ Siri: Handler not ready - missing token or envelopes');
+      return;
+    }
 
     // Set up real-time listener
     const docRef = doc(db, 'siriQueries', siriToken);
+    logger.log('🎙️ Siri: Setting up Firestore listener for token:', siriToken);
     
     const unsubscribe = onSnapshot(docRef, async (snapshot) => {
+      logger.log('🎙️ Siri: Firestore snapshot received, exists:', snapshot.exists());
       if (!snapshot.exists() || isProcessing.current) return;
 
       const data = snapshot.data();

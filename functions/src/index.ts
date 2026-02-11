@@ -60,7 +60,7 @@ const vertexAI = new VertexAI({
 });
 
 const model = vertexAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
+  model: 'gemini-2.0-flash-001',
 });
 
 /**
@@ -139,26 +139,13 @@ Input: "${text}"
 
 Available budget envelopes: ${userEnvelopes.join(', ')}
 
-IMPORTANT: Match envelope names using fuzzy matching. Accept common variations:
-- "Grocery" or "Groceries" → "Groceries"
-- "Restaurant" or "Restaurants" → "Restaurants " (note the space)
-- "Gas" → "Gas"
-- "Gym" → "Gym Membership"
-- "Car" → "Car Maintenance" or "Car Fund"
-- "Phone" → "Phone"
-- "Clothes" → "Clothing"
-- "Hair" → "Hair/Cosmetics"
-- "Cleaning" → "Cleaning Supplies"
-- "Pet" → "Pet Supplies"
-- "Insurance" → "Auto Insurance" or "Umbrella Policy"
-- "Doctor" → "Doctor Visits"
-- "Misc" → "Misc"
-- "Fun" → "Fun Money"
-- "Tax" → "Tax Filing"
-- "Subscriptions" → "Subscriptions"
-- "Mortgage" or "Rent" → "Mortgage/Rent"
+IMPORTANT: Match envelope names using fuzzy matching. Consider common variations like singular/plural forms, abbreviations, and synonyms. For example:
+- "Grocery" or "Groceries" should match an envelope named "Groceries"
+- "Restaurant" or "Restaurants" should match an envelope named "Restaurants"
+- "Gas" should match "Gas Station" or "Fuel"
+- "Gym" should match "Gym Membership"
 
-If unsure, choose the closest match from the available envelopes or return null.
+Use the available envelopes list above and choose the closest match. If no envelope matches well, return null for the envelope field.
 
 Return ONLY a valid JSON object with these fields:
 - "merchant": string or null (the store/vendor name)
@@ -171,7 +158,6 @@ Return ONLY a valid JSON object with these fields:
 Examples:
 - "Grocery transaction at Walmart for $33.28" → {"merchant":"Walmart","amount":33.28,"envelope":"Groceries","description":"Grocery transaction at Walmart","paymentMethodName":null,"type":"Expense"}
 - "Grocery transaction at Walmart for $33.28 using Chase Amazon" → {"merchant":"Walmart","amount":33.28,"envelope":"Groceries","description":"Grocery transaction at Walmart","paymentMethodName":"Chase Amazon","type":"Expense"}
-- "Grocery transaction at Walmart for $33.28 with Chase Amazon" → {"merchant":"Walmart","amount":33.28,"envelope":"Groceries","description":"Grocery transaction at Walmart","paymentMethodName":"Chase Amazon","type":"Expense"}
 - "Got paid 2500 paycheck" → {"merchant":null,"amount":2500,"envelope":null,"description":"Paycheck","type":"Income"}
 
 Respond with ONLY the JSON object, no markdown, no explanation.`;

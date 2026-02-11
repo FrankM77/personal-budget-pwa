@@ -70,6 +70,7 @@ export const useBudgetStore = create<BudgetState>()(
 );
 
 // Setup real-time Firebase subscriptions and online/offline detection
+// NOTE: Real-time listeners are now compatible with the new slice architecture
 setupEnvelopeStoreRealtime({
   useBudgetStore: useBudgetStore as any,
   useAuthStore: useAuthStore as any,

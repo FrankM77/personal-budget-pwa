@@ -10,8 +10,10 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNavigation } from './components/BottomNavigation';
 import { AppRoutes } from './components/AppRoutes';
 import { SiriQueryHandler } from './components/SiriQueryHandler';
+import { DebugOverlay } from './components/DebugOverlay';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
+import { useToastStore } from './stores/toastStore';
 import { AddTransactionView } from './views/AddTransactionView';
 import { auth } from './firebase';
 import logger from './utils/logger';
@@ -23,6 +25,7 @@ function App() {
   const [resetPasswordCode, setResetPasswordCode] = useState<string | null>(null);
   const { appSettings, isOnboardingActive } = useBudgetStore();
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
+  const { showToast } = useToastStore();
 
   // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
@@ -61,13 +64,28 @@ function App() {
           const newUrl = window.location.pathname;
           window.history.replaceState({}, document.title, newUrl);
 
-          // Show success message
-          // You might want to add a toast notification here
-          alert('Email verified successfully! You can now sign in.');
+          // Force reload user to update verified status
+          if (auth.currentUser) {
+            await auth.currentUser.reload();
+            logger.log('🔄 User reloaded after verification');
+            
+            // Trigger onboarding check manually after verification success
+            const budgetStore = await import('./stores/budgetStore').then(m => m.useBudgetStore.getState());
+            logger.log('🔍 Triggering onboarding check after email verification...');
+            await budgetStore.checkAndStartOnboarding();
+          }
+
+          showToast('Email verified successfully! You can now sign in.', 'success');
+          
+          // Wait 2 seconds before signing out so user can see the toast
+          setTimeout(async () => {
+            // Sign out the user so they can sign back in with verified status
+            await auth.signOut();
+          }, 2000);
 
         } catch (error: any) {
           logger.error('❌ Email verification failed:', error);
-          alert('Email verification failed. The link may be expired or invalid.');
+          showToast('Email verification failed. The link may be expired or invalid.', 'error');
         }
       }
     };
@@ -126,7 +144,12 @@ function App() {
 
   // Splash Screen View - Show loading screen during initialization
   if (showingLaunchScreen || !isInitialized) {
-    return <LoadingScreen message="Initializing Personal Budget..." />;
+    return (
+      <>
+        <LoadingScreen message="Initializing Personal Budget..." />
+        <Toast />
+      </>
+    );
   }
 
   // Reset Password View - Show when processing a password reset code
@@ -148,6 +171,7 @@ function App() {
             window.history.replaceState({}, document.title, newUrl);
           }}
         />
+        <Toast />
       </ErrorBoundary>
     );
   }
@@ -159,12 +183,14 @@ function App() {
       return (
         <ErrorBoundary>
           <EmailVerificationView />
+          <Toast />
         </ErrorBoundary>
       );
     }
     return (
       <ErrorBoundary>
         <LoginView />
+        <Toast />
       </ErrorBoundary>
     );
   }
@@ -187,53 +213,56 @@ function App() {
 
       <ErrorBoundary>
         {/* Offline Grace Period Banner */}
-      {isUsingGracePeriod && (
-        <div className="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-200 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm">
-                <strong>Offline Access:</strong> You're using cached authentication. Expires in{' '}
-                {Math.ceil((offlineGracePeriod - (Date.now() - lastAuthTime!)) / (24 * 60 * 60 * 1000))}{' '}
-                days. Connect to internet to refresh.
-              </p>
+        {isUsingGracePeriod && (
+          <div className="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-200 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm">
+                  <strong>Offline Access:</strong> You're using cached authentication. Expires in{' '}
+                  {Math.ceil((offlineGracePeriod - (Date.now() - lastAuthTime!)) / (24 * 60 * 60 * 1000))}{' '}
+                  days. Connect to internet to refresh.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+        
+        <HashRouter>
+          <SiriQueryHandler />
+          <AppRoutes />
 
-      <HashRouter>
-        <SiriQueryHandler />
-        <AppRoutes />
-
-        {showAddTransactionModal && (
-          <div className="fixed inset-0 z-[60]">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setShowAddTransactionModal(false)}
-            />
-            <div className="absolute inset-0">
-              <AddTransactionView
-                onClose={() => setShowAddTransactionModal(false)}
-                onSaved={() => setShowAddTransactionModal(false)}
+          {showAddTransactionModal && (
+            <div className="fixed inset-0 z-[60]">
+              <div
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setShowAddTransactionModal(false)}
               />
+              <div className="absolute inset-0">
+                <AddTransactionView
+                  onClose={() => setShowAddTransactionModal(false)}
+                  onSaved={() => setShowAddTransactionModal(false)}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Bottom Navigation - Only show on main app pages and when not onboarding */}
-        {!isOnboardingActive && (
-          <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
-        )}
-      </HashRouter>
+          {/* Bottom Navigation - Only show on main app pages and when not onboarding */}
+          {!isOnboardingActive && (
+            <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
+          )}
+        </HashRouter>
 
-      {/* Global Toast Notifications */}
-      <Toast />
-    </ErrorBoundary>
+        {/* Global Toast Notifications */}
+        <Toast />
+        
+        {/* Debug Overlay - Mobile Debug Console */}
+        <DebugOverlay />
+      </ErrorBoundary>
     </>
   );
 }

@@ -205,12 +205,17 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
     fetchTransactionsForMonth: async (month: string) => {
         const state = get();
         if (state.areAllTransactionsLoaded || state.loadedTransactionMonths.includes(month)) {
-            return; // Already loaded
+            return; // Already loaded or loading
         }
 
         try {
             const { currentUser } = useAuthStore.getState();
             if (!currentUser) return;
+
+            // Mark as loaded/loading immediately to prevent double-fetch during async gap
+            set(state => ({
+                loadedTransactionMonths: [...state.loadedTransactionMonths, month]
+            }));
 
             // Set loading state quietly
             logger.log(`📥 Fetching transactions for month: ${month}`);
@@ -221,13 +226,16 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
                 transactions: [
                     ...state.transactions.filter(t => t.month !== month), 
                     ...newTransactions
-                ],
-                loadedTransactionMonths: [...state.loadedTransactionMonths, month]
+                ]
             }));
             
             logger.log(`✅ Loaded ${newTransactions.length} transactions for ${month}`);
         } catch (error) {
             logger.error(`❌ Failed to fetch transactions for ${month}:`, error);
+            // Remove from loaded months so we can try again
+            set(state => ({
+                loadedTransactionMonths: state.loadedTransactionMonths.filter(m => m !== month)
+            }));
         }
     },
 

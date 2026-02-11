@@ -19,18 +19,26 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
         set({ currentMonth: month });
         
         const state = get();
-        // Check if we need to fetch data for this month
-        // We check for income/allocations OR if transactions are missing for this month
-        const isDataMissing = 
-            state.incomeSources[month] === undefined || 
-            state.allocations[month] === undefined ||
-            !state.loadedTransactionMonths.includes(month);
+        
+        // Ensure month is in loadedTransactionMonths so real-time listener starts
+        if (!state.loadedTransactionMonths.includes(month)) {
+            set(state => ({
+                loadedTransactionMonths: [...state.loadedTransactionMonths, month]
+            }));
+        }
 
-        if (isDataMissing) {
-             logger.log(`Month ${month} data missing in store (or transactions not loaded), fetching...`);
-             set({ isLoading: true });
-             await get().fetchMonthData(month);
-             set({ isLoading: false });
+        // Check if we have transactions for this month but no income sources/allocations
+        // This can happen when switching to a month that has transactions but hasn't been lazy-loaded yet
+        const missingMonthData = 
+            state.incomeSources[month] === undefined || 
+            state.allocations[month] === undefined;
+        
+        // Check if we need to fetch budget data for this month
+        if (missingMonthData) {
+            logger.log(`Month ${month} budget data missing in store, fetching...`);
+            set({ isLoading: true });
+            await get().fetchMonthData(month);
+            set({ isLoading: false });
         }
     },
 
@@ -53,16 +61,20 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             logger.log(`Fetching data for user: ${currentUser.id}, month: ${state.currentMonth}`);
             
             // Fetch data in parallel
-            // OPTIMIZATION: Only fetch transactions for the current month initially
-            const [envelopes, currentMonthTransactions, categoriesResult, monthData] = await Promise.all([
+            // OPTIMIZATION: Real-time listeners will handle transactions once setup.
+            // We only need to fetch the core building blocks and the budget data for the current month.
+            const [envelopes, categoriesResult, monthData] = await Promise.all([
                 budgetService.getEnvelopes(currentUser.id),
-                budgetService.getTransactionsByMonth(currentUser.id, state.currentMonth),
                 categoryService.getCategories(currentUser.id).catch(err => {
                     logger.error('⚠️ Failed to load categories:', err);
                     return []; // Fallback to empty array
                 }),
                 budgetService.getMonthData(currentUser.id, state.currentMonth)
             ]);
+
+            // Ensure transactions for current month are marked as loading/loaded
+            // so the real-time listener doesn't compete with a manual fetch
+            const currentMonths = [state.currentMonth];
             
             // Deduplicate categories by ID
             let uniqueCategories = Array.from(new Map(categoriesResult.map(c => [c.id, c])).values());
@@ -87,9 +99,8 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             // Update state with fetched data
             set({
                 envelopes,
-                transactions: currentMonthTransactions,
-                loadedTransactionMonths: [state.currentMonth],
-                areAllTransactionsLoaded: false, // Reset full history flag since we only loaded one month
+                loadedTransactionMonths: currentMonths,
+                areAllTransactionsLoaded: false, 
                 categories: uniqueCategories,
                 incomeSources: {
                     ...state.incomeSources,
@@ -103,7 +114,56 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 error: null
             });
             
-            logger.log(`✅ BudgetStore initialized: ${envelopes.length} envelopes, ${currentMonthTransactions.length} transactions (current month), ${categoriesResult.length} categories`);
+            logger.log(`✅ BudgetStore initialized: ${envelopes.length} envelopes, current month: ${state.currentMonth}`);
+            
+            // 🔧 Auto-detect and fix lazy loading gaps
+            // Check for months that have persisted transactions but no budget data (income/allocations).
+            // This can happen when localStorage has stale transaction data from previous sessions.
+            const freshState = get();
+            const monthsWithTransactions = new Set(
+                freshState.transactions.map(t => t.month)
+            );
+            
+            const missingDataMonths = Array.from(monthsWithTransactions).filter((month): month is string => 
+                month !== undefined && 
+                month !== freshState.currentMonth && // Current month already fetched above
+                (!freshState.incomeSources[month] || !freshState.allocations[month])
+            );
+            
+            if (missingDataMonths.length > 0) {
+                logger.log(`🔧 Auto-fixing ${missingDataMonths.length} lazy loading gaps: ${missingDataMonths.join(', ')}`);
+                
+                // Fix missing month data sequentially to avoid overwhelming Firestore
+                for (const month of missingDataMonths) {
+                    try {
+                        await get().fetchMonthData(month);
+                        
+                        // Check if month data is still missing after fetch (Firestore had no data)
+                        const latestState = get();
+                        if (!latestState.incomeSources[month] || !latestState.allocations[month]) {
+                            logger.log(`🔧 Creating empty month data for ${month} (no budget data found in Firestore)`);
+                            
+                            // Create empty month data in the store
+                            set(state => ({
+                                incomeSources: {
+                                    ...state.incomeSources,
+                                    [month]: []
+                                },
+                                allocations: {
+                                    ...state.allocations,
+                                    [month]: []
+                                }
+                            }));
+                        }
+                        
+                        logger.log(`✅ Fixed lazy loading gap for ${month}`);
+                    } catch (error) {
+                        logger.error(`❌ Failed to fix lazy loading gap for ${month}:`, error);
+                    }
+                }
+            } else {
+                logger.log(`ℹ️ No lazy loading gaps detected for current month transactions`);
+            }
             
         } catch (error) {
             logger.error('❌ BudgetStore initialization failed:', error);
@@ -130,13 +190,15 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
 
             logger.log(`Fetching month data for: ${month}`);
             
-            // Fetch transactions for this month if not already loaded
-            // We do this concurrently with budget data
-            const transactionPromise = get().fetchTransactionsForMonth(month);
+            // Mark transaction month as loading so real-time listener kicks in
+            if (!get().loadedTransactionMonths.includes(month)) {
+                set(state => ({
+                    loadedTransactionMonths: [...state.loadedTransactionMonths, month]
+                }));
+            }
 
-            const monthDataPromise = budgetService.getMonthData(currentUser.id, month);
-            
-            const [_, monthData] = await Promise.all([transactionPromise, monthDataPromise]);
+            // Fetch budget data
+            const monthData = await budgetService.getMonthData(currentUser.id, month);
             
             const state = get();
             set({
@@ -149,58 +211,69 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                     [month]: monthData.allocations
                 }
             });
-            logger.log(`✅ Fetched month data for ${month}`);
+            logger.log(`✅ Fetched budget data for ${month}`);
 
             // --- Self-Healing: Verify Allocations vs Transactions ---
-            const verifyAndRepairAllocations = async () => {
-                const currentState = get();
-                const monthAllocations = currentState.allocations[month] || [];
-                const monthTransactions = currentState.transactions.filter(t => t.month === month);
-                
-                let repairs = 0;
+            // Only run for the current month to avoid creating spurious transactions
+            // during analytics bulk pre-fetching of historical months
+            if (month === get().currentMonth) {
+                const verifyAndRepairAllocations = async () => {
+                    try {
+                        const currentState = get();
+                        const monthAllocations = currentState.allocations[month] || [];
+                        const monthTransactions = currentState.transactions.filter(t => t.month === month);
+                        
+                        let repairs = 0;
 
-                for (const alloc of monthAllocations) {
-                    // Skip if envelope is a piggybank (handled differently)
-                    const envelope = currentState.envelopes.find(e => e.id === alloc.envelopeId);
-                    if (envelope?.isPiggybank) continue;
+                        for (const alloc of monthAllocations) {
+                            // Skip if envelope is a piggybank (handled differently)
+                            const envelope = currentState.envelopes.find(e => e.id === alloc.envelopeId);
+                            if (envelope?.isPiggybank) continue;
 
-                    const matchingTx = monthTransactions.find(t => 
-                        t.envelopeId === alloc.envelopeId && 
-                        (t.description === 'Monthly Budget Allocation' || 
-                         t.description === 'Monthly Allocation' ||
-                         t.description === 'Budgeted' ||
-                         t.description === 'Piggybank Contribution')
-                    );
+                            const matchingTx = monthTransactions.find(t => 
+                                t.envelopeId === alloc.envelopeId && 
+                                (t.description === 'Monthly Budget Allocation' || 
+                                 t.description === 'Monthly Allocation' ||
+                                 t.description === 'Budgeted' ||
+                                 t.description === 'Piggybank Contribution')
+                            );
 
-                    if (!matchingTx) {
-                        if (alloc.budgetedAmount > 0) {
-                            logger.log(`🔧 Repairing missing transaction for envelope ${envelope?.name || alloc.envelopeId}`);
-                            await currentState.addTransaction({
-                                description: 'Budgeted',
-                                amount: alloc.budgetedAmount,
-                                envelopeId: alloc.envelopeId,
-                                type: 'Income',
-                                month: month,
-                                date: `${month}-01T00:00:00`,
-                                reconciled: false,
-                                isAutomatic: true
-                            });
-                            repairs++;
+                            if (!matchingTx) {
+                                if (alloc.budgetedAmount > 0) {
+                                    logger.log(`🔧 Repairing missing transaction for envelope ${envelope?.name || alloc.envelopeId}`);
+                                    await currentState.addTransaction({
+                                        description: 'Budgeted',
+                                        amount: alloc.budgetedAmount,
+                                        envelopeId: alloc.envelopeId,
+                                        type: 'Income',
+                                        month: month,
+                                        date: `${month}-01T00:00:00`,
+                                        reconciled: false,
+                                        isAutomatic: true
+                                    });
+                                    repairs++;
+                                }
+                            } else if (matchingTx.amount !== alloc.budgetedAmount) {
+                                logger.log(`🔧 Repairing mismatch for envelope ${envelope?.name || alloc.envelopeId}: Alloc ${alloc.budgetedAmount} vs Tx ${matchingTx.amount}`);
+                                await currentState.updateTransaction({
+                                    ...matchingTx,
+                                    amount: alloc.budgetedAmount
+                                });
+                                repairs++;
+                            }
                         }
-                    } else if (matchingTx.amount !== alloc.budgetedAmount) {
-                        logger.log(`🔧 Repairing mismatch for envelope ${envelope?.name || alloc.envelopeId}: Alloc ${alloc.budgetedAmount} vs Tx ${matchingTx.amount}`);
-                        await currentState.updateTransaction({
-                            ...matchingTx,
-                            amount: alloc.budgetedAmount
-                        });
-                        repairs++;
+                        if (repairs > 0) logger.log(`✅ Repaired ${repairs} allocation discrepancies for ${month}`);
+                    } catch (error) {
+                        logger.error(`❌ Verification failed for ${month}:`, error);
+                        // Don't throw - verification failures shouldn't break the main fetch
                     }
-                }
-                if (repairs > 0) logger.log(`✅ Repaired ${repairs} allocation discrepancies for ${month}`);
-            };
+                };
 
-            // Run verification (non-blocking)
-            verifyAndRepairAllocations().catch(err => logger.error('Verification failed:', err));
+                // Run verification with delay to avoid conflicts with rapid switching
+                setTimeout(() => {
+                    verifyAndRepairAllocations().catch(err => logger.error('Verification failed:', err));
+                }, 1000); // 1 second delay
+            }
 
         } catch (error) {
             logger.error(`❌ Failed to fetch month data for ${month}:`, error);

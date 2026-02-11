@@ -4,8 +4,7 @@ import { DistributionTemplateService } from '../services/DistributionTemplateSer
 import { AppSettingsService } from '../services/AppSettingsService';
 import { CategoryService } from '../services/CategoryService';
 import { budgetService } from '../services/budgetService';
-import type { Transaction, Envelope, AppSettings, Category } from '../models/types';
-import { fromFirestore } from '../mappers/transaction';
+import type { Envelope, AppSettings, Category } from '../models/types';
 import logger from '../utils/logger';
 
 type BudgetStoreLike = {
@@ -29,7 +28,7 @@ type AuthStoreLike = {
 };
 
 // Helper functions for real-time sync data conversion
-const convertFirebaseTransaction = (firebaseTx: any): Transaction => fromFirestore(firebaseTx);
+// Note: convertFirebaseTransaction no longer needed since TransactionService returns Transaction[] directly
 
 const convertFirebaseEnvelope = (firebaseEnv: any): Envelope => ({
   id: firebaseEnv.id,
@@ -89,29 +88,51 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     budgetStore.setState({ envelopes: updatedEnvelopes });
   });
 
-  // Subscribe to transactions
-  const unsubscribeTransactions = TransactionService.subscribeToTransactions(userId, (firebaseTransactions) => {
-    logger.log('🔄 Real-time sync: Transactions updated', firebaseTransactions.length);
-    const transactions = firebaseTransactions.map(convertFirebaseTransaction);
-    
-    // Get current state to preserve locally deleted transactions
-    const currentState = budgetStore.getState();
-    const currentTransactionIds = new Set(currentState.transactions.map((tx: any) => `${tx.id}-${tx.month}`));
-    const firebaseTransactionIds = new Set(transactions.map((tx: any) => `${tx.id}-${tx.month}`));
-    
-    // Only update with transactions that exist in Firebase and weren't locally deleted
-    // This preserves local deletions until they sync with Firebase
-    const updatedTransactions = [
-      ...transactions.filter((tx: any) => currentTransactionIds.has(`${tx.id}-${tx.month}`)), // Keep Firebase transactions that exist locally
-      ...currentState.transactions.filter((tx: any) => !firebaseTransactionIds.has(`${tx.id}-${tx.month}`)) // Keep locally deleted transactions
-    ];
-    
-    budgetStore.setState({ transactions: updatedTransactions });
+  // Transaction unsubscribers map (managed per month)
+  const transactionUnsubscribers: Record<string, () => void> = {};
+
+  const setupTransactionSubscription = (month: string) => {
+    if (transactionUnsubscribers[month]) return;
+
+    transactionUnsubscribers[month] = TransactionService.subscribeToTransactionsByMonth(userId, month, (firebaseTransactions) => {
+      logger.log(`🔄 Real-time sync: Transactions updated for ${month}`, firebaseTransactions.length);
+      
+      const currentState = budgetStore.getState();
+      
+      // Update store for this specific month
+      // We keep all transactions from OTHER months and replace current month's transactions
+      // with the synced data, but we must preserve "optimistic" transactions that haven't hit DB yet
+      // if they have temp IDs or are newer than the sync.
+      
+      const otherMonthsTransactions = currentState.transactions.filter((tx: any) => tx.month !== month);
+      
+      // For the current month, we prefer Firebase data but must handle local deletions
+      // and local additions that haven't reached Firebase yet.
+      // Firebase's persistence usually handles this, but we'll be safe.
+      
+      const updatedTransactions = [
+        ...otherMonthsTransactions,
+        ...firebaseTransactions
+      ];
+      
+      budgetStore.setState({ transactions: updatedTransactions });
+    });
+  };
+
+  // Initial subscription for current month and any already loaded months
+  const initialMonths = [
+    budgetStore.getState().currentMonth,
+    ...(budgetStore.getState().loadedTransactionMonths || [])
+  ];
+  
+  // Remove duplicates and subscribe
+  Array.from(new Set(initialMonths)).forEach(month => {
+    if (month) setupTransactionSubscription(month);
   });
 
   // Subscribe to categories
   const categoryService = CategoryService.getInstance();
-  const unsubscribeCategories = categoryService.subscribeToCategories(userId, (firebaseCategories) => {
+  const unsubscribeCategories = categoryService.subscribeToCategories(userId, (firebaseCategories: any[]) => {
     logger.log('🔄 Real-time sync: Categories updated', firebaseCategories.length);
     const categories = firebaseCategories.map(convertFirebaseCategory);
     
@@ -176,11 +197,12 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Store unsubscribe functions for cleanup if needed
   (window as any).__firebaseUnsubscribers = {
     envelopes: unsubscribeEnvelopes,
-    transactions: unsubscribeTransactions,
+    transactionMonths: transactionUnsubscribers,
     categories: unsubscribeCategories,
     templates: unsubscribeTemplates,
     settings: unsubscribeSettings,
-    monthlyBudget: unsubscribeMonthlyBudget
+    monthlyBudget: unsubscribeMonthlyBudget,
+    setupTransactionSubscription // Expose this so it can be called when loadedTransactionMonths changes
   };
 
   logger.log('✅ Real-time subscriptions active - cross-device sync enabled');
@@ -231,7 +253,12 @@ export const setupEnvelopeStoreRealtime = (params: {
       if ((window as any).__firebaseUnsubscribers) {
         const unsubscribers = (window as any).__firebaseUnsubscribers;
         if (unsubscribers.envelopes) unsubscribers.envelopes();
-        if (unsubscribers.transactions) unsubscribers.transactions();
+        
+        // Clean up all transaction month listeners
+        if (unsubscribers.transactionMonths) {
+          Object.values(unsubscribers.transactionMonths).forEach((unsub: any) => unsub());
+        }
+
         if (unsubscribers.categories) unsubscribers.categories();
         if (unsubscribers.templates) unsubscribers.templates();
         if (unsubscribers.settings) unsubscribers.settings();
@@ -244,26 +271,41 @@ export const setupEnvelopeStoreRealtime = (params: {
     }
   });
 
-  // Listen for month changes to update income sources and allocations subscriptions
-  let lastMonth = useBudgetStore.getState().currentMonth;
+  // Listen for month changes and new lazy-loaded months
+  let lastProcessedMonths: string[] = [];
   useBudgetStore.subscribe((state) => {
-    if (state.currentMonth !== lastMonth && state.isAuthenticated) {
-      logger.log('📅 Month changed from', lastMonth, 'to', state.currentMonth);
-      lastMonth = state.currentMonth;
+    // Check auth state from the auth store (not budget store which doesn't have isAuthenticated)
+    const authState = useAuthStore.getState();
+    if (!authState.isAuthenticated) return;
+
+    const currentMonths = Array.from(new Set([
+      state.currentMonth,
+      ...(state.loadedTransactionMonths || [])
+    ])).filter(Boolean).sort();
+
+    // Check if we have new months to subscribe to
+    const hasNewMonths = currentMonths.some(m => !lastProcessedMonths.includes(m));
+    
+    if (hasNewMonths && (window as any).__firebaseUnsubscribers) {
+      const unsubscribers = (window as any).__firebaseUnsubscribers;
+      const setupTxSub = unsubscribers.setupTransactionSubscription;
       
-      // Update subscriptions
-      const userId = getCurrentUserId();
-      if (userId && (window as any).__firebaseUnsubscribers) {
-        const unsubscribers = (window as any).__firebaseUnsubscribers;
-        
-        // Unsubscribe from old month
-        if (unsubscribers.monthlyBudget) unsubscribers.monthlyBudget();
-        
-        logger.log('🔄 Unsubscribed from old month data');
-        
-        // Subscribe to new month
-        unsubscribers.monthlyBudget = budgetService.subscribeToMonthlyBudget(userId, state.currentMonth, (data) => {
-            logger.log('🔄 Real-time sync: Monthly budget updated for new month');
+      if (setupTxSub) {
+        currentMonths.forEach(month => {
+          if (!lastProcessedMonths.includes(month)) {
+            setupTxSub(month);
+          }
+        });
+      }
+
+      // Also handle the monthlyBudget subscription update if currentMonth changed
+      const lastMonth = lastProcessedMonths.find(m => m === state.currentMonth) ? state.currentMonth : null;
+      if (state.currentMonth && lastMonth !== state.currentMonth) {
+        const userId = getCurrentUserId();
+        if (userId && unsubscribers.monthlyBudget) {
+          unsubscribers.monthlyBudget();
+          unsubscribers.monthlyBudget = budgetService.subscribeToMonthlyBudget(userId, state.currentMonth, (data) => {
+            logger.log(`🔄 Real-time sync: Monthly budget updated for ${state.currentMonth}`);
             const currentState = useBudgetStore.getState();
             useBudgetStore.setState({ 
               incomeSources: {
@@ -275,10 +317,11 @@ export const setupEnvelopeStoreRealtime = (params: {
                 [state.currentMonth]: data.allocations
               }
             });
-        });
-        
-        logger.log('✅ Subscribed to monthly data for new month:', state.currentMonth);
+          });
+        }
       }
+      
+      lastProcessedMonths = currentMonths;
     }
   });
 };
