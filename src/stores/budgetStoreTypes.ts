@@ -18,6 +18,8 @@ export interface BudgetState {
   isOnline: boolean;
   isOnboardingActive: boolean; // UI State for guide
   isOnboardingCompleted: boolean; // Persistent State
+  guidedTutorialStep: number | null; // null = not active, 0-3 = active step
+  guidedTutorialCompleted: boolean; // Persistent State
   isLoading: boolean;
   error: string | null;
 
@@ -28,6 +30,11 @@ export interface BudgetState {
   checkAndStartOnboarding: () => Promise<void>; // Action to check and start onboarding for new users
   completeOnboarding: () => void; // Action to mark onboarding as complete
   resetOnboarding: () => void; // Action to reset onboarding status
+  startGuidedTutorial: () => void; // Start the guided tutorial
+  advanceGuidedTutorial: () => void; // Move to next guided tutorial step
+  skipGuidedTutorial: () => void; // Skip/exit the guided tutorial
+  completeGuidedTutorial: () => void; // Mark guided tutorial as complete
+  resetGuidedTutorial: () => void; // Reset guided tutorial for replay
   addEnvelope: (envelope: Omit<Envelope, 'id'>) => Promise<string>;
   updateEnvelope: (envelope: Envelope) => Promise<void>;
   deleteEnvelope: (envelopeId: string) => Promise<void>;

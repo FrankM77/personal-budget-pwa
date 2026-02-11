@@ -37,6 +37,8 @@ export const useBudgetStore = create<BudgetState>()(
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         isOnboardingActive: false,
         isOnboardingCompleted: false, // Will be set per-user in checkAndStartOnboarding
+        guidedTutorialStep: null,
+        guidedTutorialCompleted: false,
         isLoading: false,
         error: null,
 

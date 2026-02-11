@@ -227,7 +227,8 @@ const CategorySection = ({
   transactions, 
   navigate, 
   getEnvelopeBalance,
-  onReorderGlobal
+  onReorderGlobal,
+  isFirstCategory = false
 }: { 
   category: Category | { id: string, name: string }, 
   envelopes: Envelope[],
@@ -236,7 +237,8 @@ const CategorySection = ({
   transactions: any[],
   navigate: (path: string) => void,
   getEnvelopeBalance: (id: string) => any,
-  onReorderGlobal: (orderedIds: string[]) => void
+  onReorderGlobal: (orderedIds: string[]) => void,
+  isFirstCategory?: boolean
 }) => {
   if (initialEnvelopes.length === 0 && category.id === 'uncategorized') return null;
 
@@ -419,6 +421,7 @@ const CategorySection = ({
           {category.name}
         </h2>
         <button 
+          id={isFirstCategory ? 'tutorial-add-envelope' : undefined}
           onClick={() => navigate(category.id === 'uncategorized' ? '/add-envelope' : `/add-envelope?categoryId=${category.id}`)} 
           className="text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-zinc-800 p-1 rounded-full transition-colors" 
           title={`Add to ${category.name}`}
@@ -427,7 +430,7 @@ const CategorySection = ({
         </button>
       </div>
       
-      <div ref={reorderConstraintsRef} className="space-y-2 relative">
+      <div id={isFirstCategory ? 'tutorial-allocation-area' : undefined} ref={reorderConstraintsRef} className="space-y-2 relative">
         {localEnvelopes.length === 0 ? (
           <div className="py-2 text-center border border-dashed border-gray-100 dark:border-zinc-800 rounded-xl">
             <p className="text-[10px] text-gray-400 dark:text-zinc-500">Empty category</p>
@@ -504,7 +507,8 @@ export const EnvelopeListView: React.FC = () => {
     categories, 
     fetchCategories,
     envelopes,
-    reorderEnvelopes
+    reorderEnvelopes,
+    startGuidedTutorial,
   } = useBudgetStore();
   
   const navigate = useNavigate();
@@ -632,6 +636,13 @@ export const EnvelopeListView: React.FC = () => {
   const handleOnboardingComplete = () => {
     completeOnboarding();
     setIsOnboardingActive(false);
+    startGuidedTutorial();
+  };
+
+  const handleOnboardingSkip = () => {
+    completeOnboarding();
+    setIsOnboardingActive(false);
+    startGuidedTutorial();
   };
 
   if (isInitialLoading) {
@@ -660,12 +671,12 @@ export const EnvelopeListView: React.FC = () => {
 
     <div className="pb-[calc(8rem+env(safe-area-inset-bottom))] px-4 max-w-4xl mx-auto space-y-4" style={isOnboardingActive ? undefined : { paddingTop: Math.max(0, headerHeight + 16) }}>
       {isOnboardingActive ? (
-        <NewUserOnboarding currentMonth={currentMonth} onComplete={handleOnboardingComplete} />
+        <NewUserOnboarding currentMonth={currentMonth} onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />
       ) : showCopyPrompt ? (
         <CopyPreviousMonthPrompt currentMonth={currentMonth} onCopy={handleCopyPreviousMonth} />
       ) : (
         <>
-          <section className="bg-white dark:bg-zinc-900 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-zinc-800">
+          <section id="tutorial-income-section" className="bg-white dark:bg-zinc-900 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="flex justify-between items-center mb-2 px-1">
               <h2 className="text-base font-bold text-gray-900 dark:text-white">Income Sources</h2>
               <button onClick={handleAddIncome} className="text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-zinc-800 p-1 rounded-full transition-colors"><Plus size={20} /></button>
@@ -690,7 +701,7 @@ export const EnvelopeListView: React.FC = () => {
             )}
           </section>
 
-          {categories.map(category => (
+          {categories.map((category, index) => (
             <CategorySection
               key={category.id}
               category={category}
@@ -701,6 +712,7 @@ export const EnvelopeListView: React.FC = () => {
               navigate={navigate}
               getEnvelopeBalance={getEnvelopeBalance}
               onReorderGlobal={handleReorderInSection}
+              isFirstCategory={index === 0}
             />
           ))}
 

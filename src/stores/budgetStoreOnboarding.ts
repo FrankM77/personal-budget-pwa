@@ -35,10 +35,14 @@ export const createOnboardingSlice = ({ set, get }: SliceParams) => ({
         localStorage_value: localStorage.getItem(storageKey)
       });
       
+      // Also check guided tutorial completion status
+      const tutorialKey = `guidedTutorialCompleted_${userId}`;
+      const isTutorialCompleted = typeof localStorage !== 'undefined' ? localStorage.getItem(tutorialKey) === 'true' : false;
+
       // If localStorage says completed, trust it
       if (isCompleted) {
-        set({ isOnboardingCompleted: true });
-        logger.log('⏭️ Skipping onboarding: already completed (localStorage)');
+        set({ isOnboardingCompleted: true, guidedTutorialCompleted: isTutorialCompleted });
+        logger.log('⏭️ Skipping onboarding: already completed (localStorage)', { isTutorialCompleted });
         return;
       }
       
@@ -86,5 +90,56 @@ export const createOnboardingSlice = ({ set, get }: SliceParams) => ({
           logger.log('🔄 Onboarding reset for user:', userId);
         }
         set({ isOnboardingCompleted: false, isOnboardingActive: true });
+    },
+
+    startGuidedTutorial: () => {
+      logger.log('🎓 Starting guided tutorial');
+      set({ guidedTutorialStep: 0, guidedTutorialCompleted: false });
+    },
+
+    advanceGuidedTutorial: () => {
+      const current = get().guidedTutorialStep;
+      if (current === null) return;
+      const nextStep = current + 1;
+      const totalSteps = 4; // 0: income, 1: envelope, 2: allocate, 3: piggybank
+      if (nextStep >= totalSteps) {
+        // Complete the tutorial
+        const userId = getCurrentUserId();
+        if (userId) {
+          localStorage.setItem(`guidedTutorialCompleted_${userId}`, 'true');
+        }
+        logger.log('🎓 Guided tutorial completed!');
+        set({ guidedTutorialStep: null, guidedTutorialCompleted: true });
+      } else {
+        logger.log('🎓 Advancing guided tutorial to step:', nextStep);
+        set({ guidedTutorialStep: nextStep });
+      }
+    },
+
+    skipGuidedTutorial: () => {
+      const userId = getCurrentUserId();
+      if (userId) {
+        localStorage.setItem(`guidedTutorialCompleted_${userId}`, 'true');
+      }
+      logger.log('🎓 Guided tutorial skipped');
+      set({ guidedTutorialStep: null, guidedTutorialCompleted: true });
+    },
+
+    completeGuidedTutorial: () => {
+      const userId = getCurrentUserId();
+      if (userId) {
+        localStorage.setItem(`guidedTutorialCompleted_${userId}`, 'true');
+      }
+      logger.log('🎓 Guided tutorial completed!');
+      set({ guidedTutorialStep: null, guidedTutorialCompleted: true });
+    },
+
+    resetGuidedTutorial: () => {
+      const userId = getCurrentUserId();
+      if (userId) {
+        localStorage.removeItem(`guidedTutorialCompleted_${userId}`);
+      }
+      logger.log('🔄 Guided tutorial reset — starting at step 0');
+      set({ guidedTutorialStep: 0, guidedTutorialCompleted: false });
     },
 });

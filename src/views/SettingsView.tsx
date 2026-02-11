@@ -25,7 +25,8 @@ export const SettingsView: React.FC = () => {
     currentMonth,
     clearMonthData,
     handleUserLogout,
-    resetOnboarding
+    resetOnboarding,
+    resetGuidedTutorial
   } = useBudgetStore();
 
   const { deleteAccount, currentUser, logout } = useAuthStore();
@@ -591,6 +592,22 @@ export const SettingsView: React.FC = () => {
                 <div className="flex flex-col items-start">
                   <span className="text-gray-900 dark:text-white font-medium">Restart Onboarding Guide</span>
                   <span className="text-xs text-gray-500 dark:text-zinc-400">View the welcome tutorial again</span>
+                </div>
+              </div>
+              <ChevronRight className="text-gray-400" size={18} />
+            </button>
+            <button
+              onClick={() => {
+                resetGuidedTutorial();
+                navigate('/');
+              }}
+              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="text-blue-500" size={20} />
+                <div className="flex flex-col items-start">
+                  <span className="text-gray-900 dark:text-white font-medium">Restart Guided Tutorial</span>
+                  <span className="text-xs text-gray-500 dark:text-zinc-400">Walk through the hands-on setup again</span>
                 </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />

@@ -11,6 +11,7 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { AppRoutes } from './components/AppRoutes';
 import { SiriQueryHandler } from './components/SiriQueryHandler';
 import { DebugOverlay } from './components/DebugOverlay';
+import { GuidedTutorialOverlay } from './components/ui/guidedTutorialOverlay';
 import { useBudgetStore } from './stores/budgetStore';
 import { useAuthStore } from './stores/authStore';
 import { useToastStore } from './stores/toastStore';
@@ -250,6 +251,9 @@ function App() {
               </div>
             </div>
           )}
+
+          {/* Guided Tutorial Overlay */}
+          <GuidedTutorialOverlay />
 
           {/* Bottom Navigation - Only show on main app pages and when not onboarding */}
           {!isOnboardingActive && (
