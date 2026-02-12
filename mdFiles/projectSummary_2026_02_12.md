@@ -1,6 +1,15 @@
-# House Budget PWA: Project Summary - 2026-02-11
+# House Budget PWA: Project Summary - 2026-02-12
 
 ## Changelog (Highlights)
+- **2026-02-12**: **Move to Category Feature**: Added ability to move envelopes and piggybanks between categories via folder icon.
+  - **Category Movement**: Folder icon on envelope/piggybank items opens bottom sheet modal for category selection.
+  - **Enhanced Category Management**: Delete category creates fresh "Uncategorized" for orphaned envelopes.
+  - **Analytics Improvements**: All categories now appear in analytics charts, including those with $0 spending.
+  - **Mobile Fixes**: Fixed scrolling and dock interference issues in modal on mobile devices.
+  - **Bug Fixes**: Fixed modal update failures and ensured proper envelope category changes.
+- **2026-02-12**: **Database Migration & Performance Optimization**: Embedded allocations to reduce Firestore reads by 50%+.
+  - **Performance Gains**: Allocations now embedded in monthly budget documents instead of separate collection.
+  - **Code Cleanup**: Removed debug code, unused TODOs, and backup files. Fixed all linting errors.
 - **2026-02-11**: **Major Security Enhancement: Firebase App Check Enforcement**: Complete security coverage across all Firebase services.
   - **App Check Implementation**: Firebase App Check with reCAPTCHA Enterprise provider for comprehensive protection.
   - **Three-Layer Security**: API key restrictions + Rate limiting + App Check enforcement.
@@ -191,9 +200,10 @@ Voice-powered transaction entry using AI parsing with iOS Shortcuts integration.
 - Firebase App Check Enforcement (Done)
 - Siri Integration (Done)
 - Enhanced Logging System (Done)
+- Database Migration (Done)
+- Code Cleanup (Done)
 
 ### Future Enhancements
-- **Database Migration (High Priority)**: Normalize Firestore data types and embed allocations to reduce reads.
 - Advanced reporting and analytics.
 - Data visualization.
 
