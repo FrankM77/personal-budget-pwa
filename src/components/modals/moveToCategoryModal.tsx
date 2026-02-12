@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, FolderOpen } from 'lucide-react';
 import type { Category } from '../../models/types';
@@ -20,6 +20,28 @@ const MoveToCategoryModal: React.FC<MoveToCategoryModalProps> = ({
   envelopeName,
   onSelect,
 }) => {
+  // Lock body scroll when modal is open (mobile)
+  useEffect(() => {
+    if (isVisible) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Lock body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scroll position and unlock
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isVisible]);
   return (
     <AnimatePresence>
       {isVisible && (

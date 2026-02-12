@@ -2,6 +2,11 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.10.1] - 2026-02-12
+
+### 🐛 **BUG FIXES**
+- Fixed mobile scrolling issue in Move to Category modal - background page no longer scrolls when scrolling the category list on mobile devices
+
 ## [1.10.0] - 2026-02-12
 
 ### ✨ **NEW FEATURES**
