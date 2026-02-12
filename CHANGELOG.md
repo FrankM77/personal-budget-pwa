@@ -2,6 +2,11 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.10.2] - 2026-02-12
+
+### 🐛 **BUG FIXES**
+- Fixed dock covering bottom of Move to Category modal - added proper bottom padding to clear the navigation dock on mobile devices
+
 ## [1.10.1] - 2026-02-12
 
 ### 🐛 **BUG FIXES**
