@@ -771,8 +771,29 @@ export const EnvelopeListView: React.FC = () => {
         envelopeName={moveCategoryEnvelope?.name || ''}
         onSelect={async (categoryId) => {
           if (moveCategoryEnvelope) {
-            await updateEnvelope({ ...moveCategoryEnvelope, categoryId });
-            setMoveCategoryEnvelope(null);
+            try {
+              // Get fresh envelope from store to avoid stale data
+              const fresh = envelopes.find(e => e.id === moveCategoryEnvelope.id);
+              if (!fresh) return;
+              const updated: Envelope = {
+                id: fresh.id,
+                name: fresh.name,
+                currentBalance: fresh.currentBalance,
+                lastUpdated: fresh.lastUpdated,
+                isActive: fresh.isActive,
+                orderIndex: fresh.orderIndex,
+                categoryId,
+              };
+              // Preserve optional fields only if they exist
+              if (fresh.userId) updated.userId = fresh.userId;
+              if (fresh.createdAt) updated.createdAt = fresh.createdAt;
+              if (fresh.isPiggybank !== undefined) updated.isPiggybank = fresh.isPiggybank;
+              if (fresh.piggybankConfig) updated.piggybankConfig = fresh.piggybankConfig;
+              await updateEnvelope(updated);
+              setMoveCategoryEnvelope(null);
+            } catch (err) {
+              console.error('Move category failed:', err);
+            }
           }
         }}
       />

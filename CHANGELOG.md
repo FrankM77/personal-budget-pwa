@@ -2,6 +2,11 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.10.3] - 2026-02-12
+
+### 🐛 **BUG FIXES**
+- Fixed Move to Category modal failing to update envelope category - envelope now properly moves to selected category and modal closes correctly
+
 ## [1.10.2] - 2026-02-12
 
 ### 🐛 **BUG FIXES**

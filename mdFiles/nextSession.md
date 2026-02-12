@@ -4,9 +4,9 @@
 **Duration**: 2-3 hours  
 **Focus**: Code cleanup and database optimization
 
-## 📦 **Latest Release: v1.10.0** (2026-02-12)
+## 📦 **Latest Release: v1.10.2** (2026-02-12)
 
-### ✨ **New Features**
+### ✨ **New Features** (from v1.10.0)
 - Move envelopes/piggybanks between categories via folder icon
 - Enhanced category management (delete creates fresh "Uncategorized")
 - Analytics now shows all categories (including $0 spending)
@@ -14,7 +14,9 @@
 ### 🐛 **Bug Fixes**
 - Fixed analytics missing categories with no spending
 - Fixed delete category behavior when renamed
-- Improved orphaned envelope reassignment  
+- Improved orphaned envelope reassignment
+- Fixed mobile scrolling in Move to Category modal (v1.10.1)
+- Fixed dock covering bottom of Move to Category modal (v1.10.2)  
 
 ---
 
