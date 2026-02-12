@@ -67,6 +67,7 @@ export interface BudgetState {
   updateCategory: (category: Category) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
   reorderCategories: (orderedIds: string[]) => Promise<void>;
+  ensureDefaultCategory: () => Promise<string>;
 
   // Income Source Actions
   addIncomeSource: (month: string, source: Omit<IncomeSource, 'id'>) => Promise<void>;

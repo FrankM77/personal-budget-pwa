@@ -21,6 +21,14 @@ export const AddEnvelopeView: React.FC = () => {
   const [name, setName] = useState('');
   const [isPiggybank, setIsPiggybank] = useState(searchParams.get('type') === 'piggybank');
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') || '');
+
+  // Set default category when categories load and no categoryId from URL
+  React.useEffect(() => {
+    if (!searchParams.get('categoryId') && categories.length > 0 && !categoryId) {
+      const defaultCat = categories.find(c => c.isDefault);
+      if (defaultCat) setCategoryId(defaultCat.id);
+    }
+  }, [categories, searchParams, categoryId]);
   
   const [targetAmount, setTargetAmount] = useState('');
   const [monthlyContribution, setMonthlyContribution] = useState('');
@@ -53,7 +61,7 @@ export const AddEnvelopeView: React.FC = () => {
       createdAt: creationDate.toISOString(),
       isActive: true,
       orderIndex: nextOrderIndex,
-      categoryId: categoryId || undefined // Add categoryId
+      categoryId: categoryId || undefined
     };
 
     if (isPiggybank) {
@@ -159,7 +167,6 @@ export const AddEnvelopeView: React.FC = () => {
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none"
               >
-                <option value="">Uncategorized</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}

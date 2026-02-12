@@ -379,7 +379,7 @@ export class BudgetService {
 
       // Filter out undefined fields
       const cleanTransaction = Object.fromEntries(
-        Object.entries(transaction).filter(([_, value]) => value !== undefined)
+        Object.entries(transaction).filter(([_key, value]) => value !== undefined)
       );
 
       const newTransactionData = {
@@ -424,7 +424,7 @@ export class BudgetService {
 
       // Filter out undefined fields to avoid Firestore errors
       const cleanTransaction = Object.fromEntries(
-        Object.entries(transaction).filter(([_, value]) => value !== undefined)
+        Object.entries(transaction).filter(([_key, value]) => value !== undefined)
       );
       
       const docRef = doc(db, 'users', userId, 'transactions', transaction.id);

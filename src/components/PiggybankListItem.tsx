@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { PiggyBank, TrendingUp, Pause, GripVertical } from 'lucide-react';
+import { PiggyBank, TrendingUp, Pause, GripVertical, FolderOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLongPress, LongPressEventType } from 'use-long-press';
 import type { Envelope } from '../models/types';
@@ -14,6 +14,7 @@ interface PiggybankListItemProps {
   activelyDraggingId?: string | null;
   onItemDragStart?: (id: string) => void;
   onLongPressTrigger: (e: any, id: string) => void;
+  onMoveCategory?: (env: Envelope) => void;
 }
 
 export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
@@ -24,7 +25,8 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
   isReorderingActive,
   activelyDraggingId,
   onItemDragStart,
-  onLongPressTrigger
+  onLongPressTrigger,
+  onMoveCategory
 }) => {
   const moveableItemRef = useRef<HTMLDivElement>(null);
   const [didDragThisItem, setDidDragThisItem] = useState(false);
@@ -142,12 +144,23 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
             </div>
           </div>
           
-          <div className="text-right flex-shrink-0">
-            <div className="text-sm font-bold text-gray-900 dark:text-white leading-none">
-              ${balanceNum.toFixed(2)}
-            </div>
-            <div className="text-[9px] text-gray-400 dark:text-zinc-500 mt-1">
-              of ${targetAmount?.toFixed(0) || '0'}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {onMoveCategory && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onMoveCategory(piggybank); }}
+                className="p-1 text-gray-300 dark:text-zinc-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-md"
+                title="Move to category"
+              >
+                <FolderOpen size={14} />
+              </button>
+            )}
+            <div className="text-right">
+              <div className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                ${balanceNum.toFixed(2)}
+              </div>
+              <div className="text-[9px] text-gray-400 dark:text-zinc-500 mt-1">
+                of ${targetAmount?.toFixed(0) || '0'}
+              </div>
             </div>
           </div>
         </div>

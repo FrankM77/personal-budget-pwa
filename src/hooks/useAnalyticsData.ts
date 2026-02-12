@@ -99,7 +99,6 @@ function buildCategoryColorMap(categories: Category[]): Record<string, string> {
   categories.forEach((cat, i) => {
     map[cat.id] = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
   });
-  map['uncategorized'] = '#9CA3AF'; // gray for uncategorized
   return map;
 }
 
@@ -145,7 +144,6 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
   const categoryNameMap = useMemo(() => {
     const map: Record<string, string> = {};
     categories.forEach((c) => { map[c.id] = c.name; });
-    map['uncategorized'] = 'Uncategorized';
     return map;
   }, [categories]);
 
@@ -159,7 +157,9 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
 
   // ─── 1. Spending Totals (Donut) ───
   const spendingTotals = useMemo((): { items: SpendingTotalItem[]; total: number } => {
+    // Start with all categories at $0
     const totals: Record<string, number> = {};
+    categories.forEach((cat) => { totals[cat.id] = 0; });
 
     expenseTransactions.forEach((t) => {
       const catId = envelopeCategoryMap[t.envelopeId] || 'uncategorized';
@@ -177,7 +177,7 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
 
     const total = items.reduce((s, i) => s + i.amount, 0);
     return { items, total: Math.round(total * 100) / 100 };
-  }, [expenseTransactions, envelopeCategoryMap, categoryNameMap, categoryColorMap]);
+  }, [expenseTransactions, envelopeCategoryMap, categoryNameMap, categoryColorMap, categories]);
 
   // ─── 2. Spending Breakdown (Stacked Bar by month) ───
   const spendingBreakdown = useMemo((): {
@@ -186,8 +186,8 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
     colorMap: Record<string, string>;
     average: number;
   } => {
-    // Collect unique category IDs that appear in the data
-    const catIdSet = new Set<string>();
+    // Include all categories so every one appears in the chart
+    const catIdSet = new Set<string>(categories.map(c => c.id));
 
     // Build per-month totals
     const monthMap: Record<string, Record<string, number>> = {};
@@ -224,7 +224,7 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
       : 0;
 
     return { data, categoryKeys, colorMap, average };
-  }, [months, expenseTransactions, envelopeCategoryMap, categoryColorMap]);
+  }, [months, expenseTransactions, envelopeCategoryMap, categoryColorMap, categories]);
 
   // ─── 3. Monthly Income (Stacked Bar by income source name) ───
   const monthlyIncome = useMemo((): {

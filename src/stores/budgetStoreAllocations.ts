@@ -157,7 +157,7 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             if (previousIncomeSources.length > 0) {
                 // Use addIncomeSource to ensure persistence
                 for (const source of previousIncomeSources) {
-                    const { id, ...sourceData } = source; // Omit ID to create new
+                    const { id: _id, ...sourceData } = source; // Omit ID to create new
                     await get().addIncomeSource(currentMonth, sourceData);
                 }
                 logger.log(`✅ Copied ${previousIncomeSources.length} income sources to ${currentMonth}`);

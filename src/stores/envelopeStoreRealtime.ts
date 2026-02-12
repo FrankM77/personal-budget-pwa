@@ -149,8 +149,6 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Subscribe to distribution templates
   const unsubscribeTemplates = DistributionTemplateService.subscribeToDistributionTemplates(userId, (firebaseTemplates) => {
     logger.log('🔄 Real-time sync: Templates updated from Firebase', firebaseTemplates.length);
-    // TODO: Add distributionTemplates to BudgetStore if needed
-    // budgetStore.setState({ distributionTemplates });
   });
 
   // Subscribe to app settings

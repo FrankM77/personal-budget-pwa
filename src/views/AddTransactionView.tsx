@@ -198,7 +198,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
       }
 
       // Create a transaction for each split
-      const splitEntries = Object.entries(splitAmounts).filter(([_, amt]) => amt > 0);
+      const splitEntries = Object.entries(splitAmounts).filter(([_key, amt]) => amt > 0);
       
       // Generate a shared splitGroupId if splitting across multiple envelopes
       const splitGroupId = splitEntries.length > 1 ? crypto.randomUUID() : undefined;

@@ -54,7 +54,7 @@ export const DistributionTemplateService = {
 
   // 3. CREATE
   createDistributionTemplate: async (template: DistributionTemplate) => {
-    const { userId, id: tempId, ...templateData } = template;
+    const { userId, id: _tempId, ...templateData } = template;
     if (!userId) {
       throw new Error('User ID is required to create distribution template');
     }

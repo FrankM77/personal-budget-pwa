@@ -2,6 +2,25 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.10.0] - 2026-02-12
+
+### ✨ **NEW FEATURES**
+- **Move Envelope Between Categories**: Added folder icon (📂) on envelope and piggybank items to move them between categories via a bottom sheet modal
+- **Enhanced Category Management**: 
+  - Delete category now always creates a fresh "Uncategorized" category for orphaned envelopes (not reuse renamed default)
+  - Simplified delete confirmation message
+- **Analytics Improvements**: All categories now appear in analytics charts, even those with $0 spending in the selected period
+
+### 🐛 **BUG FIXES**
+- Fixed analytics showing only categories with spending (now shows all 8 categories)
+- Fixed delete category behavior when default category had been renamed
+- Improved category reassignment logic for orphaned envelopes
+
+### 📊 **UI/UX**
+- Added move-to-category folder icon on both envelope and piggybank list items
+- Bottom sheet modal for category selection with current category highlighted
+- Analytics donut and stacked bar charts now include all categories
+
 ## [1.9.4] - 2026-02-10
 
 ### 🏗️ **ARCHITECTURE**

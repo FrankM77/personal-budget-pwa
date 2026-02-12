@@ -7,6 +7,90 @@ import logger from '../utils/logger';
 import Moveable from 'moveable';
 import { useLongPress, LongPressEventType } from 'use-long-press';
 
+import type { Category } from '../models/types';
+
+const CategoryItem: React.FC<{
+  category: Category;
+  isBeingDragged: boolean;
+  isEditing: boolean;
+  editName: string;
+  setEditName: (name: string) => void;
+  handleUpdate: (id: string) => void;
+  setEditingId: (id: string | null) => void;
+  handleDelete: (id: string) => void;
+  handleLongPressTrigger: (e: any, id: string) => void;
+  setMoveableRef: (id: string) => (el: HTMLDivElement | null) => void;
+}> = ({
+  category,
+  isBeingDragged,
+  isEditing,
+  editName,
+  setEditName,
+  handleUpdate,
+  setEditingId,
+  handleDelete,
+  handleLongPressTrigger,
+  setMoveableRef,
+}) => {
+  const bind = useLongPress((event) => {
+    handleLongPressTrigger(event, category.id);
+  }, {
+    threshold: 500,
+    cancelOnMovement: 25,
+    detect: LongPressEventType.Touch
+  });
+
+  return (
+    <div
+      {...bind()}
+      ref={setMoveableRef(category.id)}
+      style={{ cursor: isBeingDragged ? 'grabbing' : 'pointer' }}
+      className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-gray-100 dark:border-zinc-800 flex items-center justify-between group select-none"
+    >
+      {isEditing ? (
+        <div className="flex-1 flex gap-2">
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-100 dark:bg-zinc-800 rounded-lg outline-none dark:text-white"
+            autoFocus
+          />
+          <button onClick={() => handleUpdate(category.id)} className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm">Save</button>
+          <button onClick={() => setEditingId(null)} className="text-gray-500 px-2 text-sm">Cancel</button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <div
+              className="text-gray-400 dark:text-zinc-600 cursor-grab active:cursor-grabbing"
+              onMouseDown={(e) => handleLongPressTrigger(e, category.id)}
+            >
+              <GripVertical size={20} />
+            </div>
+            <span className="font-medium text-gray-900 dark:text-white">{category.name}</span>
+          </div>
+
+          <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => { setEditingId(category.id); setEditName(category.name); }}
+              className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
+            >
+              <Edit2 size={18} />
+            </button>
+            <button
+              onClick={() => handleDelete(category.id)}
+              className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const CategorySettingsView: React.FC = () => {
   const navigate = useNavigate();
   const { categories, addCategory, updateCategory, deleteCategory, reorderCategories } = useBudgetStore();
@@ -114,7 +198,12 @@ export const CategorySettingsView: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure? Envelopes in this category will become Uncategorized.')) return;
+    // Prevent deleting the last category
+    if (categories.length <= 1) {
+      showToast('Cannot delete the last category', 'error');
+      return;
+    }
+    if (!confirm('Are you sure? Envelopes in this category will be moved to "Uncategorized".')) return;
     try {
       await deleteCategory(id);
       showToast('Category deleted', 'success');
@@ -324,68 +413,21 @@ export const CategorySettingsView: React.FC = () => {
           className="space-y-2"
           style={{ touchAction: isReordering ? 'none' : 'auto' }}
         >
-          {localCategories.map((category) => {
-            const bind = useLongPress((event) => {
-              handleLongPressTrigger(event, category.id);
-            }, {
-              threshold: 500,
-              cancelOnMovement: 25,
-              detect: LongPressEventType.Touch
-            });
-            const isBeingDragged = activelyDraggingId === category.id;
-            
-            return (
-            <div 
-              key={category.id} 
-              {...bind()}
-              ref={setMoveableRef(category.id)}
-              style={{
-                cursor: isBeingDragged ? 'grabbing' : 'pointer'
-              }}
-              className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-gray-100 dark:border-zinc-800 flex items-center justify-between group select-none">
-              {editingId === category.id ? (
-                <div className="flex-1 flex gap-2">
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-gray-100 dark:bg-zinc-800 rounded-lg outline-none dark:text-white"
-                    autoFocus
-                  />
-                  <button onClick={() => handleUpdate(category.id)} className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm">Save</button>
-                  <button onClick={() => setEditingId(null)} className="text-gray-500 px-2 text-sm">Cancel</button>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="text-gray-400 dark:text-zinc-600 cursor-grab active:cursor-grabbing"
-                      onMouseDown={(e) => handleLongPressTrigger(e, category.id)}
-                    >
-                      <GripVertical size={20} />
-                    </div>
-                    <span className="font-medium text-gray-900 dark:text-white">{category.name}</span>
-                  </div>
-                  
-                  <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => { setEditingId(category.id); setEditName(category.name); }}
-                      className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(category.id)}
-                      className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            );
-          })}
+          {localCategories.map((category) => (
+            <CategoryItem
+              key={category.id}
+              category={category}
+              isBeingDragged={activelyDraggingId === category.id}
+              isEditing={editingId === category.id}
+              editName={editName}
+              setEditName={setEditName}
+              handleUpdate={handleUpdate}
+              setEditingId={setEditingId}
+              handleDelete={handleDelete}
+              handleLongPressTrigger={handleLongPressTrigger}
+              setMoveableRef={setMoveableRef}
+            />
+          ))}
           
           {localCategories.length === 0 && !isAdding && (
             <div className="text-center text-gray-500 dark:text-zinc-500 py-8">

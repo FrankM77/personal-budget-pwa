@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
-import { Plus, Wallet, PiggyBank, GripVertical } from 'lucide-react';
+import { Plus, Wallet, PiggyBank, GripVertical, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from 'moveable';
 import { useLongPress, LongPressEventType } from 'use-long-press';
@@ -9,6 +9,7 @@ import { MonthSelector } from '../components/ui/MonthSelector';
 import { SwipeableRow } from '../components/ui/SwipeableRow';
 import { LoadingScreen } from '../components/ui/LoadingScreen';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
+import MoveToCategoryModal from '../components/modals/moveToCategoryModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
 import NewUserOnboarding from '../components/ui/NewUserOnboarding';
 import { PiggybankListItem } from '../components/PiggybankListItem';
@@ -42,7 +43,8 @@ const EnvelopeListItem = ({
   isReorderingActive,
   activelyDraggingId,
   onItemDragStart,
-  onLongPressTrigger
+  onLongPressTrigger,
+  onMoveCategory
 }: {
   env: Envelope,
   budgetedAmount: number,
@@ -54,7 +56,8 @@ const EnvelopeListItem = ({
   isReorderingActive: boolean,
   activelyDraggingId: string | null,
   onItemDragStart: (id: string) => void,
-  onLongPressTrigger: (e: any, id: string) => void
+  onLongPressTrigger: (e: any, id: string) => void,
+  onMoveCategory: (env: Envelope) => void
 }) => {
   const isPiggybank = Boolean(env.isPiggybank);
   const piggyColor = env.piggybankConfig?.color || '#3B82F6';
@@ -151,19 +154,28 @@ const EnvelopeListItem = ({
             </div>
           </div>
 
-          <div className="text-right">
-            <span className={`text-sm font-bold leading-none ${
-                (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
-                  ? 'text-red-500'
-                  : (100 - percentage) <= 5
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onMoveCategory(env); }}
+              className="p-1 text-gray-300 dark:text-zinc-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-md"
+              title="Move to category"
+            >
+              <FolderOpen size={14} />
+            </button>
+            <div className="text-right">
+              <span className={`text-sm font-bold leading-none ${
+                  (typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()) < 0
                     ? 'text-red-500'
-                    : percentage >= 80
-                      ? 'text-yellow-600 dark:text-yellow-400'
-                      : 'text-green-600 dark:text-emerald-400'
-              }`}>
-              ${(typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()).toFixed(2)}
-            </span>
-            <span className="text-[9px] text-gray-400 dark:text-zinc-500 block uppercase tracking-wider mt-0.5">Remaining</span>
+                    : (100 - percentage) <= 5
+                      ? 'text-red-500'
+                      : percentage >= 80
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-green-600 dark:text-emerald-400'
+                }`}>
+                ${(typeof remainingBalance === 'number' ? remainingBalance : remainingBalance.toNumber()).toFixed(2)}
+              </span>
+              <span className="text-[9px] text-gray-400 dark:text-zinc-500 block uppercase tracking-wider mt-0.5">Remaining</span>
+            </div>
           </div>
         </div>
 
@@ -228,7 +240,8 @@ const CategorySection = ({
   navigate, 
   getEnvelopeBalance,
   onReorderGlobal,
-  isFirstCategory = false
+  isFirstCategory = false,
+  onMoveCategory
 }: { 
   category: Category | { id: string, name: string }, 
   envelopes: Envelope[],
@@ -238,10 +251,9 @@ const CategorySection = ({
   navigate: (path: string) => void,
   getEnvelopeBalance: (id: string) => any,
   onReorderGlobal: (orderedIds: string[]) => void,
-  isFirstCategory?: boolean
+  isFirstCategory?: boolean,
+  onMoveCategory: (env: Envelope) => void
 }) => {
-  if (initialEnvelopes.length === 0 && category.id === 'uncategorized') return null;
-
   const [localEnvelopes, setLocalEnvelopes] = useState(initialEnvelopes);
   const localOrderRef = useRef(initialEnvelopes);
   const [isReordering, setIsReordering] = useState(false);
@@ -414,6 +426,8 @@ const CategorySection = ({
     return () => { clearTimeout(timeoutId); destroyMoveables(); };
   }, [localEnvelopes, navigate, onReorderGlobal]);
 
+  if (initialEnvelopes.length === 0 && category.id === 'uncategorized') return null;
+
   return (
     <section className="bg-white dark:bg-zinc-900 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-zinc-800">
       <div className="flex justify-between items-center mb-2 px-1">
@@ -454,6 +468,7 @@ const CategorySection = ({
                     activelyDraggingId={activelyDraggingId}
                     onItemDragStart={() => {}}
                     onLongPressTrigger={handleLongPressTrigger}
+                    onMoveCategory={onMoveCategory}
                   />
                 );
               }
@@ -472,6 +487,7 @@ const CategorySection = ({
                   activelyDraggingId={activelyDraggingId}
                   onItemDragStart={() => {}}
                   onLongPressTrigger={handleLongPressTrigger}
+                  onMoveCategory={onMoveCategory}
                 />
               );
             })}
@@ -506,9 +522,11 @@ export const EnvelopeListView: React.FC = () => {
     completeOnboarding, 
     categories, 
     fetchCategories,
+    ensureDefaultCategory,
     envelopes,
     reorderEnvelopes,
     startGuidedTutorial,
+    updateEnvelope,
   } = useBudgetStore();
   
   const navigate = useNavigate();
@@ -518,6 +536,7 @@ export const EnvelopeListView: React.FC = () => {
   const [selectedIncomeSource, setSelectedIncomeSource] = useState<IncomeSource | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
+  const [moveCategoryEnvelope, setMoveCategoryEnvelope] = useState<Envelope | null>(null);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -529,16 +548,33 @@ export const EnvelopeListView: React.FC = () => {
     }
   }, [categories.length, fetchCategories]);
 
+  // Auto-assign orphaned envelopes to the default category
+  useEffect(() => {
+    const allEnvs = [...visibleEnvelopes, ...piggybanks];
+    const categoryIds = new Set(categories.map(c => c.id));
+    const orphans = allEnvs.filter(env => !env.categoryId || !categoryIds.has(env.categoryId));
+    if (orphans.length > 0 && categories.length > 0) {
+      ensureDefaultCategory().then(defaultId => {
+        orphans.forEach(env => {
+          updateEnvelope({ ...env, categoryId: defaultId });
+        });
+      });
+    }
+  }, [visibleEnvelopes, piggybanks, categories, ensureDefaultCategory, updateEnvelope]);
+
   const envelopesByCategory = useMemo(() => {
     const groups: Record<string, Envelope[]> = {};
-    const uncategorized: Envelope[] = [];
     categories.forEach(cat => groups[cat.id] = []);
     const allEnvelopes = [...visibleEnvelopes, ...piggybanks].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     allEnvelopes.forEach(env => {
       if (env.categoryId && groups[env.categoryId]) groups[env.categoryId].push(env);
-      else uncategorized.push(env);
+      else {
+        // Fallback: find the default category and put them there
+        const defaultCat = categories.find(c => c.isDefault);
+        if (defaultCat) groups[defaultCat.id]?.push(env);
+      }
     });
-    return { groups, uncategorized };
+    return { groups };
   }, [categories, visibleEnvelopes, piggybanks]);
 
   const handleReorderInSection = useCallback(async (newOrderInSection: string[]) => {
@@ -713,23 +749,11 @@ export const EnvelopeListView: React.FC = () => {
               getEnvelopeBalance={getEnvelopeBalance}
               onReorderGlobal={handleReorderInSection}
               isFirstCategory={index === 0}
+              onMoveCategory={setMoveCategoryEnvelope}
             />
           ))}
 
-          {envelopesByCategory.uncategorized.length > 0 && (
-            <CategorySection
-              category={{ id: 'uncategorized', name: 'Uncategorized' }}
-              envelopes={envelopesByCategory.uncategorized}
-              allocations={allocations}
-              currentMonth={currentMonth}
-              transactions={transactions}
-              navigate={navigate}
-              getEnvelopeBalance={getEnvelopeBalance}
-              onReorderGlobal={handleReorderInSection}
-            />
-          )}
-
-          {categories.length === 0 && envelopesByCategory.uncategorized.length === 0 && (
+          {categories.length === 0 && (
              <section className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800 text-center py-12">
                 <Wallet className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
                 <p className="text-gray-500 dark:text-zinc-400 text-sm mb-4">No envelopes yet.</p>
@@ -739,6 +763,19 @@ export const EnvelopeListView: React.FC = () => {
         </>
       )}
       <IncomeSourceModal isVisible={incomeModalVisible} onClose={handleCloseModal} mode={incomeModalMode} initialIncomeSource={selectedIncomeSource} />
+      <MoveToCategoryModal
+        isVisible={!!moveCategoryEnvelope}
+        onClose={() => setMoveCategoryEnvelope(null)}
+        categories={categories}
+        currentCategoryId={moveCategoryEnvelope?.categoryId || ''}
+        envelopeName={moveCategoryEnvelope?.name || ''}
+        onSelect={async (categoryId) => {
+          if (moveCategoryEnvelope) {
+            await updateEnvelope({ ...moveCategoryEnvelope, categoryId });
+            setMoveCategoryEnvelope(null);
+          }
+        }}
+      />
       </div>
     </div>
     </>

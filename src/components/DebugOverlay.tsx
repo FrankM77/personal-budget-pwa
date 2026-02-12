@@ -34,7 +34,7 @@ let isLoggerActive = false;
         if (typeof arg === 'object' && arg !== null) {
           try {
             return JSON.stringify(arg, null, 2);
-          } catch (e) {
+          } catch {
             return String(arg);
           }
         }

@@ -206,7 +206,7 @@ function App() {
       {/* iOS Haptic Trigger - Invisible & Non-interactive */}
       <div className="fixed opacity-0 pointer-events-none -z-50">
         <label id="ios-haptic-trigger" htmlFor="ios-haptic-checkbox">
-          {/* @ts-ignore - 'switch' is a non-standard iOS attribute for system haptics */}
+          {/* @ts-expect-error - 'switch' is a non-standard iOS attribute for system haptics */}
           <input type="checkbox" id="ios-haptic-checkbox" switch="true" />
         </label>
       </div>

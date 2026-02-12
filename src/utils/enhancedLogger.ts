@@ -59,7 +59,7 @@ class Logger {
         const parsed = JSON.parse(authData);
         return parsed.state?.user?.uid;
       }
-    } catch (e) {
+    } catch {
       // Ignore errors
     }
     return undefined;

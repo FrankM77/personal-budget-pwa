@@ -120,7 +120,7 @@ export const toFirestore = (
   if (tx.date && !data.month) {
     try {
       data.month = toMonthKey(toDate(tx.date));
-    } catch (e) {
+    } catch {
       // Ignore invalid dates
     }
   }

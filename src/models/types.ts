@@ -58,6 +58,7 @@ export interface Category {
   name: string;
   orderIndex: number;
   isArchived?: boolean;
+  isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
 }

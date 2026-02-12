@@ -5,8 +5,7 @@ import App from './App.tsx'
 import './index.css'
 import logger from './utils/logger'
 
-// @ts-expect-error updateSW is used for future PWA update notifications
-const updateSW = registerSW({
+registerSW({
   onNeedRefresh() {
     // Optional: Show a toast to user
   },

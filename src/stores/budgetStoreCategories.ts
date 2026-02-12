@@ -1,7 +1,7 @@
 import { CategoryService } from '../services/CategoryService';
 import { useAuthStore } from './authStore';
 import logger from '../utils/logger';
-import type { Category } from '../models/types';
+import type { Category, Envelope } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
 
 const categoryService = CategoryService.getInstance();
@@ -99,6 +99,45 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
             set({ isLoading: true, error: null });
             const currentUser = requireAuth();
 
+            // Find envelopes that belong to this category
+            const orphanedEnvelopes = get().envelopes.filter(e => e.categoryId === categoryId);
+
+            // If there are orphaned envelopes, reassign them to a category named "Uncategorized"
+            if (orphanedEnvelopes.length > 0) {
+                // Look for an existing category named "Uncategorized" (case-insensitive)
+                let uncategorized = get().categories.find(
+                    c => c.name.toLowerCase().trim() === 'uncategorized' && c.id !== categoryId
+                );
+
+                // If none exists, create one
+                if (!uncategorized) {
+                    const newId = categoryService.createId();
+                    const now = new Date().toISOString();
+                    uncategorized = {
+                        id: newId,
+                        userId: currentUser.id,
+                        name: 'Uncategorized',
+                        orderIndex: get().categories.length,
+                        isDefault: true,
+                        createdAt: now,
+                        updatedAt: now,
+                    };
+                    await categoryService.createCategory(uncategorized);
+                    set(state => {
+                        const exists = state.categories.some(c => c.id === newId);
+                        if (exists) return {};
+                        return { categories: [...state.categories, uncategorized!] };
+                    });
+                    logger.log('📂 Created new "Uncategorized" category for orphaned envelopes:', newId);
+                }
+
+                for (const env of orphanedEnvelopes) {
+                    const updated: Envelope = { ...env, categoryId: uncategorized.id };
+                    await get().updateEnvelope(updated);
+                }
+                logger.log(`📂 Reassigned ${orphanedEnvelopes.length} envelopes to "Uncategorized"`);
+            }
+
             await categoryService.deleteCategory(currentUser.id, categoryId);
 
             set(state => ({
@@ -110,6 +149,36 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
             set({ isLoading: false });
             throw error;
         }
+    },
+
+    ensureDefaultCategory: async () => {
+        const existing = get().categories.find(c => c.isDefault);
+        if (existing) return existing.id;
+
+        // Create the default category
+        const currentUser = requireAuth();
+        const newId = categoryService.createId();
+        const now = new Date().toISOString();
+        const defaultCategory: Category = {
+            id: newId,
+            userId: currentUser.id,
+            name: 'Uncategorized',
+            orderIndex: get().categories.length,
+            isDefault: true,
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        await categoryService.createCategory(defaultCategory);
+
+        set(state => {
+            const exists = state.categories.some(c => c.id === newId);
+            if (exists) return {};
+            return { categories: [...state.categories, defaultCategory] };
+        });
+
+        logger.log('📂 Created default "Uncategorized" category:', newId);
+        return newId;
     },
 
     reorderCategories: async (orderedIds: string[]) => {

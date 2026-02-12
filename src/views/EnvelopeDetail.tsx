@@ -209,18 +209,6 @@ const EnvelopeDetail: React.FC = () => {
         }
     }
 
-    // Debug: Check piggybank and transactions
-    if (currentEnvelope.isPiggybank) {
-        const piggybankTransactions = transactions.filter(t => t.envelopeId === currentEnvelope.id);
-        logger.log('🐷 Piggybank:', currentEnvelope.name);
-        logger.log('🐷 Created at:', currentEnvelope.createdAt);
-        logger.log('🐷 Transactions:', piggybankTransactions.map(t => ({
-            date: t.date,
-            description: t.description,
-            amount: t.amount
-        })));
-    }
-
     const envelopeTransactions = transactions
         .filter(t => t.envelopeId === currentEnvelope.id)
         .filter(t => {
@@ -310,7 +298,6 @@ const EnvelopeDetail: React.FC = () => {
                       const balance = currentEnvelope.isPiggybank
                         ? getEnvelopeBalance(currentEnvelope.id!) // Piggybanks use lifetime balance
                         : getEnvelopeBalance(currentEnvelope.id!, currentMonth); // Regular envelopes use monthly balance
-                      logger.log(`Debug: Envelope ${currentEnvelope.name} Balance:`, balance);
                       return (
                         <span
                           className={`text-xl font-bold ${
