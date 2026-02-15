@@ -2,6 +2,27 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.11.0] - 2026-02-15
+
+### ✨ **NEW FEATURES**
+- **CSV Export with Time Frame Selection**: Added modal interface for exporting transactions with flexible date ranges
+  - Time frame presets: 1 month, 3 months, 6 months, 12 months, or by year (2024-2026)
+  - Dynamic filenames with date range (e.g., `budgetTransactions_Dec2025-Feb2026.csv`)
+  - Preview of selected months before exporting
+  - Maintains split transaction grouping in exports
+- **Updated Export Filenames**: Changed from `HouseBudget_*` to `budget*` for cleaner naming
+
+### 🔄 **CHANGES**
+- Replaced direct CSV export button with modal interface for better user experience
+- Export now filters by transaction's month field for accurate date range filtering
+
+## [1.10.4] - 2026-02-13
+
+### 🔄 **CHANGES**
+- Updated export filenames to use lowercase 'budget' prefix
+  - CSV: `budgetTransactions_YYYY-MM-DD.csv`
+  - JSON: `budgetBackup_YYYY-MM-DD.json`
+
 ## [1.10.3] - 2026-02-12
 
 ### 🐛 **BUG FIXES**

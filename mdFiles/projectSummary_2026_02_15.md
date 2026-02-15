@@ -1,6 +1,12 @@
-# House Budget PWA: Project Summary - 2026-02-12
+# House Budget PWA: Project Summary - 2026-02-15
 
 ## Changelog (Highlights)
+- **2026-02-15**: **CSV Export with Time Frame Selection**: Added modal interface for exporting transactions with flexible date ranges.
+  - **Time Frame Presets**: 1 month, 3 months, 6 months, 12 months, or by year (2024-2026).
+  - **Dynamic Filenames**: Export files include date range (e.g., `budgetTransactions_Dec2025-Feb2026.csv`).
+  - **Preview Interface**: Shows selected months before exporting.
+  - **Split Transaction Support**: Maintains grouping of split transactions in exports.
+  - **Updated Naming**: Changed from `HouseBudget_*` to `budget*` for cleaner filenames.
 - **2026-02-12**: **Move to Category Feature**: Added ability to move envelopes and piggybanks between categories via folder icon.
   - **Category Movement**: Folder icon on envelope/piggybank items opens bottom sheet modal for category selection.
   - **Enhanced Category Management**: Delete category creates fresh "Uncategorized" for orphaned envelopes.
