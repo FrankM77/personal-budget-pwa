@@ -181,7 +181,7 @@ export const SettingsView: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `HouseBudget_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `budgetBackup_${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -272,7 +272,7 @@ export const SettingsView: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `HouseBudget_Transactions_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `budgetTransactions_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
