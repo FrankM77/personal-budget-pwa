@@ -5,6 +5,7 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import { budgetService, type CleanupReport } from '../services/budgetService';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
+import { ExportModal } from '../components/modals/ExportModal';
 import LogViewer from '../components/ui/LogViewer';
 import logger from '../utils/enhancedLogger';
 
@@ -38,12 +39,12 @@ export const SettingsView: React.FC = () => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isExportingCSV, setIsExportingCSV] = useState(false);
-  const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
+    const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
   const [isCleaningData, setIsCleaningData] = useState(false);
   const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
   const [showLogViewer, setShowLogViewer] = useState(false);
   const [versionPressTimer, setVersionPressTimer] = useState<number | null>(null);
+const [showExportModal, setShowExportModal] = useState(false);
 
   // Version press handlers for accessing logs
   const handleVersionMouseDown = () => {
@@ -207,89 +208,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleExportCSV = () => {
-    setIsExportingCSV(true);
-    setOperationResult(null);
-    try {
-      const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
-
-      // Group split transactions for CSV export (same logic as TransactionHistoryView)
-      const filtered = transactions.filter(t => t.description !== 'Budgeted' && t.description !== 'Piggybank Contribution');
-      const processedSplitGroups = new Set<string>();
-      const rows: string[] = [];
-
-      for (const t of filtered) {
-        let amount: number;
-        let envName: string;
-        let reconciled: boolean;
-
-        if (t.splitGroupId && !processedSplitGroups.has(t.splitGroupId)) {
-          processedSplitGroups.add(t.splitGroupId);
-          const groupTxs = filtered.filter(tx => tx.splitGroupId === t.splitGroupId);
-          amount = groupTxs.reduce((sum, tx) => sum + tx.amount, 0);
-          envName = groupTxs.map(tx => envelopes.find(e => e.id === tx.envelopeId)?.name || 'Unknown').join(', ');
-          reconciled = groupTxs.every(tx => tx.reconciled);
-        } else if (t.splitGroupId && processedSplitGroups.has(t.splitGroupId)) {
-          continue; // Already included in a group
-        } else {
-          amount = t.amount;
-          envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
-          reconciled = t.reconciled;
-        }
-
-        const safeMerchant = (t.merchant || '').replace(/"/g, '""');
-        const safeNotes = (t.description || '').replace(/"/g, '""');
-        
-        let paymentMethodStr = '';
-        if (t.paymentMethod) {
-          paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
-        }
-        const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
-
-        let dateStr = 'Invalid Date';
-        if (t.date) {
-          if (typeof t.date === 'string') {
-            dateStr = t.date.split('T')[0];
-          } else if (typeof t.date === 'number') {
-            const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
-            dateStr = new Date(ts).toISOString().split('T')[0];
-          }
-        }
-        rows.push([
-          dateStr,
-          `"${safeMerchant}"`, 
-          `"${safePaymentMethod}"`,
-          `"${safeNotes}"`, 
-          amount.toFixed(2),
-          t.type,
-          `"${envName}"`, 
-          reconciled ? 'Yes' : 'No',
-        ].join(','));
-      }
-
-      const csvContent = [headers.join(','), ...rows].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `budgetTransactions_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setOperationResult({ success: true, message: 'Transactions CSV exported successfully.' });
-    } catch (error) {
-      logger.error('Settings', 'CSV export failed', { error });
-      setOperationResult({
-        success: false,
-        message: 'Failed to export CSV. Please try again.',
-        onRetry: handleExportCSV
-      });
-    } finally {
-      setIsExportingCSV(false);
-    }
-  };
-
+  
   const handleRestoreClick = () => {
     fileInputRef.current?.click();
   };
@@ -686,18 +605,13 @@ export const SettingsView: React.FC = () => {
             </button>
 
             <button
-              onClick={handleExportCSV}
-              disabled={isExportingCSV}
-              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              onClick={() => setShowExportModal(true)}
+              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                {isExportingCSV ? (
-                  <Loader className="text-blue-500 animate-spin" size={20} />
-                ) : (
-                  <FileText className="text-blue-500" size={20} />
-                )}
+                <FileText className="text-blue-500" size={20} />
                 <span className="text-gray-900 dark:text-white font-medium">
-                  {isExportingCSV ? 'Preparing CSV…' : 'Export Transactions (CSV)'}
+                  Export Transactions (CSV)
                 </span>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
@@ -950,6 +864,14 @@ export const SettingsView: React.FC = () => {
         <LogViewer 
           isOpen={showLogViewer} 
           onClose={() => setShowLogViewer(false)} 
+        />
+
+        {/* Export Modal */}
+        <ExportModal 
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          transactions={transactions}
+          envelopes={envelopes}
         />
 
       </div>
