@@ -309,16 +309,24 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
       const monthTransactions = transactions.filter((t) => t.month === m);
 
       // Savings category spending (expense transactions in categories tied to piggybanks)
-      const savingsCategorySpending = monthTransactions
+      const savingsCategoryTransactions = monthTransactions
         .filter((t) => {
           if (t.type !== 'Expense') return false;
           const catId = envelopeCategoryMap[t.envelopeId] || 'uncategorized';
           return savingsCategoryIds.has(catId);
-        })
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
+        });
+      
+      const savingsCategorySpending = savingsCategoryTransactions.reduce((s, t) => s + Math.abs(t.amount), 0);
+      
+      // Group savings spending by envelope for detailed logging
+      const savingsByEnvelope: Record<string, number> = {};
+      savingsCategoryTransactions.forEach((t) => {
+        const envId = t.envelopeId;
+        savingsByEnvelope[envId] = (savingsByEnvelope[envId] || 0) + Math.abs(t.amount);
+      });
 
       // Piggybank contributions (income-type allocation transactions to piggybank envelopes)
-      const piggybankContributions = monthTransactions
+      const piggybankTransactions = monthTransactions
         .filter((t) => {
           if (t.type !== 'Income') return false;
           if (!piggybankEnvelopeIds.has(t.envelopeId)) return false;
@@ -327,8 +335,16 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
             t.description === 'Monthly Allocation' ||
             Boolean(t.isAutomatic)
           );
-        })
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
+        });
+      
+      const piggybankContributions = piggybankTransactions.reduce((s, t) => s + Math.abs(t.amount), 0);
+      
+      // Group piggybank contributions by envelope for detailed logging
+      const piggybankByEnvelope: Record<string, number> = {};
+      piggybankTransactions.forEach((t) => {
+        const envId = t.envelopeId;
+        piggybankByEnvelope[envId] = (piggybankByEnvelope[envId] || 0) + Math.abs(t.amount);
+      });
 
       const savingsAmount = savingsCategorySpending + piggybankContributions;
 
@@ -339,7 +355,9 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
         piggybankContributions,
         savingsAmount,
         savingsCategoryIds: Array.from(savingsCategoryIds),
-        piggybankEnvelopeIds: Array.from(piggybankEnvelopeIds)
+        piggybankEnvelopeIds: Array.from(piggybankEnvelopeIds),
+        savingsByEnvelope,
+        piggybankByEnvelope
       });
 
       if (totalIncome <= 0) {
