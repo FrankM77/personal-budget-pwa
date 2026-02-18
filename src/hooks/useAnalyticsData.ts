@@ -157,27 +157,18 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
     );
   }, [envelopes]);
 
-  // Savings categories inferred from the categories assigned to piggybanks.
-  // This is resilient to category renames because it relies on IDs, not names.
+  // Savings categories: only categories explicitly named "Savings" (case-insensitive).
+  // Piggybank contributions are counted separately via piggybankContributions below,
+  // so we intentionally do NOT include piggybank envelope categories here to avoid double-counting.
   const savingsCategoryIds = useMemo(() => {
     const ids = new Set<string>();
-    
-    // Add categories from piggybank envelopes (existing logic)
-    envelopes.forEach((env) => {
-      if (env.isPiggybank && env.categoryId) {
-        ids.add(env.categoryId);
-      }
-    });
-    
-    // Add any category named "Savings" (case-insensitive)
     categories.forEach((cat) => {
       if (cat.name.toLowerCase() === 'savings') {
         ids.add(cat.id);
       }
     });
-    
     return ids;
-  }, [envelopes, categories]);
+  }, [categories]);
 
   // Filter transactions to selected months & expense type only (for spending)
   const expenseTransactions = useMemo(() => {
