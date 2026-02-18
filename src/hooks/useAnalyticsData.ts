@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useBudgetStore } from '../stores/budgetStore';
+import enhancedLogger from '../utils/enhancedLogger';
 import type { Category, IncomeSource } from '../models/types';
 
 // ─── Color palette for categories ───
@@ -331,7 +332,18 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
 
       const savingsAmount = savingsCategorySpending + piggybankContributions;
 
+      // Log savings calculation details
+      enhancedLogger.info('Analytics', `Savings calculation for ${m}`, {
+        totalIncome,
+        savingsCategorySpending,
+        piggybankContributions,
+        savingsAmount,
+        savingsCategoryIds: Array.from(savingsCategoryIds),
+        piggybankEnvelopeIds: Array.from(piggybankEnvelopeIds)
+      });
+
       if (totalIncome <= 0) {
+        enhancedLogger.info('Analytics', `No income for ${m}, setting savings to 0%`);
         return {
           month: m,
           monthLabel: monthLabel(m),
@@ -342,6 +354,12 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
 
       const savingsPercent = Math.min(100, Math.round((savingsAmount / totalIncome) * 1000) / 10);
       const spendingPercent = Math.round((100 - savingsPercent) * 10) / 10;
+
+      enhancedLogger.info('Analytics', `Savings rate for ${m}`, {
+        savingsPercent,
+        spendingPercent,
+        calculation: `(${savingsCategorySpending} + ${piggybankContributions}) ÷ ${totalIncome} × 100 = ${savingsPercent}%`
+      });
 
       return {
         month: m,
