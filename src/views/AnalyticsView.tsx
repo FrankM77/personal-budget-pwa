@@ -303,13 +303,23 @@ const SpendingTotalsTab: React.FC<{
                   const d = payload[0].payload;
                   const pct = total > 0 ? ((d.amount / total) * 100).toFixed(1) : '0';
                   
-                  // Calculate position outside the donut
+                  // Calculate position outside the donut with better positioning
                   const cx = 140; // Half of ResponsiveContainer width (280)
                   const cy = 140; // Half of ResponsiveContainer height (280)
-                  const radius = 112; // 80% of 140 (outerRadius)
+                  const radius = 100; // Slightly smaller radius to keep tooltip visible
                   const angle = (d.startAngle + d.endAngle) / 2;
-                  const x = cx + radius * Math.cos(angle * Math.PI / 180);
-                  const y = cy + radius * Math.sin(angle * Math.PI / 180);
+                  const angleRad = angle * Math.PI / 180;
+                  
+                  // Calculate position with padding to prevent off-screen issues
+                  let x = cx + radius * Math.cos(angleRad);
+                  let y = cy + radius * Math.sin(angleRad);
+                  
+                  // Add padding to keep tooltip fully visible
+                  const padding = 60;
+                  if (x < padding) x = padding;
+                  if (x > 280 - padding) x = 280 - padding;
+                  if (y < padding) y = padding;
+                  if (y > 280 - padding) y = 280 - padding;
                   
                   return (
                     <div 
