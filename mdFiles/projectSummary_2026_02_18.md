@@ -1,6 +1,14 @@
-# House Budget PWA: Project Summary - 2026-02-15
+# House Budget PWA: Project Summary - 2026-02-18
 
 ## Changelog (Highlights)
+- **2026-02-18**: **Analytics Fixes & UI Improvements**: Fixed critical savings calculation and donut chart interaction issues.
+  - **Savings Calculation Fix**: Corrected savings rate calculation to prevent cross-category contamination from piggybank envelope categories.
+  - **Category Detection**: Savings category spending now only includes transactions in categories explicitly named "Savings" (case-insensitive).
+  - **Piggybank Contributions**: Properly separated from savings category spending to eliminate double-counting.
+  - **Donut Chart Tooltip**: Replaced floating tooltip with below-chart info bar to prevent slice overlap and off-screen rendering.
+  - **Enhanced Logging**: Added detailed per-envelope breakdown for savings calculations to aid debugging.
+  - **Visual Feedback**: Non-active donut slices dim to 50% opacity with hover/click selection.
+  - **Version Bump**: Updated to v1.11.2 with all fixes deployed to production.
 - **2026-02-15**: **CSV Export with Time Frame Selection**: Added modal interface for exporting transactions with flexible date ranges.
   - **Time Frame Presets**: 1 month, 3 months, 6 months, 12 months, or by year (2024-2026).
   - **Dynamic Filenames**: Export files include date range (e.g., `budgetTransactions_Dec2025-Feb2026.csv`).
