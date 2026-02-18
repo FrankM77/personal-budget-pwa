@@ -317,7 +317,7 @@ const SpendingTotalsTab: React.FC<{
             </PieChart>
           </ResponsiveContainer>
           {/* Center label overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
             <span className="text-sm text-zinc-500 dark:text-zinc-400">Total Spent</span>
             <span className="text-2xl font-bold text-zinc-900 dark:text-white">{fmt(total)}</span>
           </div>
@@ -540,7 +540,7 @@ const SavingsTab: React.FC<{ data: { month: string; monthLabel: string; savingsP
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip content={SavingsTooltip} />
+            <Tooltip content={SavingsTooltip} cursor={false} />
             {/* Savings grows from bottom (blue) */}
             <Bar
               dataKey="savingsPercent"

@@ -147,6 +147,27 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
     return map;
   }, [categories]);
 
+  // Piggybank envelope ids (used to identify savings-related categories and contributions)
+  const piggybankEnvelopeIds = useMemo(() => {
+    return new Set(
+      envelopes
+        .filter((env) => Boolean(env.isPiggybank))
+        .map((env) => env.id)
+    );
+  }, [envelopes]);
+
+  // Savings categories inferred from the categories assigned to piggybank envelopes.
+  // This is resilient to category renames because it relies on IDs, not names.
+  const savingsCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    envelopes.forEach((env) => {
+      if (env.isPiggybank && env.categoryId) {
+        ids.add(env.categoryId);
+      }
+    });
+    return ids;
+  }, [envelopes]);
+
   // Filter transactions to selected months & expense type only (for spending)
   const expenseTransactions = useMemo(() => {
     const monthSet = new Set(months);
@@ -274,12 +295,31 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
       const sources: IncomeSource[] = incomeSources[m] || [];
       const totalIncome = sources.reduce((s, src) => s + src.amount, 0);
 
-      // Total spending for the month (expense transactions)
-      const monthExpenses = expenseTransactions.filter((t) => t.month === m);
-      const totalSpending = monthExpenses.reduce((s, t) => s + Math.abs(t.amount), 0);
+      const monthTransactions = transactions.filter((t) => t.month === m);
 
-      // Savings = income - spending (clamped to 0..income)
-      const savings = Math.max(0, totalIncome - totalSpending);
+      // Savings category spending (expense transactions in categories tied to piggybanks)
+      const savingsCategorySpending = monthTransactions
+        .filter((t) => {
+          if (t.type !== 'Expense') return false;
+          const catId = envelopeCategoryMap[t.envelopeId] || 'uncategorized';
+          return savingsCategoryIds.has(catId);
+        })
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+      // Piggybank contributions (income-type allocation transactions to piggybank envelopes)
+      const piggybankContributions = monthTransactions
+        .filter((t) => {
+          if (t.type !== 'Income') return false;
+          if (!piggybankEnvelopeIds.has(t.envelopeId)) return false;
+          return (
+            t.description === 'Piggybank Contribution' ||
+            t.description === 'Monthly Allocation' ||
+            Boolean(t.isAutomatic)
+          );
+        })
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+      const savingsAmount = savingsCategorySpending + piggybankContributions;
 
       if (totalIncome <= 0) {
         return {
@@ -290,7 +330,7 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
         };
       }
 
-      const savingsPercent = Math.min(100, Math.round((savings / totalIncome) * 1000) / 10);
+      const savingsPercent = Math.min(100, Math.round((savingsAmount / totalIncome) * 1000) / 10);
       const spendingPercent = Math.round((100 - savingsPercent) * 10) / 10;
 
       return {
@@ -302,7 +342,7 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
     });
 
     return { data };
-  }, [months, incomeSources, expenseTransactions]);
+  }, [months, incomeSources, transactions, envelopeCategoryMap, savingsCategoryIds, piggybankEnvelopeIds]);
 
   return {
     months,
