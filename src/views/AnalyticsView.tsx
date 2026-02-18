@@ -262,9 +262,14 @@ const SpendingTotalsTab: React.FC<{
   items: { categoryId: string; categoryName: string; color: string; amount: number }[];
   total: number;
 }> = ({ items, total }) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   if (items.length === 0) {
     return <EmptyState message="No spending data for this time period." />;
   }
+
+  const activeItem = activeIndex !== null ? items[activeIndex] : null;
+  const activePct = activeItem && total > 0 ? ((activeItem.amount / total) * 100).toFixed(1) : '0';
 
   return (
     <div className="space-y-4">
@@ -284,70 +289,19 @@ const SpendingTotalsTab: React.FC<{
                 paddingAngle={2}
                 strokeWidth={0}
                 isAnimationActive={false}
+                onMouseEnter={(_, index) => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
+                onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
               >
                 {items.map((item, i) => (
-                  <Cell key={i} fill={item.color} />
+                  <Cell
+                    key={i}
+                    fill={item.color}
+                    opacity={activeIndex === null || activeIndex === i ? 1 : 0.5}
+                    style={{ cursor: 'pointer' }}
+                  />
                 ))}
               </Pie>
-              <Tooltip
-                position={{ x: 0, y: 0 }}
-                contentStyle={{
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  padding: 0,
-                  borderRadius: 0,
-                  boxShadow: 'none'
-                }}
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null;
-                  const d = payload[0].payload;
-                  const pct = total > 0 ? ((d.amount / total) * 100).toFixed(1) : '0';
-                  
-                  // Place tooltip outside the donut on the same side as the selected slice
-                  const cx = typeof d.cx === 'number' ? d.cx : 140;
-                  const cy = typeof d.cy === 'number' ? d.cy : 140;
-                  const outerRadius = typeof d.outerRadius === 'number' ? d.outerRadius : 112;
-                  const angle = ((d.startAngle ?? 0) + (d.endAngle ?? 0)) / 2;
-                  const angleRad = angle * Math.PI / 180;
-                  const isRightSide = Math.cos(angleRad) >= 0;
-
-                  const chartWidth = cx * 2;
-                  const chartHeight = cy * 2;
-                  const edgeGap = 12;
-                  const outsideGap = 16;
-
-                  let x = cx + (isRightSide ? (outerRadius + outsideGap) : -(outerRadius + outsideGap));
-                  let y = cy + Math.sin(angleRad) * (outerRadius * 0.28);
-
-                  // keep within chart bounds while preserving same-side placement
-                  if (isRightSide) {
-                    x = Math.min(chartWidth - edgeGap, x);
-                  } else {
-                    x = Math.max(edgeGap, x);
-                  }
-                  y = Math.max(edgeGap, Math.min(chartHeight - edgeGap, y));
-                  
-                  return (
-                    <div 
-                      className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 shadow-lg text-sm absolute"
-                      style={{
-                        left: `${x}px`,
-                        top: `${y}px`,
-                        transform: isRightSide ? 'translate(0, -50%)' : 'translate(-100%, -50%)',
-                        zIndex: 50
-                      }}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                        <span className="font-semibold text-zinc-900 dark:text-white">{d.categoryName}</span>
-                      </div>
-                      <div className="text-zinc-600 dark:text-zinc-300">
-                        {fmtDecimal(d.amount)} ({pct}%)
-                      </div>
-                    </div>
-                  );
-                }}
-              />
             </PieChart>
           </ResponsiveContainer>
           {/* Center label overlay */}
@@ -355,6 +309,20 @@ const SpendingTotalsTab: React.FC<{
             <span className="text-sm text-zinc-500 dark:text-zinc-400">Total Spent</span>
             <span className="text-2xl font-bold text-zinc-900 dark:text-white">{fmt(total)}</span>
           </div>
+        </div>
+        {/* Tooltip below the donut — never overlaps slices */}
+        <div className="min-h-[48px] flex items-center justify-center mt-1">
+          {activeItem ? (
+            <div className="flex items-center gap-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 shadow-sm text-sm">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: activeItem.color }} />
+              <span className="font-semibold text-zinc-900 dark:text-white">{activeItem.categoryName}</span>
+              <span className="text-zinc-500 dark:text-zinc-400">·</span>
+              <span className="text-zinc-700 dark:text-zinc-300">{fmtDecimal(activeItem.amount)}</span>
+              <span className="text-zinc-500 dark:text-zinc-400">({activePct}%)</span>
+            </div>
+          ) : (
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">Tap a slice to see details</span>
+          )}
         </div>
       </div>
 
