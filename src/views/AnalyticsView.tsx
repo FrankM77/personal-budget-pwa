@@ -290,12 +290,37 @@ const SpendingTotalsTab: React.FC<{
                 ))}
               </Pie>
               <Tooltip
+                position={{ x: 0, y: 0 }}
+                contentStyle={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  borderRadius: 0,
+                  boxShadow: 'none'
+                }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const d = payload[0].payload;
                   const pct = total > 0 ? ((d.amount / total) * 100).toFixed(1) : '0';
+                  
+                  // Calculate position outside the donut
+                  const cx = 140; // Half of ResponsiveContainer width (280)
+                  const cy = 140; // Half of ResponsiveContainer height (280)
+                  const radius = 112; // 80% of 140 (outerRadius)
+                  const angle = (d.startAngle + d.endAngle) / 2;
+                  const x = cx + radius * Math.cos(angle * Math.PI / 180);
+                  const y = cy + radius * Math.sin(angle * Math.PI / 180);
+                  
                   return (
-                    <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 shadow-lg text-sm">
+                    <div 
+                      className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 shadow-lg text-sm absolute"
+                      style={{
+                        left: `${x}px`,
+                        top: `${y}px`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 50
+                      }}
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
                         <span className="font-semibold text-zinc-900 dark:text-white">{d.categoryName}</span>
@@ -305,13 +330,6 @@ const SpendingTotalsTab: React.FC<{
                       </div>
                     </div>
                   );
-                }}
-                contentStyle={{
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  padding: 0,
-                  borderRadius: 0,
-                  boxShadow: 'none'
                 }}
               />
             </PieChart>
