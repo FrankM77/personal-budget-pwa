@@ -303,23 +303,29 @@ const SpendingTotalsTab: React.FC<{
                   const d = payload[0].payload;
                   const pct = total > 0 ? ((d.amount / total) * 100).toFixed(1) : '0';
                   
-                  // Calculate position outside the donut with better positioning
-                  const cx = 140; // Half of ResponsiveContainer width (280)
-                  const cy = 140; // Half of ResponsiveContainer height (280)
-                  const radius = 100; // Slightly smaller radius to keep tooltip visible
-                  const angle = (d.startAngle + d.endAngle) / 2;
+                  // Place tooltip outside the donut on the same side as the selected slice
+                  const cx = typeof d.cx === 'number' ? d.cx : 140;
+                  const cy = typeof d.cy === 'number' ? d.cy : 140;
+                  const outerRadius = typeof d.outerRadius === 'number' ? d.outerRadius : 112;
+                  const angle = ((d.startAngle ?? 0) + (d.endAngle ?? 0)) / 2;
                   const angleRad = angle * Math.PI / 180;
-                  
-                  // Calculate position with padding to prevent off-screen issues
-                  let x = cx + radius * Math.cos(angleRad);
-                  let y = cy + radius * Math.sin(angleRad);
-                  
-                  // Add padding to keep tooltip fully visible
-                  const padding = 60;
-                  if (x < padding) x = padding;
-                  if (x > 280 - padding) x = 280 - padding;
-                  if (y < padding) y = padding;
-                  if (y > 280 - padding) y = 280 - padding;
+                  const isRightSide = Math.cos(angleRad) >= 0;
+
+                  const chartWidth = cx * 2;
+                  const chartHeight = cy * 2;
+                  const edgeGap = 12;
+                  const outsideGap = 16;
+
+                  let x = cx + (isRightSide ? (outerRadius + outsideGap) : -(outerRadius + outsideGap));
+                  let y = cy + Math.sin(angleRad) * (outerRadius * 0.28);
+
+                  // keep within chart bounds while preserving same-side placement
+                  if (isRightSide) {
+                    x = Math.min(chartWidth - edgeGap, x);
+                  } else {
+                    x = Math.max(edgeGap, x);
+                  }
+                  y = Math.max(edgeGap, Math.min(chartHeight - edgeGap, y));
                   
                   return (
                     <div 
@@ -327,7 +333,7 @@ const SpendingTotalsTab: React.FC<{
                       style={{
                         left: `${x}px`,
                         top: `${y}px`,
-                        transform: 'translate(-50%, -50%)',
+                        transform: isRightSide ? 'translate(0, -50%)' : 'translate(-100%, -50%)',
                         zIndex: 50
                       }}
                     >
