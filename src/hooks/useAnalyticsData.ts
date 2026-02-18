@@ -156,17 +156,27 @@ export function useAnalyticsData(timeFrame: TimeFrame) {
     );
   }, [envelopes]);
 
-  // Savings categories inferred from the categories assigned to piggybank envelopes.
+  // Savings categories inferred from the categories assigned to piggybanks.
   // This is resilient to category renames because it relies on IDs, not names.
   const savingsCategoryIds = useMemo(() => {
     const ids = new Set<string>();
+    
+    // Add categories from piggybank envelopes (existing logic)
     envelopes.forEach((env) => {
       if (env.isPiggybank && env.categoryId) {
         ids.add(env.categoryId);
       }
     });
+    
+    // Add any category named "Savings" (case-insensitive)
+    categories.forEach((cat) => {
+      if (cat.name.toLowerCase() === 'savings') {
+        ids.add(cat.id);
+      }
+    });
+    
     return ids;
-  }, [envelopes]);
+  }, [envelopes, categories]);
 
   // Filter transactions to selected months & expense type only (for spending)
   const expenseTransactions = useMemo(() => {
