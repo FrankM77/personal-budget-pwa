@@ -340,7 +340,42 @@ const totalAllSpending = transactions
 - ✅ **Planning insight**: Helps you see impact of big purchases on cash flow
 - ✅ **Realistic picture**: Negative remaining indicates planned savings usage, not overspending
 
-## 9. API Key Rotation Guide
+## 9. Feature Retirement: Orphaned Data Cleanup
+
+### Feature Removed in v1.11.3
+**Retired**: "Purge Orphaned Data" functionality from Settings → Data Management
+
+### Historical Context
+**Why it existed:**
+- Created during early development when app had data integrity bugs
+- Envelope deletion didn't properly clean up related allocations/transactions
+- Database operations were less robust, leading to orphaned references
+
+### Why It's No Longer Needed
+**Bugs Fixed:**
+- ✅ **Proper cascade deletes** - deleting envelopes now cleans up all related data
+- ✅ **Transaction validation** - prevents orphaned references from being created
+- ✅ **Robust data models** - better relationship management throughout the app
+- ✅ **Mature codebase** - stable data handling with comprehensive testing
+
+### Retirement Impact
+**What Changed:**
+- ✅ **Removed `handleCleanupOrphanedData` function** - entire cleanup logic removed
+- ✅ **Removed UI button** - "Purge Orphaned Data" button removed from Settings
+- ✅ **Simplified Data Management** - now only contains Backup/Restore functions
+- ✅ **Code cleanup** - removed unused imports and state variables
+
+**User Impact:**
+- ✅ **No functional loss** - feature served no purpose in current stable codebase
+- ✅ **Cleaner UI** - removed confusing legacy feature
+- ✅ **Simplified experience** - Data Management section now focused on essential functions
+
+### Version Update
+- **Version**: v1.11.2 → v1.11.3 (patch version)
+- **Reasoning**: Code cleanup and maintenance without functional changes
+- **Classification**: Patch update (backward compatible, no breaking changes)
+
+## 10. API Key Rotation Guide
 
 ### When to Rotate API Keys
 - **Security**: If key is accidentally exposed or compromised

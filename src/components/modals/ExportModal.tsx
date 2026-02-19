@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Download, Calendar } from 'lucide-react';
+import { X, Download, Calendar, FileText } from 'lucide-react';
 import { useBudgetStore } from '../../stores/budgetStore';
 import { getMonthsForTimeFrame, type TimeFrame } from '../../hooks/useAnalyticsData';
 
@@ -18,6 +18,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const { currentMonth } = useBudgetStore();
   const [selectedTimeFrame, setSelectedTimeFrame] = useState<TimeFrame>('3m');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [isExporting, setIsExporting] = useState(false);
 
   const TIME_FRAME_OPTIONS: { value: TimeFrame; label: string }[] = [
@@ -76,71 +77,171 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       const rows: string[] = [];
       const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
 
-      for (const t of filtered) {
-        let amount: number;
-        let envName: string;
-        let reconciled: boolean;
-
-        if (t.splitGroupId && !processedSplitGroups.has(t.splitGroupId)) {
-          processedSplitGroups.add(t.splitGroupId);
-          const groupTxs = filtered.filter(tx => tx.splitGroupId === t.splitGroupId);
-          amount = groupTxs.reduce((sum, tx) => sum + tx.amount, 0);
-          envName = groupTxs.map(tx => envelopes.find(e => e.id === tx.envelopeId)?.name || 'Unknown').join(', ');
-          reconciled = groupTxs.every(tx => tx.reconciled);
-        } else if (t.splitGroupId && processedSplitGroups.has(t.splitGroupId)) {
-          continue;
-        } else {
-          amount = t.amount;
-          envName = envelopes.find((e) => e.id === t.envelopeId)?.name || 'Unknown';
-          reconciled = t.reconciled;
-        }
-
-        const safeMerchant = (t.merchant || '').replace(/"/g, '""');
-        const safeNotes = (t.description || '').replace(/"/g, '""');
+      if (exportFormat === 'csv') {
+        // CSV Export (existing logic)
+        const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
+        const rows: string[] = [];
         
-        let paymentMethodStr = '';
-        if (t.paymentMethod) {
-          paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
-        }
-        const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
-
-        let dateStr = 'Invalid Date';
-        if (t.date) {
-          if (typeof t.date === 'string') {
-            dateStr = t.date.split('T')[0];
-          } else if (typeof t.date === 'number') {
-            const APPLE_EPOCH_OFFSET = 978307200000; // milliseconds between 1/1/2001 and 1/1/1970
-            const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
-            dateStr = new Date(ts).toISOString().split('T')[0];
+        for (const t of filtered) {
+          const env = envelopes.find(e => e.id === t.envelopeId);
+          const envName = env?.name || 'Unknown';
+          const reconciled = t.reconciled || false;
+          
+          let safeMerchant = (t.merchant || '').replace(/"/g, '""');
+          let safeNotes = (t.notes || '').replace(/"/g, '""');
+          
+          let paymentMethodStr = '';
+          if (t.paymentMethod) {
+            paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
           }
-        }
-        
-        rows.push([
-          dateStr,
-          `"${safeMerchant}"`, 
-          `"${safePaymentMethod}"`,
-          `"${safeNotes}"`, 
-          amount.toFixed(2),
-          t.type,
-          `"${envName}"`, 
-          reconciled ? 'Yes' : 'No',
-        ].join(','));
-      }
+          const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
 
-      const csvContent = [headers.join(','), ...rows].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // Generate filename with month range
-      const monthRange = getMonthRangeLabel();
-      link.download = `budgetTransactions_${monthRange}.csv`;
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+          let dateStr = 'Invalid Date';
+          if (t.date) {
+            if (typeof t.date === 'string') {
+              dateStr = t.date.split('T')[0];
+            } else if (typeof t.date === 'number') {
+              const APPLE_EPOCH_OFFSET = 978307200000; // milliseconds between 1/1/2001 and 1/1/1970
+              const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
+              dateStr = new Date(ts).toISOString().split('T')[0];
+            }
+          }
+          
+          rows.push([
+            dateStr,
+            `"${safeMerchant}"`, 
+            `"${safePaymentMethod}"`,
+            `"${safeNotes}"`, 
+            t.amount.toFixed(2),
+            t.type,
+            `"${envName}"`, 
+            reconciled ? 'Yes' : 'No',
+          ].join(','));
+        }
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Generate filename with month range
+        const monthRange = getMonthRangeLabel();
+        link.download = `budgetTransactions_${monthRange}.csv`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else if (exportFormat === 'pdf') {
+        // PDF Export
+        // Simple PDF export using window.print
+        const monthRange = getMonthRangeLabel();
+        let htmlContent = `
+          <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #333; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+                .expense { color: #dc3545; }
+                .income { color: #28a745; }
+                .summary { margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }
+              </style>
+            </head>
+            <body>
+              <h1>Budget Transactions Report</h1>
+              <p><strong>Period:</strong> ${monthRange}</p>
+              <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
+        `;
+
+        // Calculate summary
+        const totalIncome = filtered
+          .filter(t => t.type === 'Income')
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        const totalExpenses = filtered
+          .filter(t => t.type === 'Expense')
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        const netAmount = totalIncome - totalExpenses;
+
+        htmlContent += `
+          <div class="summary">
+            <h2>Summary</h2>
+            <p><strong>Total Income:</strong> <span class="income">$${totalIncome.toFixed(2)}</span></p>
+            <p><strong>Total Expenses:</strong> <span class="expense">$${totalExpenses.toFixed(2)}</span></p>
+            <p><strong>Net Amount:</strong> <span class="${netAmount >= 0 ? 'income' : 'expense'}">$${netAmount.toFixed(2)}</span></p>
+            <p><strong>Transaction Count:</strong> ${filtered.length}</p>
+          </div>
+        `;
+
+        // Add transactions table
+        htmlContent += `
+          <h2>Transactions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Merchant</th>
+                <th>Envelope</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Reconciled</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        for (const t of filtered) {
+          const env = envelopes.find(e => e.id === t.envelopeId);
+          const envName = env?.name || 'Unknown';
+          const reconciled = t.reconciled || false;
+          const amountClass = t.type === 'Income' ? 'income' : 'expense';
+          
+          let dateStr = 'Invalid Date';
+          if (t.date) {
+            if (typeof t.date === 'string') {
+              dateStr = t.date.split('T')[0];
+            } else if (typeof t.date === 'number') {
+              const APPLE_EPOCH_OFFSET = 978307200000;
+              const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
+              dateStr = new Date(ts).toISOString().split('T')[0];
+            }
+          }
+          
+          htmlContent += `
+            <tr>
+              <td>${dateStr}</td>
+              <td>${t.merchant || ''}</td>
+              <td>${envName}</td>
+              <td>${t.type}</td>
+              <td class="${amountClass}">$${Math.abs(t.amount).toFixed(2)}</td>
+              <td>${reconciled ? 'Yes' : 'No'}</td>
+            </tr>
+          `;
+        }
+
+        htmlContent += `
+            </tbody>
+          </table>
+        </body>
+      </html>
+        `;
+
+        // Create a temporary window and print
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          
+          // Wait for content to load, then print
+          printWindow.onload = () => {
+            printWindow.print();
+            printWindow.close();
+          };
+        }
+      }
       
       onClose();
     } catch (error) {
@@ -173,6 +274,41 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Export Format Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-3">
+              Export Format
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setExportFormat('csv')}
+                className={`
+                  px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2
+                  ${exportFormat === 'csv'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  }
+                `}
+              >
+                <Download className="w-4 h-4" />
+                CSV
+              </button>
+              <button
+                onClick={() => setExportFormat('pdf')}
+                className={`
+                  px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2
+                  ${exportFormat === 'pdf'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  }
+                `}
+              >
+                <FileText className="w-4 h-4" />
+                PDF
+              </button>
+            </div>
+          </div>
+
           {/* Time Frame Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-3">
@@ -262,8 +398,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </>
             ) : (
               <>
-                <Download className="w-4 h-4" />
-                Export CSV
+                {exportFormat === 'csv' ? (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    Export PDF
+                  </>
+                )}
               </>
             )}
           </button>

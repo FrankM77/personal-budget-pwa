@@ -233,15 +233,16 @@ export const BudgetBreakdownView: React.FC = () => {
             {/* Bar Chart */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Budget vs Actual</h3>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={budgetVsActual}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis 
                     dataKey="categoryName" 
-                    tick={{ fontSize: 10 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
+                    tick={{ fontSize: 12, fontWeight: 600 }}
+                    angle={0}
+                    textAnchor="middle"
+                    height={40}
+                    interval={0}
                   />
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} cursor={false} />

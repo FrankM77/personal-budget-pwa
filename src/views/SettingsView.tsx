@@ -1,11 +1,9 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Trash2, CheckCircle, ChevronRight, FileText, Loader, AlertTriangle, Sparkles, RefreshCw, LogOut } from 'lucide-react';
+import { Download, Upload, Trash2, CheckCircle, ChevronRight, AlertTriangle, RefreshCw, LogOut, Sparkles } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
-import { budgetService, type CleanupReport } from '../services/budgetService';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
-import { ExportModal } from '../components/modals/ExportModal';
 import LogViewer from '../components/ui/LogViewer';
 import logger from '../utils/enhancedLogger';
 
@@ -40,11 +38,9 @@ export const SettingsView: React.FC = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
-  const [isCleaningData, setIsCleaningData] = useState(false);
-  const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
+    const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
   const [showLogViewer, setShowLogViewer] = useState(false);
   const [versionPressTimer, setVersionPressTimer] = useState<number | null>(null);
-const [showExportModal, setShowExportModal] = useState(false);
 
   // Version press handlers for accessing logs
   const handleVersionMouseDown = () => {
@@ -296,32 +292,7 @@ const [showExportModal, setShowExportModal] = useState(false);
     }
   };
 
-  const handleCleanupOrphanedData = async () => {
-    if (!currentUser) {
-      showStatus('error', 'You must be logged in to clean up data.');
-      return;
-    }
-
-    setIsCleaningData(true);
-    try {
-      const report: CleanupReport = await budgetService.cleanupOrphanedData(currentUser.id);
-      
-      const totalDeleted = report.orphanedAllocationsDeleted + report.orphanedTransactionsDeleted;
-      if (totalDeleted > 0) {
-        showStatus('success', 
-          `Cleaned ${totalDeleted} orphaned items: ${report.orphanedAllocationsDeleted} allocations and ${report.orphanedTransactionsDeleted} transactions.`
-        );
-      } else {
-        showStatus('success', 'No orphaned data found. Your database is already clean!');
-      }
-    } catch (error) {
-      logger.error('Settings', 'Cleanup failed', { error });
-      showStatus('error', 'Failed to clean up orphaned data. Please try again.');
-    } finally {
-      setIsCleaningData(false);
-    }
-  };
-
+  
   const handleStartFresh = () => {
     setStartFreshModalVisible(true);
   };
@@ -575,9 +546,9 @@ const [showExportModal, setShowExportModal] = useState(false);
           </div>
         </section>
 
-        {/* Actions */}
+        {/* Data Management */}
         <section>
-          <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Actions</h2>
+          <h2 className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase mb-2 px-1">Data Management</h2>
           <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-sm divide-y divide-gray-100 dark:divide-zinc-800">
             <button
               onClick={handleBackup}
@@ -600,19 +571,6 @@ const [showExportModal, setShowExportModal] = useState(false);
               <div className="flex items-center gap-3">
                 <Upload className="text-blue-500" size={20} />
                 <span className="text-gray-900 dark:text-white font-medium">Restore from Backup</span>
-              </div>
-              <ChevronRight className="text-gray-400" size={18} />
-            </button>
-
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="text-blue-500" size={20} />
-                <span className="text-gray-900 dark:text-white font-medium">
-                  Export Transactions (CSV)
-                </span>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
             </button>
@@ -640,27 +598,6 @@ const [showExportModal, setShowExportModal] = useState(false);
                 <div className="flex flex-col items-start">
                   <span className="text-gray-900 dark:text-white font-medium">Start Fresh (This Month)</span>
                   <span className="text-xs text-gray-500 dark:text-zinc-400">Clear all allocations and data for the current month only</span>
-                </div>
-              </div>
-              <ChevronRight className="text-gray-400" size={18} />
-            </button>
-
-            <button
-              onClick={handleCleanupOrphanedData}
-              disabled={isCleaningData}
-              className="w-full p-4 flex items-center justify-between hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors border-b border-gray-100 dark:border-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-center gap-3">
-                {isCleaningData ? (
-                  <Loader className="text-yellow-500 animate-spin" size={20} />
-                ) : (
-                  <Sparkles className="text-yellow-500" size={20} />
-                )}
-                <div className="flex flex-col items-start">
-                  <span className="text-gray-900 dark:text-white font-medium">
-                    {isCleaningData ? 'Cleaning Data...' : 'Purge Orphaned Data'}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-zinc-400">Remove allocations and transactions pointing to deleted envelopes</span>
                 </div>
               </div>
               <ChevronRight className="text-gray-400" size={18} />
@@ -866,14 +803,7 @@ const [showExportModal, setShowExportModal] = useState(false);
           onClose={() => setShowLogViewer(false)} 
         />
 
-        {/* Export Modal */}
-        <ExportModal 
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          transactions={transactions}
-          envelopes={envelopes}
-        />
-
+        
       </div>
     </div>
   );
