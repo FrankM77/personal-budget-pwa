@@ -1,6 +1,11 @@
-# House Budget PWA: Project Summary - 2026-02-18
+# House Budget PWA: Project Summary - 2026-02-19
 
 ## Changelog (Highlights)
+- **2026-02-19**: **UI/UX Improvements & Code Cleanup**: Enhanced amount input consistency and removed legacy code.
+  - **ATM-Style Input**: Standardized amount entry across all transaction forms for better mobile experience.
+  - **Legacy Code Removal**: Removed obsolete 'Purge Orphaned Data' feature and related code.
+  - **Version Bump**: Updated to v1.11.3 with improved input handling and code cleanup.
+
 - **2026-02-18**: **Analytics Fixes & UI Improvements**: Fixed critical savings calculation and donut chart interaction issues.
   - **Savings Calculation Fix**: Corrected savings rate calculation to prevent cross-category contamination from piggybank envelope categories.
   - **Category Detection**: Savings category spending now only includes transactions in categories explicitly named "Savings" (case-insensitive).

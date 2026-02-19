@@ -72,11 +72,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         selectedMonths.includes(t.month || '')
       );
 
-      // Group split transactions (same logic as original)
-      const processedSplitGroups = new Set<string>();
-      const rows: string[] = [];
-      const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
-
+      
       if (exportFormat === 'csv') {
         // CSV Export (existing logic)
         const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];

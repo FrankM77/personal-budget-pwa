@@ -236,11 +236,24 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
                     <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                       <span className="mr-1 text-gray-500 dark:text-zinc-400 text-sm">$</span>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={splitAmounts[env.id] || ''}
-                        onChange={(e) => handleSplitAmountChange(env.id, parseFloat(e.target.value) || 0)}
+                        type="text"
+                        inputMode="numeric"
+                        value={splitAmounts[env.id] ? splitAmounts[env.id].toFixed(2) : ''}
+                        onChange={(e) => {
+                          const rawValue = e.target.value.replace(/\D/g, ''); // Strip non-digits
+                          if (!rawValue) {
+                            handleSplitAmountChange(env.id, 0);
+                            return;
+                          }
+                          const cents = parseInt(rawValue, 10);
+                          const dollars = (cents / 100).toFixed(2);
+                          handleSplitAmountChange(env.id, parseFloat(dollars));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                            e.preventDefault();
+                          }
+                        }}
                         className="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="0.00"
                       />
