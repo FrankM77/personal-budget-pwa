@@ -221,7 +221,46 @@ Voice-powered transaction entry using AI parsing with iOS Shortcuts integration.
 - Advanced reporting and analytics.
 - Data visualization.
 
-## 7. API Key Rotation Guide
+## 7. Firebase App Check Development Guide
+
+### Debug Token Workflow for Local Development
+
+**Issue**: Firebase App Check generates new debug tokens each time the dev server restarts, requiring manual registration.
+
+#### Current Setup
+- App Check is configured in `src/firebase.ts` with debug mode for development
+- Debug tokens are automatically generated when `import.meta.env.DEV` is true
+- Production uses real reCAPTCHA Enterprise provider
+
+#### Development Options
+
+**Option 1: Register Debug Tokens (Official Firebase Method)**
+1. Start dev server → Check browser console for debug token
+2. Go to Firebase Console → App Check → Manage debug tokens
+3. Register the new token
+4. Repeat for each dev server restart
+
+**Option 2: Unenforce App Check (Easiest for Development)**
+1. Firebase Console → App Check → Find Web app → 3-dot menu → "Unenforce"
+2. Development works without token registration
+3. Re-enforce before deploying to production
+
+**Option 3: Keep Server Running**
+- Avoid unnecessary dev server restarts
+- Use Vite's hot reload for most code changes
+- Only restart when environment variables change
+
+#### Debug Token Examples
+- Token format: `"ec873e11-12e2-488c-842a-b4fa1040e1a7"`
+- New token generated per browser session and server restart
+- Multiple tokens can be registered simultaneously
+
+#### Production Deployment
+- Always re-enforce App Check before deploying
+- Production automatically uses real reCAPTCHA (no debug tokens)
+- Security remains intact for live users
+
+## 8. API Key Rotation Guide
 
 ### When to Rotate API Keys
 - **Security**: If key is accidentally exposed or compromised
