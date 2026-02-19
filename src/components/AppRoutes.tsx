@@ -10,6 +10,7 @@ import { AddTransactionView } from '../views/AddTransactionView';
 import { TransactionHistoryView } from '../views/TransactionHistoryView';
 import { EmailVerificationView } from '../views/EmailVerificationView';
 import { AnalyticsView } from '../views/AnalyticsView';
+import { BudgetBreakdownView } from '../views/BudgetBreakdownView';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const PageTransition = ({ children }: { children: React.ReactNode }) => {
@@ -118,6 +119,16 @@ export const AppRoutes = () => {
             <PageTransition>
               <ErrorBoundary>
                 <AnalyticsView />
+              </ErrorBoundary>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/budget-breakdown"
+          element={
+            <PageTransition>
+              <ErrorBoundary>
+                <BudgetBreakdownView />
               </ErrorBoundary>
             </PageTransition>
           }

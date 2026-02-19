@@ -260,7 +260,87 @@ Voice-powered transaction entry using AI parsing with iOS Shortcuts integration.
 - Production automatically uses real reCAPTCHA (no debug tokens)
 - Security remains intact for live users
 
-## 8. API Key Rotation Guide
+## 8. Budget Breakdown: Piggybank Spending Logic
+
+### Problem Solved
+**Issue**: Piggybank withdrawals were incorrectly counting as "over budget" spending in Budget Breakdown view.
+
+**Example**: 
+- Car Fund piggybank: $1,000 saved (in Transportation category)
+- Monthly Transportation budget: $800
+- Spend $1,000 from Car Fund → Shows as $200 over budget (incorrect)
+- Reality: Using saved money as intended, not over budget
+
+### Solution Implemented
+**Budget vs Actual Comparison** excludes piggybank spending:
+
+#### Budget vs Actual Chart
+- **Budgeted**: Sum of envelope allocations in category
+- **Spent**: Only regular envelope spending (excludes piggybank withdrawals)
+- **Purpose**: Shows true monthly budget performance
+
+#### Summary Cards
+- **Income**: Total monthly income sources
+- **Spent**: ALL spending including piggybank withdrawals
+- **Remaining**: Income minus all outflows
+- **Purpose**: Shows complete financial picture
+
+#### Logic Details
+```typescript
+// Budget vs Actual (excludes piggybank)
+const spent = monthTransactions
+  .filter(t => {
+    const envelope = envelopes.find(env => env.id === t.envelopeId);
+    return envelope?.categoryId === category.id && !envelope.isPiggybank;
+  })
+  .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+// Overall spending (includes piggybank)
+const totalAllSpending = transactions
+  .filter(t => t.month === currentMonth && t.type === 'Expense')
+  .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+```
+
+### Benefits
+- ✅ **Accurate budget performance**: Shows if you stayed within monthly budget
+- ✅ **Complete financial picture**: Summary cards show all money movement
+- ✅ **Encourages savings**: Rewards using saved money as intended
+- ✅ **Clear separation**: Budget planning vs overall cash flow
+
+### User Experience
+- **Budget vs Actual chart**: "Did I stick to my monthly budget?"
+- **Summary cards**: "What's my overall financial position?"
+- **No false "over budget" alerts** when using piggybank savings
+
+### Important Note: Spent Can Exceed Income
+**Scenario**: 
+- Income: $5,000 (current month)
+- Spent: $6,000 (includes $2,000 from piggybank savings)
+- Remaining: -$1,000 (shows as negative/red)
+
+**This is correct behavior** because:
+
+#### Summary Cards: Complete Financial Picture
+- **Shows actual cash flow**: What really came in vs went out this month
+- **Includes all money movement**: Regular spending + piggybank withdrawals
+- **Accurate remaining**: True financial position (drawing down savings is expected)
+
+#### Budget vs Actual: Budget Performance
+- **Separate concern**: Budget discipline vs overall cash flow
+- **Excludes piggybank**: Shows if you stayed within monthly budget limits
+
+#### User Interpretation
+**Summary cards tell you**: "I spent more than I earned this month, but $2,000 was from savings I accumulated for this purpose."
+
+**Budget vs Actual tells you**: "I stayed within my $5,000 monthly budget."
+
+#### Why This Design Works
+- ✅ **Financial transparency**: Shows when you're drawing down savings (expected for large purchases)
+- ✅ **Budget accuracy**: Rewards staying within monthly limits
+- ✅ **Planning insight**: Helps you see impact of big purchases on cash flow
+- ✅ **Realistic picture**: Negative remaining indicates planned savings usage, not overspending
+
+## 9. API Key Rotation Guide
 
 ### When to Rotate API Keys
 - **Security**: If key is accidentally exposed or compromised

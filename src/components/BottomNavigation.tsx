@@ -36,7 +36,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
   // More menu items definition
   const moreMenuItems = [
     { path: '/reports', icon: <BarChart3 className="w-5 h-5" />, label: 'Reports' },
-    { path: '/analytics', icon: <TrendingUp className="w-5 h-5" />, label: 'Analytics' },
+    { path: '/analytics', icon: <TrendingUp className="w-5 h-5" />, label: 'Charts' },
     { path: '/budget-breakdown', icon: <PieChart className="w-5 h-5" />, label: 'Budget Breakdown' },
   ];
 

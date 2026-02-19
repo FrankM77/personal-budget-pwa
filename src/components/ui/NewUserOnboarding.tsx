@@ -647,12 +647,12 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
     },
     {
       icon: BarChart3,
-      title: 'Analytics: Spending Insights',
+      title: 'Charts: Spending Insights',
       description: 'Visualize where your money goes',
       content: (
         <div className="space-y-4 text-left">
           <p className="text-gray-600 dark:text-zinc-400">
-            The <strong>Analytics</strong> screen gives you powerful insights into your spending habits over time.
+            The <strong>Charts</strong> screen gives you powerful insights into your spending habits over time.
           </p>
           <MockAnalyticsDonut />
           <div className="space-y-3">
@@ -677,7 +677,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
           </div>
           <div className="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 rounded-xl p-3">
             <p className="text-sm text-cyan-900 dark:text-cyan-200">
-              <strong>Access Analytics</strong> from the bottom navigation bar under the "More" menu.
+              <strong>Access Charts</strong> from the bottom navigation bar under the "More" menu.
             </p>
           </div>
         </div>
@@ -686,7 +686,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
     },
     {
       icon: TrendingUp,
-      title: 'Analytics: Income & Savings',
+      title: 'Charts: Income & Savings',
       description: 'Track your financial health over time',
       content: (
         <div className="space-y-4 text-left">
@@ -740,7 +740,7 @@ const NewUserOnboarding: React.FC<NewUserOnboardingProps> = ({ currentMonth, onC
               'Organize your budget order',
               'Allocate until Left to Budget = $0',
               'Set up Piggybanks for savings goals',
-              'Track trends in Analytics',
+              'Track trends in Charts',
             ].map((text, i) => (
               <div key={i} className="flex items-center gap-3 text-gray-700 dark:text-zinc-300">
                 <div className="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">

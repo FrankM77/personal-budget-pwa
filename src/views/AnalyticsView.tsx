@@ -162,7 +162,7 @@ export const AnalyticsView: React.FC = () => {
           >
             <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
           </button>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Analytics</h1>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Charts</h1>
         </div>
 
         {/* Segmented Control */}
