@@ -60,7 +60,7 @@ const vertexAI = new VertexAI({
 });
 
 const model = vertexAI.getGenerativeModel({
-  model: 'gemini-3-flash',
+  model: 'gemini-3-flash-preview',
 });
 
 /**
