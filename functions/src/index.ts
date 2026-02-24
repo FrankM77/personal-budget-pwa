@@ -71,7 +71,15 @@ async function generateContentWithFallback(prompt: string) {
   const fallbackLocation = process.env.VERTEX_LOCATION_FALLBACK || 'us-central1';
 
   try {
-    return await getVertexModel(primaryModelId, primaryLocation).generateContent(prompt);
+    const result = await getVertexModel(primaryModelId, primaryLocation).generateContent(prompt);
+    const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    // Check if we got HTML instead of JSON (indicates API error page)
+    if (responseText && responseText.trim().startsWith('<!DOCTYPE')) {
+      throw new Error(`Received HTML error page instead of JSON response from ${primaryModelId}`);
+    }
+    
+    return result;
   } catch (err: any) {
     const status = err?.code ?? err?.status;
     const message = String(err?.message || '');
@@ -80,7 +88,8 @@ async function generateContentWithFallback(prompt: string) {
       status === 403 ||
       message.includes('NOT_FOUND') ||
       message.includes('was not found') ||
-      message.includes('does not have access');
+      message.includes('does not have access') ||
+      message.includes('Received HTML error page');
 
     if (!isMissingOrNoAccess) {
       throw err;
