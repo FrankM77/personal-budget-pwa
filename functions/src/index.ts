@@ -54,53 +54,14 @@ async function checkRateLimit(userId: string): Promise<void> {
   });
 }
 
-const gcloudProject = process.env.GCLOUD_PROJECT || 'your-project-id';
+const vertexAI = new VertexAI({
+  project: process.env.GCLOUD_PROJECT || 'your-project-id',
+  location: 'us-central1',
+});
 
-function getVertexModel(modelId: string, location: string) {
-  const vertexAI = new VertexAI({
-    project: gcloudProject,
-    location,
-  });
-  return vertexAI.getGenerativeModel({ model: modelId });
-}
-
-async function generateContentWithFallback(prompt: string) {
-  const primaryModelId = process.env.VERTEX_MODEL_PRIMARY || 'gemini-3-flash-preview';
-  const fallbackModelId = process.env.VERTEX_MODEL_FALLBACK || 'gemini-2.0-flash-001';
-  const primaryLocation = process.env.VERTEX_LOCATION_PRIMARY || 'global';
-  const fallbackLocation = process.env.VERTEX_LOCATION_FALLBACK || 'us-central1';
-
-  try {
-    const result = await getVertexModel(primaryModelId, primaryLocation).generateContent(prompt);
-    const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    // Check if we got HTML instead of JSON (indicates API error page)
-    if (responseText && responseText.trim().startsWith('<!DOCTYPE')) {
-      throw new Error(`Received HTML error page instead of JSON response from ${primaryModelId}`);
-    }
-    
-    return result;
-  } catch (err: any) {
-    const status = err?.code ?? err?.status;
-    const message = String(err?.message || '');
-    const isMissingOrNoAccess =
-      status === 404 ||
-      status === 403 ||
-      message.includes('NOT_FOUND') ||
-      message.includes('was not found') ||
-      message.includes('does not have access') ||
-      message.includes('Received HTML error page');
-
-    if (!isMissingOrNoAccess) {
-      throw err;
-    }
-
-    console.warn(
-      `Vertex primary model unavailable (${primaryModelId} @ ${primaryLocation}). Falling back to ${fallbackModelId} @ ${fallbackLocation}. Error: ${message}`
-    );
-    return await getVertexModel(fallbackModelId, fallbackLocation).generateContent(prompt);
-  }
-}
+const model = vertexAI.getGenerativeModel({
+  model: 'gemini-2.0-flash-001',
+});
 
 /**
  * HTTP endpoint for Siri Shortcuts to store a transaction query.
@@ -201,7 +162,7 @@ Examples:
 
 Respond with ONLY the JSON object, no markdown, no explanation.`;
 
-    const result = await generateContentWithFallback(prompt);
+    const result = await model.generateContent(prompt);
     const response = result.response;
     const responseText = response.candidates?.[0]?.content?.parts?.[0]?.text;
 
