@@ -228,6 +228,17 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             logger.log(`🔄 Refreshing month data for ${currentMonth} to sync local state...`);
             await get().fetchMonthData(currentMonth);
             
+            // Ensure transactions for the current month are loaded so piggybank balances update correctly
+            const state = get();
+            if (!state.loadedTransactionMonths.includes(currentMonth)) {
+                logger.log(`🔄 Loading transactions for ${currentMonth} to update piggybank balances...`);
+                set(state => ({
+                    loadedTransactionMonths: [...state.loadedTransactionMonths, currentMonth]
+                }));
+                // Give the real-time listener a moment to fetch transactions
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
             set({ isLoading: false });
             logger.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
             
