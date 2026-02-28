@@ -228,32 +228,20 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             logger.log(`🔄 Refreshing month data for ${currentMonth} to sync local state...`);
             await get().fetchMonthData(currentMonth);
             
-            // Wait for piggybank contribution transactions to appear in the store
-            // The real-time listener is already active, we just need to wait for it to sync
-            logger.log(`🔄 Waiting for piggybank transactions to sync for ${currentMonth}...`);
-            const piggybankIds = get().envelopes.filter(e => e.isPiggybank).map(e => e.id);
-            let attempts = 0;
-            const maxAttempts = 20; // 2 seconds max wait
-            while (attempts < maxAttempts) {
-                const currentTransactions = get().transactions.filter(t => 
-                    t.month === currentMonth && 
-                    piggybankIds.includes(t.envelopeId) &&
-                    t.description === 'Piggybank Contribution'
-                );
-                if (currentTransactions.length === piggybanks.length) {
-                    logger.log(`✅ All ${piggybanks.length} piggybank transactions synced`);
-                    break;
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
-            if (attempts >= maxAttempts) {
-                logger.warn(`⚠️ Timeout waiting for piggybank transactions to sync`);
-            }
+            // Force a fresh fetch of transactions from Firestore
+            // The real-time listener may have fired before all transactions were written
+            // Remove the month from loadedTransactionMonths to bypass the early return
+            logger.log(`🔄 Force fetching all transactions for ${currentMonth} from Firestore...`);
+            set(state => ({
+                loadedTransactionMonths: state.loadedTransactionMonths.filter(m => m !== currentMonth)
+            }));
             
-            // Give React a moment to re-render with the updated transactions
-            // This ensures piggybank balances display correctly immediately
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Now fetch - this will get all transactions that exist in Firestore right now
+            await get().fetchTransactionsForMonth(currentMonth);
+            
+            // Verify we got all the transactions
+            const finalTransactionCount = get().transactions.filter(t => t.month === currentMonth).length;
+            logger.log(`✅ Loaded ${finalTransactionCount} transactions for ${currentMonth}`);
             
             set({ isLoading: false });
             logger.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
