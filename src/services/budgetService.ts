@@ -387,15 +387,15 @@ export class BudgetService {
         createdAt: now
       };
 
-      // Optimistic write - do not await
-      setDoc(docRef, newTransactionData).catch(err => logger.warn(`Create tx failed: ${err}`));
+      // Wait for Firestore write to complete
+      await setDoc(docRef, newTransactionData);
       
       const createdTransaction: Transaction = {
         ...transaction,
         id: docRef.id
       };
       
-      logger.log('✅ Created transaction (optimistic):', createdTransaction.id);
+      logger.log('✅ Created transaction:', createdTransaction.id);
       return createdTransaction;
     } catch (error) {
       logger.warn(`❌ BudgetService.createTransaction failed: ${error}`);
