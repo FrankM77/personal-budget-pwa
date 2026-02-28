@@ -224,6 +224,10 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
                 }
             }
             
+            // Refresh month data to ensure local state reflects all the allocations we just created
+            logger.log(`🔄 Refreshing month data for ${currentMonth} to sync local state...`);
+            await get().fetchMonthData(currentMonth);
+            
             set({ isLoading: false });
             logger.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
             
