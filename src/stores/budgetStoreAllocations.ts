@@ -251,6 +251,10 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
                 logger.warn(`⚠️ Timeout waiting for piggybank transactions to sync`);
             }
             
+            // Give React a moment to re-render with the updated transactions
+            // This ensures piggybank balances display correctly immediately
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
             set({ isLoading: false });
             logger.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
             
