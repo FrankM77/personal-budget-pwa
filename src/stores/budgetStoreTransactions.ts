@@ -311,21 +311,21 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             return 0;
         }
 
-        // For Piggybanks, always calculate lifetime cumulative balance
+        // For Piggybanks, calculate cumulative balance up to the current viewing month
         if (envelope.isPiggybank) {
-            const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
-            
+            const viewMonth = month || state.currentMonth;
+            const envelopeTransactions = state.transactions.filter(t => 
+                t.envelopeId === envelopeId && 
+                (!t.month || t.month <= viewMonth)
+            );
+
             const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
             const incomes = envelopeTransactions.filter(t => t.type === 'Income');
 
             const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
             const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-            const balance = totalIncome - totalSpent;
 
-            const txDetails = envelopeTransactions.map(t => `${t.month}|${t.type}|$${t.amount}|${t.description}`);
-            logger.log(`💰 Piggybank ${envelope.name}: $${balance.toFixed(2)} (${incomes.length}inc=$${totalIncome.toFixed(2)}, ${expenses.length}exp=$${totalSpent.toFixed(2)}) tx:`, txDetails);
-
-            return balance;
+            return totalIncome - totalSpent;
         }
 
         // For regular spending envelopes, calculate monthly balance if month is provided

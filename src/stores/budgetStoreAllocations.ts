@@ -225,28 +225,7 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             }
             
             // Refresh month data to ensure local state reflects all the allocations we just created
-            logger.log(`🔄 Refreshing month data for ${currentMonth} to sync local state...`);
             await get().fetchMonthData(currentMonth);
-            
-            // Wait for Firestore's composite index to update
-            // When creating 30 transactions rapidly, the index needs time to catch up
-            // The real-time listener will continue syncing in the background
-            logger.log(`⏳ Waiting 2 seconds for Firestore index to update...`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Force a fresh fetch of transactions from Firestore
-            // Remove the month from loadedTransactionMonths to bypass the early return
-            logger.log(`🔄 Force fetching all transactions for ${currentMonth} from Firestore...`);
-            set(state => ({
-                loadedTransactionMonths: state.loadedTransactionMonths.filter(m => m !== currentMonth)
-            }));
-            
-            // Now fetch - this will get all transactions that exist in Firestore right now
-            await get().fetchTransactionsForMonth(currentMonth);
-            
-            // Verify we got all the transactions
-            const finalTransactionCount = get().transactions.filter(t => t.month === currentMonth).length;
-            logger.log(`✅ Loaded ${finalTransactionCount} transactions for ${currentMonth}`);
             
             set({ isLoading: false });
             logger.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
