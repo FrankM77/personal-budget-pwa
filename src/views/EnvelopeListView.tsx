@@ -542,6 +542,19 @@ export const EnvelopeListView: React.FC = () => {
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
+  // Restore scroll position when component mounts
+  useEffect(() => {
+    const savedScrollPosition = sessionStorage.getItem('envelopeListScrollPosition');
+    if (savedScrollPosition) {
+      window.scrollTo(0, parseInt(savedScrollPosition, 10));
+    }
+
+    // Save scroll position when component unmounts
+    return () => {
+      sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
+    };
+  }, []);
+
   useEffect(() => {
     if (categories.length === 0) {
       fetchCategories();
