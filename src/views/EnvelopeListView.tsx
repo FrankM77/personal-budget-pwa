@@ -546,7 +546,12 @@ export const EnvelopeListView: React.FC = () => {
   useEffect(() => {
     const savedScrollPosition = sessionStorage.getItem('envelopeListScrollPosition');
     if (savedScrollPosition) {
-      window.scrollTo(0, parseInt(savedScrollPosition, 10));
+      // Delay scroll restoration until after DOM is fully rendered
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, parseInt(savedScrollPosition, 10));
+        });
+      });
     }
 
     // Save scroll position when component unmounts
