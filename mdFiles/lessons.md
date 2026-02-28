@@ -175,7 +175,32 @@ This document captures patterns, mistakes, and learnings from coding sessions to
 3. **Simplify UI** by removing confusing elements
 4. **Maintain consistency** in version management
 
+### 🚫 Anti-Patterns: Gemini 3 Migration Debacle
+**Context**: Attempted migration from Gemini 2.0 Flash to Gemini 3 Flash Preview
+**Problem**: 
+- Assumed Gemini 3 preview was available when it wasn't
+- Built complex fallback logic instead of verifying basic access
+- Created circular debugging loops with increasingly complex solutions
+- Wasted time on elaborate error handling for a simple availability issue
+
+**Root Cause**: 
+- **Verify access first** before implementing complex solutions
+- **Simple solutions beat complex ones** every time
+- **Don't solve problems that don't exist yet**
+- **Always check official documentation** before proceeding with migrations
+
+**Critical Missing Step**: Should have researched https://docs.cloud.google.com/vertex-ai/generative-ai/docs/migrate first to understand actual availability and migration requirements instead of relying solely on email communications.
+
+**Availability Verification**: Always check https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/locations#united-states_1 for actual model availability by region before attempting migrations.
+
+**Solution Applied**:
+- Reverted to simple, working Gemini 2.0 Flash implementation
+- One-line change will be sufficient when Gemini 3 is actually available
+- No complex fallback logic needed
+
+**Pattern**: **Simple > Complex**. Always verify basic functionality before adding complexity.
+
 ---
 
-*Last Updated: 2026-02-19*
-*Session: Feature Retirement & Budget Logic Refinement*
+*Last Updated: 2026-02-23*
+*Session: Gemini 3 Migration - Lesson in Simplicity*

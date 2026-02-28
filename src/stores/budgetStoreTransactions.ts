@@ -321,19 +321,16 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
                 acc[month] = (acc[month] || 0) + 1;
                 return acc;
             }, {} as Record<string, number>);
-            logger.log(`💰 Piggybank ${envelope.name} balance calculation:`, {
-                totalTransactions: envelopeTransactions.length,
-                byMonth: transactionsByMonth,
-                storeTotal: state.transactions.length
-            });
-
             const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
             const incomes = envelopeTransactions.filter(t => t.type === 'Income');
 
             const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
             const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+            const balance = totalIncome - totalSpent;
 
-            return totalIncome - totalSpent;
+            logger.log(`💰 Piggybank ${envelope.name}: $${balance.toFixed(2)} (${incomes.length} incomes=$${totalIncome.toFixed(2)}, ${expenses.length} expenses=$${totalSpent.toFixed(2)}) txByMonth:`, transactionsByMonth);
+
+            return balance;
         }
 
         // For regular spending envelopes, calculate monthly balance if month is provided
