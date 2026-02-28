@@ -314,6 +314,18 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
         // For Piggybanks, always calculate lifetime cumulative balance
         if (envelope.isPiggybank) {
             const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
+            
+            // Debug logging to see what transactions we found
+            const transactionsByMonth = envelopeTransactions.reduce((acc, t) => {
+                const month = t.month || 'unknown';
+                acc[month] = (acc[month] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+            logger.log(`💰 Piggybank ${envelope.name} balance calculation:`, {
+                totalTransactions: envelopeTransactions.length,
+                byMonth: transactionsByMonth,
+                storeTotal: state.transactions.length
+            });
 
             const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
             const incomes = envelopeTransactions.filter(t => t.type === 'Income');
