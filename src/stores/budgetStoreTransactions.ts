@@ -315,12 +315,6 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
         if (envelope.isPiggybank) {
             const envelopeTransactions = state.transactions.filter(t => t.envelopeId === envelopeId);
             
-            // Debug logging to see what transactions we found
-            const transactionsByMonth = envelopeTransactions.reduce((acc, t) => {
-                const month = t.month || 'unknown';
-                acc[month] = (acc[month] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
             const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
             const incomes = envelopeTransactions.filter(t => t.type === 'Income');
 
@@ -328,7 +322,8 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
             const balance = totalIncome - totalSpent;
 
-            logger.log(`💰 Piggybank ${envelope.name}: $${balance.toFixed(2)} (${incomes.length} incomes=$${totalIncome.toFixed(2)}, ${expenses.length} expenses=$${totalSpent.toFixed(2)}) txByMonth:`, transactionsByMonth);
+            const txDetails = envelopeTransactions.map(t => `${t.month}|${t.type}|$${t.amount}|${t.description}`);
+            logger.log(`💰 Piggybank ${envelope.name}: $${balance.toFixed(2)} (${incomes.length}inc=$${totalIncome.toFixed(2)}, ${expenses.length}exp=$${totalSpent.toFixed(2)}) tx:`, txDetails);
 
             return balance;
         }
