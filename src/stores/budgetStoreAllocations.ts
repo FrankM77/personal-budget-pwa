@@ -228,10 +228,28 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             logger.log(`🔄 Refreshing month data for ${currentMonth} to sync local state...`);
             await get().fetchMonthData(currentMonth);
             
-            // Explicitly fetch transactions for the current month so piggybank balances update correctly
-            // Piggybank balances are cumulative across all months, so we need the new month's transactions loaded
-            logger.log(`🔄 Fetching transactions for ${currentMonth} to update piggybank balances...`);
-            await get().fetchTransactionsForMonth(currentMonth);
+            // Wait for piggybank contribution transactions to appear in the store
+            // The real-time listener is already active, we just need to wait for it to sync
+            logger.log(`🔄 Waiting for piggybank transactions to sync for ${currentMonth}...`);
+            const piggybankIds = get().envelopes.filter(e => e.isPiggybank).map(e => e.id);
+            let attempts = 0;
+            const maxAttempts = 20; // 2 seconds max wait
+            while (attempts < maxAttempts) {
+                const currentTransactions = get().transactions.filter(t => 
+                    t.month === currentMonth && 
+                    piggybankIds.includes(t.envelopeId) &&
+                    t.description === 'Piggybank Contribution'
+                );
+                if (currentTransactions.length === piggybanks.length) {
+                    logger.log(`✅ All ${piggybanks.length} piggybank transactions synced`);
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            if (attempts >= maxAttempts) {
+                logger.warn(`⚠️ Timeout waiting for piggybank transactions to sync`);
+            }
             
             set({ isLoading: false });
             logger.log(`🎯 Complete monthly setup copied to ${currentMonth}`);
