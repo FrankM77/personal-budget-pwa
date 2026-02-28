@@ -33,6 +33,7 @@ const EnvelopeDetail: React.FC = () => {
         fetchData, 
         isLoading, 
         deleteEnvelope, 
+        removeEnvelopeFromMonth,
         renameEnvelope, 
         updateTransaction, 
         deleteTransaction, 
@@ -245,9 +246,13 @@ const EnvelopeDetail: React.FC = () => {
     const handleDeleteEnvelope = () => {
         if (!id) return;
 
-        // Always call deleteEnvelope to remove from Firestore
-        // The deleteEnvelope function handles both regular envelopes and piggybanks
-        deleteEnvelope(id);
+        // For piggybanks: permanently delete from all months
+        // For regular envelopes: only remove from current month
+        if (currentEnvelope?.isPiggybank) {
+            deleteEnvelope(id);
+        } else {
+            removeEnvelopeFromMonth(id, currentMonth);
+        }
         navigate(-1);
     };
 
