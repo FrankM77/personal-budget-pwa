@@ -74,45 +74,97 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
       
       if (exportFormat === 'csv') {
-        // CSV Export (existing logic)
+        // CSV Export
         const headers = ['Date', 'Merchant', 'Payment Method', 'Notes', 'Amount', 'Type', 'Envelope', 'Reconciled'];
         const rows: string[] = [];
         
+        // Group split transactions like TransactionHistoryView does
+        const processedSplitGroups = new Set<string>();
+        
         for (const t of filtered) {
-          const env = envelopes.find(e => e.id === t.envelopeId);
-          const envName = env?.name || 'Unknown';
-          const reconciled = t.reconciled || false;
-          
-          let safeMerchant = (t.merchant || '').replace(/"/g, '""');
-          let safeNotes = (t.notes || '').replace(/"/g, '""');
-          
-          let paymentMethodStr = '';
-          if (t.paymentMethod) {
-            paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
-          }
-          const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
-
-          let dateStr = 'Invalid Date';
-          if (t.date) {
-            if (typeof t.date === 'string') {
-              dateStr = t.date.split('T')[0];
-            } else if (typeof t.date === 'number') {
-              const APPLE_EPOCH_OFFSET = 978307200000; // milliseconds between 1/1/2001 and 1/1/1970
-              const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
-              dateStr = new Date(ts).toISOString().split('T')[0];
+          // If this transaction has a splitGroupId and we haven't processed this group yet
+          if (t.splitGroupId && !processedSplitGroups.has(t.splitGroupId)) {
+            processedSplitGroups.add(t.splitGroupId);
+            
+            // Find ALL transactions in this split group
+            const groupTxs = filtered.filter(tx => tx.splitGroupId === t.splitGroupId);
+            const totalAmount = groupTxs.reduce((sum, tx) => sum + tx.amount, 0);
+            const envNames = groupTxs
+              .map(tx => envelopes.find(e => e.id === tx.envelopeId)?.name || 'Unknown')
+              .join(', ');
+            
+            // Export as single row with combined envelope info
+            let safeMerchant = (t.merchant || '').replace(/"/g, '""');
+            let safeNotes = (t.notes || '').replace(/"/g, '""');
+            
+            let paymentMethodStr = '';
+            if (t.paymentMethod) {
+              paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
             }
+            const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
+
+            let dateStr = 'Invalid Date';
+            if (t.date) {
+              if (typeof t.date === 'string') {
+                dateStr = t.date.split('T')[0];
+              } else if (typeof t.date === 'number') {
+                const APPLE_EPOCH_OFFSET = 978307200000;
+                const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
+                dateStr = new Date(ts).toISOString().split('T')[0];
+              }
+            }
+            
+            rows.push([
+              dateStr,
+              `"${safeMerchant}"`, 
+              `"${safePaymentMethod}"`,
+              `"${safeNotes}"`, 
+              totalAmount.toFixed(2),
+              t.type,
+              `"${envNames}"`, // Combined envelope names: "Groceries, Clothing"
+              t.reconciled ? 'Yes' : 'No',
+            ].join(','));
+            
+          } else if (t.splitGroupId && processedSplitGroups.has(t.splitGroupId)) {
+            // Skip - already processed as part of split group
+            continue;
+          } else {
+            // Regular transaction (not split)
+            const env = envelopes.find(e => e.id === t.envelopeId);
+            const envName = env?.name || 'Unknown';
+            const reconciled = t.reconciled || false;
+            
+            let safeMerchant = (t.merchant || '').replace(/"/g, '""');
+            let safeNotes = (t.notes || '').replace(/"/g, '""');
+            
+            let paymentMethodStr = '';
+            if (t.paymentMethod) {
+              paymentMethodStr = `${t.paymentMethod.name} (...${t.paymentMethod.last4})`;
+            }
+            const safePaymentMethod = paymentMethodStr.replace(/"/g, '""');
+
+            let dateStr = 'Invalid Date';
+            if (t.date) {
+              if (typeof t.date === 'string') {
+                dateStr = t.date.split('T')[0];
+              } else if (typeof t.date === 'number') {
+                const APPLE_EPOCH_OFFSET = 978307200000;
+                const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
+                dateStr = new Date(ts).toISOString().split('T')[0];
+              }
+            }
+            
+            rows.push([
+              dateStr,
+              `"${safeMerchant}"`, 
+              `"${safePaymentMethod}"`,
+              `"${safeNotes}"`, 
+              t.amount.toFixed(2),
+              t.type,
+              `"${envName}"`, 
+              reconciled ? 'Yes' : 'No',
+            ].join(','));
           }
-          
-          rows.push([
-            dateStr,
-            `"${safeMerchant}"`, 
-            `"${safePaymentMethod}"`,
-            `"${safeNotes}"`, 
-            t.amount.toFixed(2),
-            t.type,
-            `"${envName}"`, 
-            reconciled ? 'Yes' : 'No',
-          ].join(','));
         }
 
         const csvContent = [headers.join(','), ...rows].join('\n');
@@ -153,11 +205,30 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
         `;
 
-        // Calculate summary
-        const totalIncome = filtered
+        // Calculate summary - need to account for split grouping
+        const processedSplitGroupsForSummary = new Set<string>();
+        const uniqueTransactions = [];
+        
+        for (const t of filtered) {
+          if (t.splitGroupId && !processedSplitGroupsForSummary.has(t.splitGroupId)) {
+            processedSplitGroupsForSummary.add(t.splitGroupId);
+            // Find ALL transactions in this split group and sum them
+            const groupTxs = filtered.filter(tx => tx.splitGroupId === t.splitGroupId);
+            const totalAmount = groupTxs.reduce((sum, tx) => sum + tx.amount, 0);
+            uniqueTransactions.push({ ...t, amount: totalAmount });
+          } else if (t.splitGroupId && processedSplitGroupsForSummary.has(t.splitGroupId)) {
+            // Skip - already counted
+            continue;
+          } else {
+            // Regular transaction
+            uniqueTransactions.push(t);
+          }
+        }
+        
+        const totalIncome = uniqueTransactions
           .filter(t => t.type === 'Income')
           .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-        const totalExpenses = filtered
+        const totalExpenses = uniqueTransactions
           .filter(t => t.type === 'Expense')
           .reduce((sum, t) => sum + Math.abs(t.amount), 0);
         const netAmount = totalIncome - totalExpenses;
@@ -168,7 +239,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <p><strong>Total Income:</strong> <span class="income">$${totalIncome.toFixed(2)}</span></p>
             <p><strong>Total Expenses:</strong> <span class="expense">$${totalExpenses.toFixed(2)}</span></p>
             <p><strong>Net Amount:</strong> <span class="${netAmount >= 0 ? 'income' : 'expense'}">$${netAmount.toFixed(2)}</span></p>
-            <p><strong>Transaction Count:</strong> ${filtered.length}</p>
+            <p><strong>Transaction Count:</strong> ${uniqueTransactions.length}</p>
           </div>
         `;
 
@@ -189,33 +260,78 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <tbody>
         `;
 
+        // Group split transactions like CSV export
+        const processedSplitGroups = new Set<string>();
+        
         for (const t of filtered) {
-          const env = envelopes.find(e => e.id === t.envelopeId);
-          const envName = env?.name || 'Unknown';
-          const reconciled = t.reconciled || false;
-          const amountClass = t.type === 'Income' ? 'income' : 'expense';
-          
-          let dateStr = 'Invalid Date';
-          if (t.date) {
-            if (typeof t.date === 'string') {
-              dateStr = t.date.split('T')[0];
-            } else if (typeof t.date === 'number') {
-              const APPLE_EPOCH_OFFSET = 978307200000;
-              const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
-              dateStr = new Date(ts).toISOString().split('T')[0];
+          // If this transaction has a splitGroupId and we haven't processed this group yet
+          if (t.splitGroupId && !processedSplitGroups.has(t.splitGroupId)) {
+            processedSplitGroups.add(t.splitGroupId);
+            
+            // Find ALL transactions in this split group
+            const groupTxs = filtered.filter(tx => tx.splitGroupId === t.splitGroupId);
+            const totalAmount = groupTxs.reduce((sum, tx) => sum + tx.amount, 0);
+            const envNames = groupTxs
+              .map(tx => envelopes.find(e => e.id === tx.envelopeId)?.name || 'Unknown')
+              .join(', ');
+            
+            const reconciled = t.reconciled || false;
+            const amountClass = t.type === 'Income' ? 'income' : 'expense';
+            
+            let dateStr = 'Invalid Date';
+            if (t.date) {
+              if (typeof t.date === 'string') {
+                dateStr = t.date.split('T')[0];
+              } else if (typeof t.date === 'number') {
+                const APPLE_EPOCH_OFFSET = 978307200000;
+                const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
+                dateStr = new Date(ts).toISOString().split('T')[0];
+              }
             }
+            
+            htmlContent += `
+              <tr>
+                <td>${dateStr}</td>
+                <td>${t.merchant || ''}</td>
+                <td>${envNames}</td>
+                <td>${t.type}</td>
+                <td class="${amountClass}">$${Math.abs(totalAmount).toFixed(2)}</td>
+                <td>${reconciled ? 'Yes' : 'No'}</td>
+              </tr>
+            `;
+            
+          } else if (t.splitGroupId && processedSplitGroups.has(t.splitGroupId)) {
+            // Skip - already processed as part of split group
+            continue;
+          } else {
+            // Regular transaction (not split)
+            const env = envelopes.find(e => e.id === t.envelopeId);
+            const envName = env?.name || 'Unknown';
+            const reconciled = t.reconciled || false;
+            const amountClass = t.type === 'Income' ? 'income' : 'expense';
+            
+            let dateStr = 'Invalid Date';
+            if (t.date) {
+              if (typeof t.date === 'string') {
+                dateStr = t.date.split('T')[0];
+              } else if (typeof t.date === 'number') {
+                const APPLE_EPOCH_OFFSET = 978307200000;
+                const ts = t.date < 2000000000 ? (t.date + APPLE_EPOCH_OFFSET) * 1000 : t.date;
+                dateStr = new Date(ts).toISOString().split('T')[0];
+              }
+            }
+            
+            htmlContent += `
+              <tr>
+                <td>${dateStr}</td>
+                <td>${t.merchant || ''}</td>
+                <td>${envName}</td>
+                <td>${t.type}</td>
+                <td class="${amountClass}">$${Math.abs(t.amount).toFixed(2)}</td>
+                <td>${reconciled ? 'Yes' : 'No'}</td>
+              </tr>
+            `;
           }
-          
-          htmlContent += `
-            <tr>
-              <td>${dateStr}</td>
-              <td>${t.merchant || ''}</td>
-              <td>${envName}</td>
-              <td>${t.type}</td>
-              <td class="${amountClass}">$${Math.abs(t.amount).toFixed(2)}</td>
-              <td>${reconciled ? 'Yes' : 'No'}</td>
-            </tr>
-          `;
         }
 
         htmlContent += `
