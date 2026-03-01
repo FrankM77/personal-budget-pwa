@@ -215,5 +215,35 @@ This document captures patterns, mistakes, and learnings from coding sessions to
 
 ---
 
+## Lesson: Scroll Position Restoration - Simple Intent Beats Complex Timing
+
+**Context**: Multiple attempts to preserve scroll position when navigating away from and back to the main envelope list. Initial approaches used complex timing with requestAnimationFrame delays, which caused regressions including black screens.
+
+**Lesson**: Use explicit intent flags instead of timing-based restoration. Simple state management beats complex DOM timing hacks.
+
+**What Didn't Work**:
+- Double requestAnimationFrame delays - caused timing issues
+- Saving scroll on every scroll event - overwrote saved position with 0 on mount
+- Complex timeout chains - created race conditions and black screen states
+- Restoring on every component mount - interfered with normal navigation
+
+**What Worked**:
+- Set `envelopeListShouldRestoreScroll = '1'` only when navigating into envelope detail
+- Save current scroll position at the same time
+- On main view, restore only if the flag is present, then clear the flag
+- Use useLayoutEffect for synchronous restoration after content is ready
+- One-time restoration with ref guard prevents repeated restores
+
+**Why This Matters**:
+- Explicit intent is predictable and debuggable
+- No timing dependencies = no race conditions
+- Clear lifecycle: set intent → navigate → return → restore → clear intent
+- Doesn't interfere with normal app navigation or initial loads
+
+**Pattern**: **Intent > Timing**. Use explicit state flags to indicate "I want to restore later" rather than guessing when to restore.
+
+---
+
 *Last Updated: 2026-03-01*
+*Session: Scroll Position Restoration - Intent Over Timing*
 *Session: Gemini 3 Migration - Lesson in Simplicity*
