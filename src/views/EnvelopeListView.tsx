@@ -94,6 +94,7 @@ const EnvelopeListItem = ({
       e.stopPropagation();
       return;
     }
+    sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
     navigate(`/envelope/${env.id}`);
   };
 
@@ -462,7 +463,10 @@ const CategorySection = ({
                     key={env.id}
                     piggybank={env}
                     balance={remainingBalance}
-                    onNavigate={(id) => navigate(`/envelope/${id}`)}
+                    onNavigate={(id) => {
+                      sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
+                      navigate(`/envelope/${id}`);
+                    }}
                     setMoveableRef={setMoveableRef(env.id)}
                     isReorderingActive={isReordering}
                     activelyDraggingId={activelyDraggingId}
@@ -538,27 +542,50 @@ export const EnvelopeListView: React.FC = () => {
   const [showCopyPrompt, setShowCopyPrompt] = useState(false);
   const [moveCategoryEnvelope, setMoveCategoryEnvelope] = useState<Envelope | null>(null);
   const pendingEditTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRestoredScrollRef = useRef(false);
 
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  // Restore scroll position when component mounts
+  // Persist current scroll position while on the list view.
   useEffect(() => {
-    const savedScrollPosition = sessionStorage.getItem('envelopeListScrollPosition');
-    if (savedScrollPosition) {
-      // Delay scroll restoration until after DOM is fully rendered
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          window.scrollTo(0, parseInt(savedScrollPosition, 10));
-        });
-      });
-    }
-
-    // Save scroll position when component unmounts
-    return () => {
+    const saveScrollPosition = () => {
       sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
     };
+
+    window.addEventListener('scroll', saveScrollPosition, { passive: true });
+
+    return () => window.removeEventListener('scroll', saveScrollPosition);
   }, []);
+
+  // Restore scroll position only after list content is ready, otherwise browser clamps to top.
+  useEffect(() => {
+    if (hasRestoredScrollRef.current) return;
+    if (isInitialLoading || isLoading || isOnboardingActive) return;
+
+    const savedScrollPosition = sessionStorage.getItem('envelopeListScrollPosition');
+    if (!savedScrollPosition) {
+      hasRestoredScrollRef.current = true;
+      return;
+    }
+
+    const scrollY = Number.parseInt(savedScrollPosition, 10);
+    if (Number.isNaN(scrollY)) {
+      hasRestoredScrollRef.current = true;
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollY);
+          hasRestoredScrollRef.current = true;
+        });
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isInitialLoading, isLoading, isOnboardingActive, currentMonth]);
 
   useEffect(() => {
     if (categories.length === 0) {

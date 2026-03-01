@@ -193,14 +193,27 @@ This document captures patterns, mistakes, and learnings from coding sessions to
 
 **Availability Verification**: Always check https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/locations#united-states_1 for actual model availability by region before attempting migrations.
 
-**Solution Applied**:
-- Reverted to simple, working Gemini 2.0 Flash implementation
-- One-line change will be sufficient when Gemini 3 is actually available
-- No complex fallback logic needed
+---
 
-**Pattern**: **Simple > Complex**. Always verify basic functionality before adding complexity.
+## Lesson: Consistency Across App Components
+
+**Context**: When implementing color schemes for piggybank progress bars and balances, we aligned them with each other for visual consistency. This matched how regular envelopes already use consistent colors between balance amounts and progress indicators.
+
+**Lesson**: Whenever making code changes, consider how similar features work in other parts of the app and ask the user if they want it to work the same way for consistency.
+
+**Why This Matters**:
+- Users learn color patterns once and apply them everywhere
+- Reduces cognitive load when navigating different parts of the app
+- Creates a more polished, professional user experience
+- Prevents fragmented UI that feels inconsistent
+
+**Application**:
+- Before implementing a UI pattern, scan the app for similar patterns
+- Ask: "Should this work like [other similar feature]?"
+- Maintain consistency in colors, interactions, layouts, and behaviors
+- Document established patterns for future reference
 
 ---
 
-*Last Updated: 2026-02-23*
+*Last Updated: 2026-03-01*
 *Session: Gemini 3 Migration - Lesson in Simplicity*
