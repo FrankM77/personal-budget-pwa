@@ -5,18 +5,20 @@
 - [x] Replace unmount-only save logic with continuous scroll tracking on list view
 - [x] Restore scroll only after list content is fully loaded/rendered
 - [x] Prevent repeated restore on subsequent rerenders
-- [ ] Verify behavior across navigation and month switches
+- [x] Verify behavior across navigation and month switches
 
 ## Verification Checklist
-- [ ] Scroll to bottom of main view
-- [ ] Open an envelope
-- [ ] Tap/click Done to return to main view
-- [ ] Confirm previous scroll position is restored (does not jump to top)
-- [ ] Switch months and confirm behavior is still stable
+- [x] Scroll to bottom of main view
+- [x] Open an envelope
+- [x] Tap/click Done to return to main view
+- [x] Confirm previous scroll position is restored (does not jump to top)
+- [x] Switch months and confirm behavior is still stable
 
 ## Review Notes
-- Implemented in `EnvelopeListView`:
-  - Save scroll on every scroll event (not only unmount)
-  - Save scroll immediately before navigating into envelope detail
-  - Restore scroll only after loading/onboarding gates are cleared
-  - Guard with one-time restore ref to avoid jumpy rerenders
+- Final implementation uses explicit intent flag (`envelopeListShouldRestoreScroll`) set only when navigating to envelope detail
+- Scroll position saved at navigation time, restored once on return with useLayoutEffect, then flag cleared
+- No timing dependencies, no race conditions, no interference with normal navigation
+- Pattern: Intent > Timing - explicit state beats complex DOM timing hacks
+
+## Status
+✅ **COMPLETED** - Scroll position restoration working correctly across envelope navigation
