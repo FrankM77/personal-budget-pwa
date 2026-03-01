@@ -95,6 +95,7 @@ const EnvelopeListItem = ({
       return;
     }
     sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
+    sessionStorage.setItem('envelopeListShouldRestoreScroll', '1');
     navigate(`/envelope/${env.id}`);
   };
 
@@ -465,6 +466,7 @@ const CategorySection = ({
                     balance={remainingBalance}
                     onNavigate={(id) => {
                       sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
+                      sessionStorage.setItem('envelopeListShouldRestoreScroll', '1');
                       navigate(`/envelope/${id}`);
                     }}
                     setMoveableRef={setMoveableRef(env.id)}
@@ -547,45 +549,37 @@ export const EnvelopeListView: React.FC = () => {
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  // Persist current scroll position while on the list view.
-  useEffect(() => {
-    const saveScrollPosition = () => {
-      sessionStorage.setItem('envelopeListScrollPosition', window.scrollY.toString());
-    };
-
-    window.addEventListener('scroll', saveScrollPosition, { passive: true });
-
-    return () => window.removeEventListener('scroll', saveScrollPosition);
-  }, []);
-
-  // Restore scroll position only after list content is ready, otherwise browser clamps to top.
-  useEffect(() => {
+  // Restore scroll position only when returning from envelope detail.
+  useLayoutEffect(() => {
     if (hasRestoredScrollRef.current) return;
     if (isInitialLoading || isLoading || isOnboardingActive) return;
 
+    const shouldRestore = sessionStorage.getItem('envelopeListShouldRestoreScroll') === '1';
+    if (!shouldRestore) {
+      hasRestoredScrollRef.current = true;
+      return;
+    }
+
     const savedScrollPosition = sessionStorage.getItem('envelopeListScrollPosition');
     if (!savedScrollPosition) {
+      sessionStorage.removeItem('envelopeListShouldRestoreScroll');
       hasRestoredScrollRef.current = true;
       return;
     }
 
     const scrollY = Number.parseInt(savedScrollPosition, 10);
     if (Number.isNaN(scrollY)) {
+      sessionStorage.removeItem('envelopeListShouldRestoreScroll');
       hasRestoredScrollRef.current = true;
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          window.scrollTo(0, scrollY);
-          hasRestoredScrollRef.current = true;
-        });
-      });
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isInitialLoading, isLoading, isOnboardingActive, currentMonth]);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollY);
+      sessionStorage.removeItem('envelopeListShouldRestoreScroll');
+      hasRestoredScrollRef.current = true;
+    });
+  }, [isInitialLoading, isLoading, isOnboardingActive]);
 
   useEffect(() => {
     if (categories.length === 0) {
