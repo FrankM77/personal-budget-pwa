@@ -177,10 +177,17 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
         {targetAmount && targetAmount > 0 && (
           <div className="w-full bg-gray-200 dark:bg-zinc-800/50 rounded-full h-0.5 overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-500"
+              className={`h-full rounded-full transition-all duration-500 ${
+                balanceNum < 0
+                  ? 'bg-red-500'
+                  : progressPercentage >= 50
+                    ? 'bg-green-600 dark:bg-emerald-400'
+                    : progressPercentage >= 20
+                      ? 'bg-yellow-600 dark:bg-yellow-400'
+                      : 'bg-gray-900 dark:bg-white'
+              }`}
               style={{
-                width: `${progressPercentage}%`,
-                backgroundColor: color
+                width: `${progressPercentage}%`
               }}
             />
           </div>
