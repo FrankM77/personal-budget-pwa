@@ -158,9 +158,9 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
               <div className={`text-sm font-bold leading-none ${
                 balanceNum < 0
                   ? 'text-red-500'
-                  : progressPercentage >= 100
+                  : progressPercentage >= 50
                     ? 'text-green-600 dark:text-emerald-400'
-                    : progressPercentage >= 80
+                    : progressPercentage >= 20
                       ? 'text-yellow-600 dark:text-yellow-400'
                       : 'text-gray-900 dark:text-white'
               }`}>
