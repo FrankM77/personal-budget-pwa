@@ -155,7 +155,15 @@ export const PiggybankListItem: React.FC<PiggybankListItemProps> = ({
               </button>
             )}
             <div className="text-right">
-              <div className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+              <div className={`text-sm font-bold leading-none ${
+                balanceNum < 0
+                  ? 'text-red-500'
+                  : progressPercentage >= 100
+                    ? 'text-green-600 dark:text-emerald-400'
+                    : progressPercentage >= 80
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-gray-900 dark:text-white'
+              }`}>
                 ${balanceNum.toFixed(2)}
               </div>
               <div className="text-[9px] text-gray-400 dark:text-zinc-500 mt-1">
