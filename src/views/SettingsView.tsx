@@ -41,6 +41,8 @@ export const SettingsView: React.FC = () => {
     const [operationResult, setOperationResult] = useState<{ success: boolean; message: string; onRetry?: () => void } | null>(null);
     const [startFreshModalVisible, setStartFreshModalVisible] = useState(false);
   const [showLogViewer, setShowLogViewer] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState('');
   const [versionPressTimer, setVersionPressTimer] = useState<number | null>(null);
 
   // Version press handlers for accessing logs
@@ -217,14 +219,28 @@ export const SettingsView: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
+        setIsRestoring(true);
+        setRestoreStatus('Reading backup file...');
         const parsed = JSON.parse(e.target?.result as string);
+
+        const envelopeCount = parsed.envelopes?.length ?? 0;
+        const txCount = parsed.transactions?.length ?? 0;
+        const monthCount = new Set([
+          ...Object.keys(parsed.allocations || {}),
+          ...Object.keys(parsed.incomeSources || {})
+        ]).size;
+
+        setRestoreStatus(`Restoring ${envelopeCount} envelopes, ${txCount} transactions, ${monthCount} months...`);
+
         const result = await importData(parsed);
 
         if (!result.success) {
+          setIsRestoring(false);
           showStatus('error', result.message);
           return;
         }
 
+        setRestoreStatus('Applying settings...');
         if (parsed.appSettings?.theme) {
           try {
             await updateAppSettings({ theme: parsed.appSettings.theme });
@@ -233,11 +249,13 @@ export const SettingsView: React.FC = () => {
           }
         }
 
+        setIsRestoring(false);
         showStatus(
           'success',
-          `Loaded ${parsed.envelopes?.length ?? 0} envelopes, ${parsed.transactions?.length ?? 0} transactions.`
+          `Restored ${envelopeCount} envelopes, ${txCount} transactions across ${monthCount} months.`
         );
       } catch (error) {
+        setIsRestoring(false);
         logger.error('Settings', 'Import failed', { error });
         showStatus('error', 'Invalid backup file. Please verify the JSON.');
       }
@@ -326,6 +344,17 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
+      {/* Restore Progress Overlay */}
+      {isRestoring && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 mx-6 max-w-sm w-full text-center">
+            <div className="mx-auto mb-4 w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-500 rounded-full animate-spin" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Restoring Backup</h3>
+            <p className="text-sm text-gray-500 dark:text-zinc-400">{restoreStatus}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white dark:bg-black border-b dark:border-zinc-800 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sticky top-0 z-20 flex items-center justify-center shadow-sm relative">
         <button onClick={() => navigate(-1)} className="absolute left-4 text-blue-600 dark:text-blue-400 font-medium">
