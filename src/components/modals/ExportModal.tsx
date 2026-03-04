@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Download, Calendar, FileText } from 'lucide-react';
 import { useBudgetStore } from '../../stores/budgetStore';
 import { getMonthsForTimeFrame, type TimeFrame } from '../../hooks/useAnalyticsData';
+import logger from '../../utils/logger';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -60,13 +61,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   const handleExport = async () => {
-    console.log('🔍 ExportModal: Starting export process');
+    logger.log('🔍 ExportModal: Starting export process');
     setIsExporting(true);
     
     try {
       const selectedMonths = getSelectedMonths();
-      console.log('🔍 ExportModal: Selected months:', selectedMonths);
-      console.log('🔍 ExportModal: Total transactions available:', transactions.length);
+      logger.log('🔍 ExportModal: Selected months:', selectedMonths);
+      logger.log('🔍 ExportModal: Total transactions available:', transactions.length);
       
       // Filter transactions by selected months
       const filtered = transactions.filter(t => 
@@ -75,7 +76,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         selectedMonths.includes(t.month || '')
       );
       
-      console.log('🔍 ExportModal: Filtered transactions:', filtered.length);
+      logger.log('🔍 ExportModal: Filtered transactions:', filtered.length);
 
       
       if (exportFormat === 'csv') {
@@ -360,12 +361,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         }
       }
       
-      console.log('🔍 ExportModal: Export completed successfully, closing modal');
+      logger.log('🔍 ExportModal: Export completed successfully, closing modal');
       onClose();
     } catch (error) {
-      console.error('🔍 ExportModal: Export failed:', error);
+      logger.error('🔍 ExportModal: Export failed:', error);
     } finally {
-      console.log('🔍 ExportModal: Export process finished, resetting exporting state');
+      logger.log('🔍 ExportModal: Export process finished, resetting exporting state');
       setIsExporting(false);
     }
   };

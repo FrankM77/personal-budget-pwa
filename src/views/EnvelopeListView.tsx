@@ -11,6 +11,7 @@ import { LoadingScreen } from '../components/ui/LoadingScreen';
 import IncomeSourceModal from '../components/modals/IncomeSourceModal';
 import MoveToCategoryModal from '../components/modals/moveToCategoryModal';
 import CopyPreviousMonthPrompt from '../components/ui/CopyPreviousMonthPrompt';
+import logger from '../utils/logger';
 import NewUserOnboarding from '../components/ui/NewUserOnboarding';
 import { PiggybankListItem } from '../components/PiggybankListItem';
 import { useBudgetStore } from '../stores/budgetStore';
@@ -720,7 +721,7 @@ export const EnvelopeListView: React.FC = () => {
     startGuidedTutorial();
   };
 
-  console.log('🔍 EnvelopeListView: Rendering with loading states:', {
+  logger.log('🔍 EnvelopeListView: Rendering with loading states:', {
     isInitialLoading,
     isLoading,
     isOnboardingActive,
@@ -730,7 +731,7 @@ export const EnvelopeListView: React.FC = () => {
   });
 
   if (isInitialLoading) {
-    console.log('🔍 EnvelopeListView: Showing loading screen');
+    logger.log('🔍 EnvelopeListView: Showing loading screen');
     return <LoadingScreen message={showTimeoutMessage ? "Still loading..." : "Loading your budget..."} showTimeout={showTimeoutMessage} />;
   }
 
