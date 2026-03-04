@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
+import { useAuthStore } from '../stores/authStore';
 import { toDate } from '../utils/dateUtils';
 import type { Transaction, Envelope } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
@@ -246,12 +247,33 @@ const EnvelopeDetail: React.FC = () => {
     const handleDeleteEnvelope = () => {
         if (!id) return;
 
-        // For piggybanks: permanently delete from all months
+        const envelopeName = currentEnvelope?.name || 'Envelope';
+
+        // For piggybanks: soft-delete from all months
         // For regular envelopes: only remove from current month
         if (currentEnvelope?.isPiggybank) {
             deleteEnvelope(id);
+            const userId = useAuthStore.getState().currentUser?.id;
+            showToast(
+                `Deleted "${envelopeName}"`,
+                'neutral',
+                userId ? async () => {
+                    try {
+                        const { BudgetService } = await import('../services/budgetService');
+                        const svc = BudgetService.getInstance();
+                        await svc.restoreEnvelope(userId, id);
+                        const envelopes = await svc.getEnvelopes(userId);
+                        useBudgetStore.setState({ envelopes });
+                        showToast(`Restored "${envelopeName}"`, 'success');
+                    } catch (error) {
+                        logger.error('❌ Failed to restore envelope:', error);
+                        showToast('Failed to restore', 'error');
+                    }
+                } : undefined
+            );
         } else {
             removeEnvelopeFromMonth(id, currentMonth);
+            showToast(`Removed "${envelopeName}" from ${currentMonth}`, 'neutral');
         }
         navigate(-1);
     };

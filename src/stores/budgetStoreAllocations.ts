@@ -1,6 +1,5 @@
 import { BudgetService } from '../services/budgetService';
 import { useAuthStore } from './authStore';
-import { useToastStore } from './toastStore';
 import logger from '../utils/logger';
 import type { IncomeSource, EnvelopeAllocation } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
@@ -99,18 +98,7 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             
             logger.log('🗑️ Deleting income source:', { month, sourceId });
             
-            const state = get();
-            const { currentUser } = useAuthStore.getState();
-            if (!currentUser) return;
-            
-            // Store income source name for toast message
-            const incomeSource = state.incomeSources[month]?.find(s => s.id === sourceId);
-            const sourceName = incomeSource?.name || 'Income source';
-            
-            // Soft-delete from backend (sets deletedAt timestamp)
-            await budgetService.deleteIncomeSource(currentUser.id, sourceId, month);
-            
-            // Update local state to filter out soft-deleted income source
+            // Update local state FIRST (optimistic)
             set(state => ({
                 incomeSources: {
                     ...state.incomeSources,
@@ -119,34 +107,14 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
                 isLoading: false
             }));
             
-            logger.log('✅ Soft-deleted income source:', sourceId);
+            // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
+            const { currentUser } = useAuthStore.getState();
+            if (!currentUser) return;
             
-            // Show undo toast
-            logger.log('🔔 Showing undo toast for income source:', sourceName);
-            useToastStore.getState().showToast(
-                `Deleted "${sourceName}"`,
-                'neutral',
-                async () => {
-                    // Undo: restore the income source
-                    logger.log('🔄 Undo clicked for income source:', sourceId);
-                    try {
-                        await budgetService.restoreIncomeSource(currentUser.id, sourceId, month);
-                        // Refresh month data to show restored item
-                        const monthData = await budgetService.getMonthData(currentUser.id, month);
-                        set(state => ({
-                            incomeSources: {
-                                ...state.incomeSources,
-                                [month]: monthData.incomeSources
-                            }
-                        }));
-                        logger.log('✅ Restored income source:', sourceId);
-                        useToastStore.getState().showToast(`Restored "${sourceName}"`, 'success');
-                    } catch (error) {
-                        logger.error('❌ Failed to restore income source:', error);
-                        useToastStore.getState().showToast('Failed to restore income source', 'error');
-                    }
-                }
-            );
+            budgetService.deleteIncomeSource(currentUser.id, sourceId, month)
+                .catch(err => logger.error('❌ Backend soft-delete failed:', err));
+            
+            logger.log('✅ Soft-deleted income source:', sourceId);
             
         } catch (error) {
             logger.error('❌ deleteIncomeSource failed:', error);

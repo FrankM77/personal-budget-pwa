@@ -1,6 +1,5 @@
 import { BudgetService } from '../services/budgetService';
 import { useAuthStore } from './authStore';
-import { useToastStore } from './toastStore';
 import logger from '../utils/logger';
 import type { Envelope } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
@@ -82,44 +81,18 @@ export const createEnvelopeSlice = ({ set, get }: SliceParams) => ({
             set({ isLoading: true, error: null });
             
             const currentUser = requireAuth();
-            const state = get();
             
-            // Store envelope name for toast message
-            const envelope = state.envelopes.find(env => env.id === envelopeId);
-            const envelopeName = envelope?.name || 'Envelope';
-            
-            // Soft-delete from backend (sets deletedAt timestamp)
-            await budgetService.deleteEnvelope(currentUser.id, envelopeId);
-            
-            // Update local state to filter out soft-deleted envelope
+            // Update local state FIRST (optimistic)
             set(state => ({
                 envelopes: state.envelopes.filter(env => env.id !== envelopeId),
                 isLoading: false
             }));
             
-            logger.log('✅ Soft-deleted envelope:', envelopeId);
+            // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
+            budgetService.deleteEnvelope(currentUser.id, envelopeId)
+                .catch(err => logger.error('❌ Backend soft-delete failed:', err));
             
-            // Show undo toast
-            logger.log('🔔 Showing undo toast for envelope:', envelopeName);
-            useToastStore.getState().showToast(
-                `Deleted "${envelopeName}"`,
-                'neutral',
-                async () => {
-                    // Undo: restore the envelope
-                    logger.log('🔄 Undo clicked for envelope:', envelopeId);
-                    try {
-                        await budgetService.restoreEnvelope(currentUser.id, envelopeId);
-                        // Refresh envelopes to show restored item
-                        const envelopes = await budgetService.getEnvelopes(currentUser.id);
-                        set({ envelopes });
-                        logger.log('✅ Restored envelope:', envelopeId);
-                        useToastStore.getState().showToast(`Restored "${envelopeName}"`, 'success');
-                    } catch (error) {
-                        logger.error('❌ Failed to restore envelope:', error);
-                        useToastStore.getState().showToast('Failed to restore envelope', 'error');
-                    }
-                }
-            );
+            logger.log('✅ Soft-deleted envelope:', envelopeId);
             
         } catch (error) {
             logger.error('❌ deleteEnvelope failed:', error);

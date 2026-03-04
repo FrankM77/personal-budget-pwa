@@ -2,8 +2,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
+import { BudgetService } from '../services/budgetService';
 import type { IncomeSource } from '../models/types';
 import logger from '../utils/logger';
+
+const budgetService = BudgetService.getInstance();
 
 // Helper function to safely convert various date formats to JavaScript Date
 const safeDateConversion = (dateValue: any): Date | null => {
@@ -264,13 +267,30 @@ export const useEnvelopeList = () => {
     await persistReorder(orderedEnvelopes);
   }, [persistReorder]);
 
-  // Delete income source with toast
+  // Delete income source with toast + undo
   const deleteIncomeSourceWithToast = useCallback((incomeSource: IncomeSource) => {
     deleteIncomeSource(currentMonth, incomeSource.id).catch(logger.error);
 
+    const userId = useAuthStore.getState().currentUser?.id;
     showToast(
       `Deleted "${incomeSource.name}"`,
-      'neutral'
+      'neutral',
+      userId ? async () => {
+        try {
+          await budgetService.restoreIncomeSource(userId, incomeSource.id, currentMonth);
+          const monthData = await budgetService.getMonthData(userId, currentMonth);
+          useBudgetStore.setState(state => ({
+            incomeSources: {
+              ...state.incomeSources,
+              [currentMonth]: monthData.incomeSources
+            }
+          }));
+          showToast(`Restored "${incomeSource.name}"`, 'success');
+        } catch (error) {
+          logger.error('❌ Failed to restore income source:', error);
+          showToast('Failed to restore', 'error');
+        }
+      } : undefined
     );
   }, [deleteIncomeSource, currentMonth, showToast]);
 
