@@ -227,10 +227,12 @@ export class BudgetService {
       
       const snapshot = await getDocs(q);
       
-      const transactions = snapshot.docs.map(doc => {
-        const firebaseTx = { id: doc.id, ...doc.data() } as any;
-        return fromFirestore(firebaseTx);
-      });
+      const transactions = snapshot.docs
+        .map(doc => {
+          const firebaseTx = { id: doc.id, ...doc.data() } as any;
+          return fromFirestore(firebaseTx);
+        })
+        .filter(tx => !tx.deletedAt); // Filter out soft-deleted transactions
       
       logger.log(`📋 Fetched ${transactions.length} transactions for ${month}`);
       return transactions;
@@ -259,10 +261,12 @@ export class BudgetService {
       
       const snapshot = await getDocs(q);
       
-      const transactions = snapshot.docs.map(doc => {
-        const firebaseTx = { id: doc.id, ...doc.data() } as any;
-        return fromFirestore(firebaseTx);
-      });
+      const transactions = snapshot.docs
+        .map(doc => {
+          const firebaseTx = { id: doc.id, ...doc.data() } as any;
+          return fromFirestore(firebaseTx);
+        })
+        .filter(tx => !tx.deletedAt); // Filter out soft-deleted transactions
       
       logger.log(`📋 Fetched ${transactions.length} transactions for envelope ${envelopeId}`);
       return transactions;
@@ -535,13 +539,79 @@ export class BudgetService {
       
       const docRef = doc(db, 'users', userId, 'transactions', transactionId);
       
-      // Optimistic delete - do not await
-      deleteDoc(docRef).catch(err => logger.warn(`Delete tx failed: ${err}`));
+      // Soft-delete: Set deletedAt timestamp instead of hard-deleting
+      updateDoc(docRef, {
+        deletedAt: new Date().toISOString()
+      }).catch(err => logger.warn(`Soft-delete tx failed: ${err}`));
       
-      logger.log('✅ Deleted transaction (optimistic):', transactionId);
+      logger.log('✅ Soft-deleted transaction:', transactionId);
     } catch (error) {
       logger.warn(`❌ BudgetService.deleteTransaction failed: ${error}`);
       throw new Error(`Failed to delete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Restore a soft-deleted transaction
+   */
+  async restoreTransaction(userId: string, transactionId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', userId, 'transactions', transactionId);
+      
+      await updateDoc(docRef, {
+        deletedAt: deleteField()
+      });
+      
+      logger.log('✅ Restored transaction (removed deletedAt):', transactionId);
+    } catch (error) {
+      logger.warn(`❌ BudgetService.restoreTransaction failed: ${error}`);
+      throw new Error(`Failed to restore transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get all soft-deleted transactions for a user in a given month
+   */
+  async getDeletedTransactions(userId: string, month: string): Promise<Transaction[]> {
+    try {
+      logger.log(`📡 BudgetService.getDeletedTransactions: Fetching for user ${userId}, month ${month}`);
+      
+      const collectionRef = collection(db, 'users', userId, 'transactions');
+      const snapshot = await getDocs(collectionRef);
+      
+      const deletedTransactions: Transaction[] = [];
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.deletedAt && (data.month === month || (data.date && data.date.startsWith(month)))) {
+          deletedTransactions.push({ id: docSnap.id, ...data } as Transaction);
+        }
+      });
+      
+      // Sort by deletedAt descending (most recent first)
+      deletedTransactions.sort((a, b) => 
+        new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
+      );
+      
+      logger.log(`📊 Fetched ${deletedTransactions.length} deleted transactions for ${month}`);
+      return deletedTransactions;
+    } catch (error) {
+      logger.warn(`❌ BudgetService.getDeletedTransactions failed: ${error}`);
+      throw new Error(`Failed to fetch deleted transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Permanently delete a transaction from Firestore
+   */
+  async permanentlyDeleteTransaction(userId: string, transactionId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', userId, 'transactions', transactionId);
+      await deleteDoc(docRef);
+      
+      logger.log('✅ Permanently deleted transaction:', transactionId);
+    } catch (error) {
+      logger.warn(`❌ BudgetService.permanentlyDeleteTransaction failed: ${error}`);
+      throw new Error(`Failed to permanently delete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

@@ -28,6 +28,7 @@ export interface Transaction {
     last4?: string;
     color: string;
   };
+  deletedAt?: string; // ISO String - when transaction was soft-deleted (null = not deleted)
 }
 
 export interface Envelope {

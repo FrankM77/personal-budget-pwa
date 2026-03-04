@@ -95,16 +95,17 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             
             const currentUser = requireAuth();
             
-            // Delete from backend
-            await budgetService.deleteTransaction(currentUser.id, transactionId);
-            
-            // Update local state
+            // Update local state FIRST (optimistic)
             set(state => ({
                 transactions: state.transactions.filter(tx => tx.id !== transactionId),
                 isLoading: false
             }));
             
-            logger.log('✅ Deleted transaction:', transactionId);
+            // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
+            budgetService.deleteTransaction(currentUser.id, transactionId)
+                .catch(err => logger.error('❌ Backend soft-delete transaction failed:', err));
+            
+            logger.log('✅ Soft-deleted transaction:', transactionId);
             
         } catch (error) {
             logger.error('❌ deleteTransaction failed:', error);
@@ -126,31 +127,17 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             const txDate = new Date(transaction.date);
             const month = transaction.month || `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
             
-            const restoredTransaction = { ...transaction, month };
+            const restoredTransaction = { ...transaction, month, deletedAt: undefined };
 
-            // Update in backend
-            await budgetService.updateTransaction(currentUser.id, restoredTransaction);
+            // Restore in backend (remove deletedAt)
+            budgetService.restoreTransaction(currentUser.id, transaction.id)
+                .catch(err => logger.error('❌ Backend restore transaction failed:', err));
             
-            // Update local state - add back if not present, or update if present
-            set(state => {
-                const existingIndex = state.transactions.findIndex(tx => tx.id === transaction.id);
-                let newTransactions;
-                
-                if (existingIndex >= 0) {
-                    // Transaction exists, update it
-                    newTransactions = state.transactions.map(tx => 
-                        tx.id === transaction.id ? restoredTransaction : tx
-                    );
-                } else {
-                    // Transaction was deleted, add it back
-                    newTransactions = [...state.transactions, restoredTransaction];
-                }
-                
-                return {
-                    transactions: newTransactions,
-                    isLoading: false
-                };
-            });
+            // Update local state - add back the transaction
+            set(state => ({
+                transactions: [...state.transactions, restoredTransaction],
+                isLoading: false
+            }));
             
             logger.log('✅ Restored transaction:', transaction.id);
             

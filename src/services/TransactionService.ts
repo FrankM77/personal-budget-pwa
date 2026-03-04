@@ -58,7 +58,9 @@ import {
       );
 
       return onSnapshot(q, (snapshot) => {
-        const transactions = snapshot.docs.map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
+        const transactions = snapshot.docs
+          .map(doc => fromFirestore({ id: doc.id, ...doc.data() }))
+          .filter(tx => !tx.deletedAt); // Filter out soft-deleted transactions
         onUpdate(transactions);
       }, (error) => {
         logger.error(`❌ TransactionService: Subscription failed for ${month}:`, error);
@@ -70,7 +72,9 @@ import {
       logger.log(`📊 TransactionService.getAllTransactions: Fetching for user ${userId}`);
       const q = query(getCollectionRef(userId), orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
-      const transactions = snapshot.docs.map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
+      const transactions = snapshot.docs
+        .map(doc => fromFirestore({ id: doc.id, ...doc.data() }))
+        .filter(tx => !tx.deletedAt); // Filter out soft-deleted transactions
       logger.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description, month: t.month })));
       return transactions;
     },

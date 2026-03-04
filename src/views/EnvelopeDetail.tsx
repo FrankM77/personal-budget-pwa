@@ -272,8 +272,48 @@ const EnvelopeDetail: React.FC = () => {
                 } : undefined
             );
         } else {
+            // Capture data needed for undo BEFORE removing
+            const allocationToRestore = allocations[currentMonth]?.find(a => a.envelopeId === id);
+            const transactionsToRestore = transactions.filter(t =>
+                t.envelopeId === id &&
+                (t.month === currentMonth || t.date.startsWith(currentMonth))
+            );
+
             removeEnvelopeFromMonth(id, currentMonth);
-            showToast(`Removed "${envelopeName}" from ${currentMonth}`, 'neutral');
+
+            const userId = useAuthStore.getState().currentUser?.id;
+            showToast(
+                `Removed "${envelopeName}"`,
+                'neutral',
+                userId ? async () => {
+                    try {
+                        const { BudgetService } = await import('../services/budgetService');
+                        const svc = BudgetService.getInstance();
+
+                        // Restore allocation if it existed
+                        if (allocationToRestore) {
+                            await svc.createEnvelopeAllocation({
+                                userId,
+                                envelopeId: id,
+                                month: currentMonth,
+                                budgetedAmount: allocationToRestore.budgetedAmount
+                            });
+                        }
+
+                        // Restore soft-deleted transactions
+                        await Promise.all(
+                            transactionsToRestore.map(tx => svc.restoreTransaction(userId, tx.id))
+                        );
+
+                        // Refresh store data for this month
+                        await useBudgetStore.getState().fetchMonthData(currentMonth);
+                        showToast(`Restored "${envelopeName}"`, 'success');
+                    } catch (error) {
+                        logger.error('❌ Failed to restore envelope from month:', error);
+                        showToast('Failed to restore', 'error');
+                    }
+                } : undefined
+            );
         }
         navigate(-1);
     };

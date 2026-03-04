@@ -4,7 +4,7 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { BudgetService } from '../services/budgetService';
-import type { Envelope, IncomeSource } from '../models/types';
+import type { Envelope, IncomeSource, Transaction } from '../models/types';
 import logger from '../utils/logger';
 
 const budgetService = BudgetService.getInstance();
@@ -16,6 +16,7 @@ export const RecentlyDeletedSection: React.FC = () => {
   
   const [deletedEnvelopes, setDeletedEnvelopes] = useState<Envelope[]>([]);
   const [deletedIncomeSources, setDeletedIncomeSources] = useState<IncomeSource[]>([]);
+  const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch deleted items
@@ -25,13 +26,15 @@ export const RecentlyDeletedSection: React.FC = () => {
       
       try {
         setIsLoading(true);
-        const [envelopes, incomeSources] = await Promise.all([
+        const [envelopes, incomeSources, transactions] = await Promise.all([
           budgetService.getDeletedEnvelopes(currentUser.id),
-          budgetService.getDeletedIncomeSources(currentUser.id, currentMonth)
+          budgetService.getDeletedIncomeSources(currentUser.id, currentMonth),
+          budgetService.getDeletedTransactions(currentUser.id, currentMonth)
         ]);
         
         setDeletedEnvelopes(envelopes);
         setDeletedIncomeSources(incomeSources);
+        setDeletedTransactions(transactions);
       } catch (error) {
         logger.error('Failed to fetch deleted items:', error);
       } finally {
@@ -83,7 +86,24 @@ export const RecentlyDeletedSection: React.FC = () => {
     }
   };
 
-  const handlePermanentDelete = async (type: 'envelope' | 'income', id: string, name: string, month?: string) => {
+  const handleRestoreTransaction = async (transaction: Transaction) => {
+    if (!currentUser) return;
+    
+    try {
+      await budgetService.restoreTransaction(currentUser.id, transaction.id);
+      setDeletedTransactions(prev => prev.filter(t => t.id !== transaction.id));
+      
+      // Refresh transactions for this month
+      await useBudgetStore.getState().fetchMonthData(currentMonth);
+      
+      showToast(`Restored transaction`, 'success');
+    } catch (error) {
+      logger.error('Failed to restore transaction:', error);
+      showToast('Failed to restore transaction', 'error');
+    }
+  };
+
+  const handlePermanentDelete = async (type: 'envelope' | 'income' | 'transaction', id: string, name: string, month?: string) => {
     if (!currentUser) return;
     
     if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
@@ -92,9 +112,12 @@ export const RecentlyDeletedSection: React.FC = () => {
       if (type === 'envelope') {
         await budgetService.permanentlyDeleteEnvelope(currentUser.id, id);
         setDeletedEnvelopes(prev => prev.filter(e => e.id !== id));
-      } else {
+      } else if (type === 'income') {
         await budgetService.permanentlyDeleteIncomeSource(currentUser.id, id, month!);
         setDeletedIncomeSources(prev => prev.filter(s => s.id !== id));
+      } else {
+        await budgetService.permanentlyDeleteTransaction(currentUser.id, id);
+        setDeletedTransactions(prev => prev.filter(t => t.id !== id));
       }
       
       showToast(`Permanently deleted "${name}"`, 'success');
@@ -109,7 +132,7 @@ export const RecentlyDeletedSection: React.FC = () => {
     return days;
   };
 
-  const totalDeleted = deletedEnvelopes.length + deletedIncomeSources.length;
+  const totalDeleted = deletedEnvelopes.length + deletedIncomeSources.length + deletedTransactions.length;
 
   if (isLoading) {
     return (
@@ -159,6 +182,45 @@ export const RecentlyDeletedSection: React.FC = () => {
               </button>
               <button
                 onClick={() => handlePermanentDelete('envelope', envelope.id, envelope.name)}
+                className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+              >
+                <Trash2 size={12} />
+                Delete Forever
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Deleted Transactions */}
+      {deletedTransactions.map(transaction => {
+        const daysDeleted = getDaysDeleted(transaction.deletedAt!);
+        const daysRemaining = 30 - daysDeleted;
+        const label = transaction.merchant || transaction.description || 'Transaction';
+        
+        return (
+          <div
+            key={transaction.id}
+            className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border border-gray-200 dark:border-zinc-700"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white">{label}</h4>
+                <p className="text-xs text-gray-500 dark:text-zinc-400">
+                  Transaction • ${Math.abs(transaction.amount).toFixed(2)} • Deleted {daysDeleted}d ago • {daysRemaining}d remaining
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRestoreTransaction(transaction)}
+                className="flex-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-1"
+              >
+                <RotateCcw size={12} />
+                Restore
+              </button>
+              <button
+                onClick={() => handlePermanentDelete('transaction', transaction.id, label)}
                 className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
               >
                 <Trash2 size={12} />
