@@ -5,6 +5,7 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import LogViewer from '../components/ui/LogViewer';
+import { RecentlyDeletedSection } from '../components/RecentlyDeletedSection';
 import logger from '../utils/enhancedLogger';
 
 export const SettingsView: React.FC = () => {
@@ -582,6 +583,14 @@ export const SettingsView: React.FC = () => {
               accept=".json"
               className="hidden"
             />
+          </div>
+        </section>
+
+        {/* Recently Deleted */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider px-4 mb-2">Recently Deleted</h2>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800">
+            <RecentlyDeletedSection />
           </div>
         </section>
 
