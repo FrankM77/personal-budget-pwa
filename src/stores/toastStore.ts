@@ -24,12 +24,15 @@ export const useToastStore = create<ToastStore>((set, get) => ({
   showToast: (message: string, type: ToastState['type'] = 'neutral', undoAction?: () => void) => {
     logger.log('📢 ToastStore.showToast called', { message, type, hasUndo: !!undoAction });
     
+    // Force replace entire state to ensure subscribers are notified
     set({
       message,
       type,
       isVisible: true,
       undoAction,
-    });
+      showToast: get().showToast,
+      hideToast: get().hideToast,
+    }, true); // true = replace entire state
 
     logger.log('📢 ToastStore state updated', { isVisible: true });
 
