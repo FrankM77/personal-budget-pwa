@@ -244,6 +244,33 @@ This document captures patterns, mistakes, and learnings from coding sessions to
 
 ---
 
-*Last Updated: 2026-03-01*
+## Lesson: Optimistic Updates Are Critical With Real-Time Listeners
+
+**Context**: Implementing soft-delete with undo toast for envelopes and income sources. Toast notifications stopped appearing for ALL deletes (including previously working transaction deletes).
+
+**Root Cause**: Changed delete functions from optimistic (update local state first, fire-and-forget backend) to blocking (`await` backend call first, then update local state). The `await` on the backend call triggered Firestore's real-time listener (`subscribeToMonthlyBudget`), which fired a callback that updated the budget store, causing a massive re-render cascade that unmounted/remounted the Toast component before it could display.
+
+**What Broke Everything**:
+- `await budgetService.deleteIncomeSource(...)` → Firestore write completes → real-time `onSnapshot` fires → budget store state updates → entire component tree re-renders → Toast component unmounts/remounts with `isVisible: false`
+- This happened BEFORE the function returned to show the toast
+
+**What Didn't Work**:
+- Adding `set({...}, true)` replace flag to Zustand
+- Adding debug logging (confirmed store updated but component never re-rendered)
+- Importing `useToastStore` into budget store slices (may have created module-level side effects)
+
+**What Fixed It**:
+- Restore optimistic pattern: update local state FIRST, then fire backend call without `await`
+- Keep toast calls in the VIEW LAYER (hooks/components), not in store actions
+- Revert toastStore and Toast.tsx to their original clean versions
+
+**Pattern**: **Never `await` backend calls that trigger real-time listeners before showing UI feedback.** Use optimistic updates: local state first, backend fire-and-forget. Keep UI concerns (toasts) in the view layer, not in store actions.
+
+**Anti-Pattern**: Calling `useToastStore.getState().showToast()` from inside Zustand store actions. Even though it should work in theory, mixing store-to-store calls with real-time listeners creates unpredictable re-render timing.
+
+---
+
+*Last Updated: 2026-03-04*
+*Session: Toast Regression Fix - Optimistic Updates With Real-Time Listeners*
 *Session: Scroll Position Restoration - Intent Over Timing*
 *Session: Gemini 3 Migration - Lesson in Simplicity*
