@@ -269,8 +269,10 @@ export const useEnvelopeList = () => {
 
   // Delete income source with toast + undo
   const deleteIncomeSourceWithToast = useCallback((incomeSource: IncomeSource) => {
+    logger.log('🍞 deleteIncomeSourceWithToast called', { name: incomeSource.name, id: incomeSource.id });
     deleteIncomeSource(currentMonth, incomeSource.id).catch(logger.error);
 
+    logger.log('🍞 About to call showToast', { showToastType: typeof showToast });
     const userId = useAuthStore.getState().currentUser?.id;
     showToast(
       `Deleted "${incomeSource.name}"`,
