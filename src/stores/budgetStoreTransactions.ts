@@ -6,6 +6,10 @@ import type { SliceParams } from './budgetStoreTypes';
 
 const budgetService = BudgetService.getInstance();
 
+// Track IDs of transactions that have been optimistically deleted
+// so the real-time listener doesn't add them back before the backend write propagates
+export const pendingTransactionDeletions = new Set<string>();
+
 // Helper to require an authenticated user (throws if not logged in)
 const requireAuth = () => {
   const { currentUser } = useAuthStore.getState();
@@ -95,6 +99,9 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             
             const currentUser = requireAuth();
             
+            // Track this deletion so real-time listener doesn't re-add it
+            pendingTransactionDeletions.add(transactionId);
+            
             // Update local state FIRST (optimistic)
             set(state => ({
                 transactions: state.transactions.filter(tx => tx.id !== transactionId),
@@ -129,6 +136,9 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             
             const restoredTransaction = { ...transaction, month, deletedAt: undefined };
 
+            // Clear from pending deletions so real-time listener allows it
+            pendingTransactionDeletions.delete(transaction.id);
+            
             // Restore in backend (remove deletedAt)
             budgetService.restoreTransaction(currentUser.id, transaction.id)
                 .catch(err => logger.error('❌ Backend restore transaction failed:', err));

@@ -1,4 +1,5 @@
 import { TransactionService } from '../services/TransactionService';
+import { pendingTransactionDeletions } from './budgetStoreTransactions';
 import { EnvelopeService } from '../services/EnvelopeService';
 import { DistributionTemplateService } from '../services/DistributionTemplateService';
 import { AppSettingsService } from '../services/AppSettingsService';
@@ -99,20 +100,24 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
       
       const currentState = budgetStore.getState();
       
-      // Update store for this specific month
-      // We keep all transactions from OTHER months and replace current month's transactions
-      // with the synced data, but we must preserve "optimistic" transactions that haven't hit DB yet
-      // if they have temp IDs or are newer than the sync.
+      // Filter out transactions that have been optimistically deleted locally
+      // but may not yet be reflected in Firestore's snapshot
+      const filteredFirebaseTransactions = firebaseTransactions.filter((tx: any) => {
+        if (pendingTransactionDeletions.has(tx.id)) {
+          // Check if Firestore has caught up (tx has deletedAt) — if so, clear the pending flag
+          if (tx.deletedAt) {
+            pendingTransactionDeletions.delete(tx.id);
+          }
+          return false; // Don't add back optimistically deleted transactions
+        }
+        return true;
+      });
       
       const otherMonthsTransactions = currentState.transactions.filter((tx: any) => tx.month !== month);
       
-      // For the current month, we prefer Firebase data but must handle local deletions
-      // and local additions that haven't reached Firebase yet.
-      // Firebase's persistence usually handles this, but we'll be safe.
-      
       const updatedTransactions = [
         ...otherMonthsTransactions,
-        ...firebaseTransactions
+        ...filteredFirebaseTransactions
       ];
       
       budgetStore.setState({ transactions: updatedTransactions });
