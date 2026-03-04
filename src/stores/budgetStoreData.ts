@@ -63,14 +63,26 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             // Fetch data in parallel
             // OPTIMIZATION: Real-time listeners will handle transactions once setup.
             // We only need to fetch the core building blocks and the budget data for the current month.
+            logger.log('🔍 Starting parallel fetch: envelopes, categories, monthData');
             const [envelopes, categoriesResult, monthData] = await Promise.all([
-                budgetService.getEnvelopes(currentUser.id),
-                categoryService.getCategories(currentUser.id).catch(err => {
+                budgetService.getEnvelopes(currentUser.id).then(result => {
+                    logger.log('🔍 Envelopes fetch completed:', result.length);
+                    return result;
+                }),
+                categoryService.getCategories(currentUser.id).then(result => {
+                    logger.log('🔍 Categories fetch completed:', result.length);
+                    return result;
+                }).catch(err => {
                     logger.error('⚠️ Failed to load categories:', err);
                     return []; // Fallback to empty array
                 }),
-                budgetService.getMonthData(currentUser.id, state.currentMonth)
+                budgetService.getMonthData(currentUser.id, state.currentMonth).then(result => {
+                    logger.log('🔍 MonthData fetch completed');
+                    return result;
+                })
             ]);
+            
+            logger.log('🔍 All parallel fetches completed');
 
             // Ensure transactions for current month are marked as loading/loaded
             // so the real-time listener doesn't compete with a manual fetch
@@ -114,6 +126,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 error: null
             });
             
+            logger.log('🔍 Setting store state with fetched data');
             logger.log(`✅ BudgetStore initialized: ${envelopes.length} envelopes, current month: ${state.currentMonth}`);
             
             // 🔧 Auto-detect and fix lazy loading gaps
