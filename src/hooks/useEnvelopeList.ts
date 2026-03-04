@@ -161,6 +161,13 @@ export const useEnvelopeList = () => {
 
   // Load data from Firebase on mount
   useEffect(() => {
+    // Skip fetch if we already have envelopes loaded (e.g., navigating back from Settings)
+    if (envelopes.length > 0) {
+      logger.log('🔍 useEnvelopeList: Skipping fetch - data already loaded', envelopes.length, 'envelopes');
+      setInitialFetchTriggered(true);
+      return;
+    }
+    
     logger.log('🔍 useEnvelopeList: Initial data fetch triggered');
     
     // Set timeout message after 8 seconds
