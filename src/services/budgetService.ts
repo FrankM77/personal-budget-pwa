@@ -44,15 +44,47 @@ export class BudgetService {
       // 1. Wipe existing data
       await this.deleteAllUserData(userId);
 
-      // 2. Prepare batches for restoration
+      // 2. Build monthlyBudgets embedded documents from allocations + incomeSources
+      const monthlyBudgetsData: any[] = [];
+      const allMonths = new Set<string>([
+        ...Object.keys(backupData.allocations || {}),
+        ...Object.keys(backupData.incomeSources || {})
+      ]);
+
+      for (const month of allMonths) {
+        const allocationsArray = (backupData.allocations || {})[month] || [];
+        const incomeSourcesArray = (backupData.incomeSources || {})[month] || [];
+
+        // Convert allocations array to embedded map: { envelopeId: budgetedAmount }
+        const allocationsMap: Record<string, number> = {};
+        for (const alloc of allocationsArray) {
+          if (alloc.envelopeId) {
+            allocationsMap[alloc.envelopeId] = Number(alloc.budgetedAmount || 0);
+          }
+        }
+
+        const now = new Date().toISOString();
+        monthlyBudgetsData.push({
+          id: `${userId}_${month}`,
+          month,
+          userId,
+          allocations: allocationsMap,
+          incomeSources: incomeSourcesArray.map((s: any) => ({ ...s, userId })),
+          createdAt: now,
+          updatedAt: now,
+          totalIncome: incomeSourcesArray.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0),
+          availableToBudget: 0
+        });
+      }
+
+      logger.log(`📅 Prepared ${monthlyBudgetsData.length} monthly budget documents for months: ${[...allMonths].sort().join(', ')}`);
+
+      // 3. Prepare batches for restoration
       const collectionsToRestore: { name: string; data: any[] }[] = [
         { name: 'envelopes', data: backupData.envelopes || [] },
         { name: 'transactions', data: backupData.transactions || [] },
         { name: 'categories', data: backupData.categories || [] },
-        { name: 'envelopeAllocations', data: backupData.allocations ? Object.values(backupData.allocations).flat() : [] },
-        // Handle monthly budgets with embedded income sources
-        // { name: 'monthlyBudgets', data: this.prepareMonthlyBudgetsData(backupData.allocations, backupData.incomeSources) },
-        // Handle appSettings if present
+        { name: 'monthlyBudgets', data: monthlyBudgetsData },
         { name: 'appSettings', data: backupData.appSettings ? [backupData.appSettings] : [] }
       ];
 
