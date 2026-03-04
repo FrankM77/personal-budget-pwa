@@ -43,6 +43,7 @@ export const SettingsView: React.FC = () => {
   const [showLogViewer, setShowLogViewer] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
+  const [restoreProgress, setRestoreProgress] = useState(0);
   const [versionPressTimer, setVersionPressTimer] = useState<number | null>(null);
 
   // Version press handlers for accessing logs
@@ -220,6 +221,7 @@ export const SettingsView: React.FC = () => {
     reader.onload = async (e) => {
       try {
         setIsRestoring(true);
+        setRestoreProgress(0);
         setRestoreStatus('Reading backup file...');
         const parsed = JSON.parse(e.target?.result as string);
 
@@ -230,6 +232,13 @@ export const SettingsView: React.FC = () => {
           ...Object.keys(parsed.incomeSources || {})
         ]).size;
 
+        // Animate to 20% after parsing
+        setRestoreProgress(20);
+        setRestoreStatus('Clearing existing data...');
+        // Small delay so the UI can render the first stage
+        await new Promise(r => setTimeout(r, 100));
+
+        setRestoreProgress(40);
         setRestoreStatus(`Restoring ${envelopeCount} envelopes, ${txCount} transactions, ${monthCount} months...`);
 
         const result = await importData(parsed);
@@ -240,6 +249,7 @@ export const SettingsView: React.FC = () => {
           return;
         }
 
+        setRestoreProgress(80);
         setRestoreStatus('Applying settings...');
         if (parsed.appSettings?.theme) {
           try {
@@ -248,6 +258,11 @@ export const SettingsView: React.FC = () => {
             logger.error('Settings', 'Failed to update imported settings', { error });
           }
         }
+
+        setRestoreProgress(100);
+        setRestoreStatus('Done!');
+        // Brief pause so user sees 100%
+        await new Promise(r => setTimeout(r, 400));
 
         setIsRestoring(false);
         showStatus(
@@ -274,7 +289,6 @@ export const SettingsView: React.FC = () => {
       try {
         await resetData();
         showStatus('success', 'All data has been permanently deleted.');
-        navigate('/');
       } catch (error) {
         logger.error('Settings', 'Reset failed', { error });
         showStatus('error', 'Failed to delete all data. Some data may remain.');
@@ -348,9 +362,16 @@ export const SettingsView: React.FC = () => {
       {isRestoring && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 mx-6 max-w-sm w-full text-center">
-            <div className="mx-auto mb-4 w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-500 rounded-full animate-spin" />
+            <div className="mx-auto mb-5 w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-500 rounded-full animate-spin" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Restoring Backup</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-400">{restoreStatus}</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-400 mb-4">{restoreStatus}</p>
+            <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${restoreProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2">{restoreProgress}%</p>
           </div>
         </div>
       )}
