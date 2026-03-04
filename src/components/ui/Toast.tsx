@@ -7,6 +7,9 @@ import logger from '../../utils/logger';
 export const Toast: React.FC = () => {
   const { message, type, isVisible, undoAction, hideToast } = useToastStore();
 
+  // Log every render to see if component is updating
+  logger.log('🔄 Toast component render', { isVisible, message, type, hasUndo: !!undoAction });
+
   useEffect(() => {
     if (isVisible) {
       logger.log('🎨 Toast component: isVisible changed to true', { message, type, hasUndo: !!undoAction });
