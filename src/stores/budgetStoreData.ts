@@ -60,25 +60,57 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             
             logger.log(`Fetching data for user: ${currentUser.id}, month: ${state.currentMonth}`);
             
-            // Fetch data in parallel
+            // Fetch data in parallel with timeout protection
             // OPTIMIZATION: Real-time listeners will handle transactions once setup.
             // We only need to fetch the core building blocks and the budget data for the current month.
             logger.log('🔍 Starting parallel fetch: envelopes, categories, monthData');
+            
+            // Helper to add timeout to promises
+            const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> => {
+                return Promise.race([
+                    promise,
+                    new Promise<T>((_, reject) => 
+                        setTimeout(() => {
+                            logger.error(`🔍 ${name} fetch timed out after ${timeoutMs}ms`);
+                            reject(new Error(`${name} fetch timeout`));
+                        }, timeoutMs)
+                    )
+                ]);
+            };
+            
             const [envelopes, categoriesResult, monthData] = await Promise.all([
-                budgetService.getEnvelopes(currentUser.id).then(result => {
-                    logger.log('🔍 Envelopes fetch completed:', result.length);
-                    return result;
+                withTimeout(
+                    budgetService.getEnvelopes(currentUser.id).then(result => {
+                        logger.log('🔍 Envelopes fetch completed:', result.length);
+                        return result;
+                    }),
+                    10000,
+                    'Envelopes'
+                ).catch(err => {
+                    logger.error('⚠️ Failed to load envelopes:', err);
+                    return []; // Fallback to empty array
                 }),
-                categoryService.getCategories(currentUser.id).then(result => {
-                    logger.log('🔍 Categories fetch completed:', result.length);
-                    return result;
-                }).catch(err => {
+                withTimeout(
+                    categoryService.getCategories(currentUser.id).then(result => {
+                        logger.log('🔍 Categories fetch completed:', result.length);
+                        return result;
+                    }),
+                    10000,
+                    'Categories'
+                ).catch(err => {
                     logger.error('⚠️ Failed to load categories:', err);
                     return []; // Fallback to empty array
                 }),
-                budgetService.getMonthData(currentUser.id, state.currentMonth).then(result => {
-                    logger.log('🔍 MonthData fetch completed');
-                    return result;
+                withTimeout(
+                    budgetService.getMonthData(currentUser.id, state.currentMonth).then(result => {
+                        logger.log('🔍 MonthData fetch completed');
+                        return result;
+                    }),
+                    10000,
+                    'MonthData'
+                ).catch(err => {
+                    logger.error('⚠️ Failed to load month data:', err);
+                    return { incomeSources: [], allocations: [] }; // Fallback to empty data
                 })
             ]);
             
