@@ -264,6 +264,22 @@ This document captures patterns, mistakes, and learnings from coding sessions to
 - Keep toast calls in the VIEW LAYER (hooks/components), not in store actions
 - Revert toastStore and Toast.tsx to their original clean versions
 
+**Update**: The optimistic pattern was a real improvement, but the ACTUAL root cause was simpler: `<Toast />` was never mounted in the main authenticated app view in `App.tsx`. It only existed in splash/login/reset/verification views. The store updated correctly (`isVisible: true`) but no component was subscribed to render it. A single missing `<Toast />` line caused days of debugging.
+
+## Lesson: Always Verify Component Is Mounted Before Debugging State
+
+**Context**: Toast notifications not appearing despite store state being set correctly.
+
+**Root Cause**: `<Toast />` component was present in 4 out of 5 render paths in `App.tsx` but missing from the main authenticated app view — the only path where users actually interact with the app.
+
+**Diagnostic Approach That Worked**: Added targeted `logger.log()` calls at each step of the chain:
+1. Hook callback → ✅ logged
+2. `showToast` call → ✅ logged  
+3. Store state after `set()` → ✅ `isVisible: true`
+4. Toast component render → ❌ **zero logs** = component not mounted
+
+**Lesson**: When a Zustand store updates but a subscribing component doesn't re-render, check if the component is actually **mounted in the current render path** before investigating store subscription issues.
+
 **Pattern**: **Never `await` backend calls that trigger real-time listeners before showing UI feedback.** Use optimistic updates: local state first, backend fire-and-forget. Keep UI concerns (toasts) in the view layer, not in store actions.
 
 **Anti-Pattern**: Calling `useToastStore.getState().showToast()` from inside Zustand store actions. Even though it should work in theory, mixing store-to-store calls with real-time listeners creates unpredictable re-render timing.
