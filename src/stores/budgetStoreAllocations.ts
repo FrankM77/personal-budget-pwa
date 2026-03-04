@@ -1,5 +1,6 @@
 import { BudgetService } from '../services/budgetService';
 import { useAuthStore } from './authStore';
+import { useToastStore } from './toastStore';
 import logger from '../utils/logger';
 import type { IncomeSource, EnvelopeAllocation } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
@@ -121,12 +122,13 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             logger.log('✅ Soft-deleted income source:', sourceId);
             
             // Show undo toast
-            const { useToastStore } = await import('./toastStore');
+            logger.log('🔔 Showing undo toast for income source:', sourceName);
             useToastStore.getState().showToast(
                 `Deleted "${sourceName}"`,
                 'neutral',
                 async () => {
                     // Undo: restore the income source
+                    logger.log('🔄 Undo clicked for income source:', sourceId);
                     try {
                         await budgetService.restoreIncomeSource(currentUser.id, sourceId, month);
                         // Refresh month data to show restored item

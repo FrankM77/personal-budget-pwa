@@ -1,5 +1,6 @@
 import { BudgetService } from '../services/budgetService';
 import { useAuthStore } from './authStore';
+import { useToastStore } from './toastStore';
 import logger from '../utils/logger';
 import type { Envelope } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
@@ -99,12 +100,13 @@ export const createEnvelopeSlice = ({ set, get }: SliceParams) => ({
             logger.log('✅ Soft-deleted envelope:', envelopeId);
             
             // Show undo toast
-            const { useToastStore } = await import('./toastStore');
+            logger.log('🔔 Showing undo toast for envelope:', envelopeName);
             useToastStore.getState().showToast(
                 `Deleted "${envelopeName}"`,
                 'neutral',
                 async () => {
                     // Undo: restore the envelope
+                    logger.log('🔄 Undo clicked for envelope:', envelopeId);
                     try {
                         await budgetService.restoreEnvelope(currentUser.id, envelopeId);
                         // Refresh envelopes to show restored item
