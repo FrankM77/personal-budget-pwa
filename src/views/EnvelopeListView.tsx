@@ -720,7 +720,17 @@ export const EnvelopeListView: React.FC = () => {
     startGuidedTutorial();
   };
 
+  console.log('🔍 EnvelopeListView: Rendering with loading states:', {
+    isInitialLoading,
+    isLoading,
+    isOnboardingActive,
+    showTimeoutMessage,
+    envelopesCount: visibleEnvelopes.length,
+    piggybanksCount: piggybanks.length
+  });
+
   if (isInitialLoading) {
+    console.log('🔍 EnvelopeListView: Showing loading screen');
     return <LoadingScreen message={showTimeoutMessage ? "Still loading..." : "Loading your budget..."} showTimeout={showTimeoutMessage} />;
   }
 

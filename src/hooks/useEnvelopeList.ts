@@ -75,6 +75,17 @@ export const useEnvelopeList = () => {
   // Once fetch is triggered and stores are not loading, we're done
   const isInitialLoading = !initialFetchTriggered || isLoading || isBudgetLoading;
 
+  // DEBUG: Log loading states to diagnose export-related loading issues
+  logger.log('🔍 useEnvelopeList loading states:', {
+    initialFetchTriggered,
+    isLoading,
+    isBudgetLoading,
+    isInitialLoading,
+    envelopesCount: envelopes.length,
+    transactionsCount: transactions.length,
+    currentMonth
+  });
+
   // State for reorder list to allow smooth dragging
   const [localEnvelopes, setLocalEnvelopes] = useState<typeof envelopes>([]);
   const localOrderRef = useRef<typeof envelopes>([]);
@@ -150,6 +161,8 @@ export const useEnvelopeList = () => {
 
   // Load data from Firebase on mount
   useEffect(() => {
+    logger.log('🔍 useEnvelopeList: Initial data fetch triggered');
+    
     // Set timeout message after 8 seconds
     loadingTimeoutRef.current = setTimeout(() => {
       setShowTimeoutMessage(true);
@@ -171,7 +184,15 @@ export const useEnvelopeList = () => {
   
   // Watch store loading states and hide timeout message when both are done
   useEffect(() => {
+    logger.log('🔍 useEnvelopeList: Loading state change', {
+      initialFetchTriggered,
+      isLoading,
+      isBudgetLoading,
+      showTimeoutMessage
+    });
+    
     if (initialFetchTriggered && !isLoading && !isBudgetLoading) {
+      logger.log('🔍 useEnvelopeList: All loading complete, hiding timeout message');
       setShowTimeoutMessage(false);
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);

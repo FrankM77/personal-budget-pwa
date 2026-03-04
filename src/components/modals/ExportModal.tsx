@@ -60,10 +60,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   const handleExport = async () => {
+    console.log('🔍 ExportModal: Starting export process');
     setIsExporting(true);
     
     try {
       const selectedMonths = getSelectedMonths();
+      console.log('🔍 ExportModal: Selected months:', selectedMonths);
+      console.log('🔍 ExportModal: Total transactions available:', transactions.length);
       
       // Filter transactions by selected months
       const filtered = transactions.filter(t => 
@@ -71,6 +74,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         t.description !== 'Piggybank Contribution' &&
         selectedMonths.includes(t.month || '')
       );
+      
+      console.log('🔍 ExportModal: Filtered transactions:', filtered.length);
 
       
       if (exportFormat === 'csv') {
@@ -355,10 +360,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         }
       }
       
+      console.log('🔍 ExportModal: Export completed successfully, closing modal');
       onClose();
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error('🔍 ExportModal: Export failed:', error);
     } finally {
+      console.log('🔍 ExportModal: Export process finished, resetting exporting state');
       setIsExporting(false);
     }
   };
