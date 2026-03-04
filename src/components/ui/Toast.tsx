@@ -2,12 +2,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Undo2 } from 'lucide-react';
 import { useToastStore } from '../../stores/toastStore';
-import logger from '../../utils/logger';
 
 export const Toast: React.FC = () => {
   const { message, type, isVisible, undoAction, hideToast } = useToastStore();
-
-  logger.log('🍞 Toast RENDER', { isVisible, message });
 
   const getToastStyles = () => {
     switch (type) {

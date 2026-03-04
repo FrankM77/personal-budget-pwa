@@ -259,6 +259,7 @@ function App() {
             <BottomNavigation onAddTransaction={() => setShowAddTransactionModal(true)} />
           )}
         </HashRouter>
+        <Toast />
       </ErrorBoundary>
     </>
   );
