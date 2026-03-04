@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import logger from '../utils/logger';
 
 interface ToastState {
   message: string;
@@ -21,6 +22,8 @@ export const useToastStore = create<ToastStore>((set, get) => ({
   undoAction: undefined,
 
   showToast: (message: string, type: ToastState['type'] = 'neutral', undoAction?: () => void) => {
+    logger.log('📢 ToastStore.showToast called', { message, type, hasUndo: !!undoAction });
+    
     set({
       message,
       type,
@@ -28,14 +31,18 @@ export const useToastStore = create<ToastStore>((set, get) => ({
       undoAction,
     });
 
+    logger.log('📢 ToastStore state updated', { isVisible: true });
+
     // Auto-hide after 5 seconds if undo action, 2 seconds otherwise
     const timeout = undoAction ? 5000 : 2000;
     setTimeout(() => {
+      logger.log('⏰ Toast timeout expired, hiding toast');
       get().hideToast();
     }, timeout);
   },
 
   hideToast: () => {
+    logger.log('🚫 ToastStore.hideToast called');
     set({ isVisible: false });
   },
 }));

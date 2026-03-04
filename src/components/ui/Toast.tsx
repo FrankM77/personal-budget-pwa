@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Undo2 } from 'lucide-react';
 import { useToastStore } from '../../stores/toastStore';
+import logger from '../../utils/logger';
 
 export const Toast: React.FC = () => {
   const { message, type, isVisible, undoAction, hideToast } = useToastStore();
+
+  useEffect(() => {
+    if (isVisible) {
+      logger.log('🎨 Toast component: isVisible changed to true', { message, type, hasUndo: !!undoAction });
+    }
+  }, [isVisible, message, type, undoAction]);
 
   const getToastStyles = () => {
     switch (type) {
