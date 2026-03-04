@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Download, Upload, Trash2, CheckCircle, ChevronRight, AlertTriangle, RefreshCw, LogOut, Sparkles } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useAuthStore } from '../stores/authStore';
+import { useToastStore } from '../stores/toastStore';
 import StartFreshConfirmModal from '../components/modals/StartFreshConfirmModal';
 import LogViewer from '../components/ui/LogViewer';
 import { RecentlyDeletedSection } from '../components/RecentlyDeletedSection';
@@ -31,6 +32,7 @@ export const SettingsView: React.FC = () => {
   } = useBudgetStore();
 
   const { deleteAccount, currentUser, logout } = useAuthStore();
+  const { showToast } = useToastStore();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => {
     return localStorage.getItem('lastBackupDate') || 'Never';
@@ -288,10 +290,10 @@ export const SettingsView: React.FC = () => {
     ) {
       try {
         await resetData();
-        showStatus('success', 'All data has been permanently deleted.');
+        showToast('All data has been permanently deleted.', 'success');
       } catch (error) {
         logger.error('Settings', 'Reset failed', { error });
-        showStatus('error', 'Failed to delete all data. Some data may remain.');
+        showToast('Failed to delete all data. Some data may remain.', 'error');
       }
     }
   };
