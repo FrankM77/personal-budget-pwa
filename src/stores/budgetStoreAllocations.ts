@@ -98,7 +98,18 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
             
             logger.log('🗑️ Deleting income source:', { month, sourceId });
             
-            // Update local state
+            const state = get();
+            const { currentUser } = useAuthStore.getState();
+            if (!currentUser) return;
+            
+            // Store income source name for toast message
+            const incomeSource = state.incomeSources[month]?.find(s => s.id === sourceId);
+            const sourceName = incomeSource?.name || 'Income source';
+            
+            // Soft-delete from backend (sets deletedAt timestamp)
+            await budgetService.deleteIncomeSource(currentUser.id, sourceId, month);
+            
+            // Update local state to filter out soft-deleted income source
             set(state => ({
                 incomeSources: {
                     ...state.incomeSources,
@@ -107,14 +118,33 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
                 isLoading: false
             }));
             
-            // Delete from backend
-            const { currentUser } = useAuthStore.getState();
-            if (!currentUser) return;
-
-            // Pass month to service
-            await budgetService.deleteIncomeSource(currentUser.id, sourceId, month);
+            logger.log('✅ Soft-deleted income source:', sourceId);
             
-            logger.log('✅ Deleted income source:', sourceId);
+            // Show undo toast
+            const { useToastStore } = await import('./toastStore');
+            useToastStore.getState().showToast(
+                `Deleted "${sourceName}"`,
+                'neutral',
+                async () => {
+                    // Undo: restore the income source
+                    try {
+                        await budgetService.restoreIncomeSource(currentUser.id, sourceId, month);
+                        // Refresh month data to show restored item
+                        const monthData = await budgetService.getMonthData(currentUser.id, month);
+                        set(state => ({
+                            incomeSources: {
+                                ...state.incomeSources,
+                                [month]: monthData.incomeSources
+                            }
+                        }));
+                        logger.log('✅ Restored income source:', sourceId);
+                        useToastStore.getState().showToast(`Restored "${sourceName}"`, 'success');
+                    } catch (error) {
+                        logger.error('❌ Failed to restore income source:', error);
+                        useToastStore.getState().showToast('Failed to restore income source', 'error');
+                    }
+                }
+            );
             
         } catch (error) {
             logger.error('❌ deleteIncomeSource failed:', error);

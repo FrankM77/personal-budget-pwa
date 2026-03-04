@@ -39,6 +39,7 @@ export interface Envelope {
   orderIndex: number;
   userId?: string;
   createdAt?: string; // ISO String - when envelope was created
+  deletedAt?: string; // ISO String - when envelope was soft-deleted (null = not deleted)
   
   // Piggybank fields
   isPiggybank?: boolean;
@@ -111,6 +112,7 @@ export interface IncomeSource {
   category?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string; // ISO String - when income source was soft-deleted (null = not deleted)
 }
 
 export interface EnvelopeAllocation {

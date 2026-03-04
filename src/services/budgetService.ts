@@ -51,7 +51,7 @@ export class BudgetService {
         { name: 'categories', data: backupData.categories || [] },
         { name: 'envelopeAllocations', data: backupData.allocations ? Object.values(backupData.allocations).flat() : [] },
         // Handle monthly budgets with embedded income sources
-        { name: 'monthlyBudgets', data: this.prepareMonthlyBudgetsData(backupData.allocations, backupData.incomeSources) },
+        // { name: 'monthlyBudgets', data: this.prepareMonthlyBudgetsData(backupData.allocations, backupData.incomeSources) },
         // Handle appSettings if present
         { name: 'appSettings', data: backupData.appSettings ? [backupData.appSettings] : [] }
       ];
@@ -127,8 +127,11 @@ export class BudgetService {
         orderIndex: doc.data().orderIndex ?? index
       })) as Envelope[];
       
+      // Filter out soft-deleted envelopes
+      const activeEnvelopes = envelopes.filter(env => !env.deletedAt);
+      
       // Sort by orderIndex in memory
-      const sortedEnvelopes = envelopes.sort((a, b) => {
+      const sortedEnvelopes = activeEnvelopes.sort((a, b) => {
         const aIndex = a.orderIndex ?? 0;
         const bIndex = b.orderIndex ?? 0;
         return aIndex - bIndex;
@@ -139,6 +142,41 @@ export class BudgetService {
     } catch (error) {
       logger.warn(`❌ BudgetService.getEnvelopes failed: ${error}`);
       throw new Error(`Failed to fetch envelopes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Fetch deleted envelopes (for Recently Deleted view)
+   * @param userId - User ID to fetch deleted envelopes for
+   * @returns Promise<Envelope[]> - Array of soft-deleted envelope objects
+   */
+  async getDeletedEnvelopes(userId: string): Promise<Envelope[]> {
+    try {
+      logger.log('📡 BudgetService.getDeletedEnvelopes called for user:', userId);
+      
+      const collectionRef = collection(db, 'users', userId, 'envelopes');
+      const snapshot = await getDocs(collectionRef);
+      
+      const envelopes = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Envelope[];
+      
+      // Filter for soft-deleted envelopes only
+      const deletedEnvelopes = envelopes.filter(env => env.deletedAt);
+      
+      // Sort by deletedAt (most recent first)
+      const sortedDeleted = deletedEnvelopes.sort((a, b) => {
+        const aTime = new Date(a.deletedAt!).getTime();
+        const bTime = new Date(b.deletedAt!).getTime();
+        return bTime - aTime;
+      });
+      
+      logger.log('✅ Fetched deleted envelopes:', sortedDeleted.length);
+      return sortedDeleted;
+    } catch (error) {
+      logger.warn(`❌ BudgetService.getDeletedEnvelopes failed: ${error}`);
+      throw new Error(`Failed to fetch deleted envelopes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -306,6 +344,52 @@ export class BudgetService {
     try {
       const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
       
+      // Soft-delete: Set deletedAt timestamp instead of hard-deleting
+      await updateDoc(docRef, {
+        deletedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      });
+      
+      logger.log('✅ Soft-deleted envelope (set deletedAt):', envelopeId);
+    } catch (error) {
+      logger.warn(`❌ BudgetService.deleteEnvelope failed: ${error}`);
+      throw new Error(`Failed to delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Restore a soft-deleted envelope
+   * @param userId - User ID
+   * @param envelopeId - Envelope ID to restore
+   * @returns Promise<void>
+   */
+  async restoreEnvelope(userId: string, envelopeId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
+      
+      // Remove deletedAt to restore
+      await updateDoc(docRef, {
+        deletedAt: deleteField(),
+        lastUpdated: new Date().toISOString()
+      });
+      
+      logger.log('✅ Restored envelope (removed deletedAt):', envelopeId);
+    } catch (error) {
+      logger.warn(`❌ BudgetService.restoreEnvelope failed: ${error}`);
+      throw new Error(`Failed to restore envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Permanently delete an envelope and all its transactions
+   * @param userId - User ID
+   * @param envelopeId - Envelope ID to permanently delete
+   * @returns Promise<void>
+   */
+  async permanentlyDeleteEnvelope(userId: string, envelopeId: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
+      
       // Delete all transactions associated with this envelope
       const transactionsQuery = query(
         collection(db, 'users', userId, 'transactions'),
@@ -321,10 +405,10 @@ export class BudgetService {
         ...deletePromises
       ]);
       
-      logger.log('✅ Deleted envelope and associated transactions from Firestore:', envelopeId);
+      logger.log('✅ Permanently deleted envelope and associated transactions from Firestore:', envelopeId);
     } catch (error) {
-      logger.warn(`❌ BudgetService.deleteEnvelope failed: ${error}`);
-      throw new Error(`Failed to delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.warn(`❌ BudgetService.permanentlyDeleteEnvelope failed: ${error}`);
+      throw new Error(`Failed to permanently delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -556,23 +640,81 @@ export class BudgetService {
       logger.log('📡 BudgetService.deleteIncomeSource (Embedded) called for source:', sourceId);
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
-      // Read-modify-write pattern for array deletion
-      getDoc(docRef).then((snap: any) => {
-        if (!snap.exists()) return;
-        const data = snap.data();
-        const sources = data.incomeSources || [];
-        const updatedSources = sources.filter((s: any) => s.id !== sourceId);
-        
-        updateDoc(docRef, { 
-          incomeSources: updatedSources,
-          updatedAt: Timestamp.now()
-        });
-      }).catch((err: any) => logger.warn(`Delete income failed: ${err}`));
+      // Soft-delete: Set deletedAt timestamp on the income source
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return;
+      
+      const data = snap.data();
+      const sources = data.incomeSources || [];
+      const updatedSources = sources.map((s: any) => 
+        s.id === sourceId 
+          ? { ...s, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+          : s
+      );
+      
+      await updateDoc(docRef, { 
+        incomeSources: updatedSources,
+        updatedAt: Timestamp.now()
+      });
 
-      logger.log('✅ Deleted income source (optimistic/embedded):', sourceId);
+      logger.log('✅ Soft-deleted income source (set deletedAt):', sourceId);
     } catch (error) {
       logger.warn(`❌ BudgetService.deleteIncomeSource failed: ${error}`);
       throw new Error(`Failed to delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async restoreIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
+    try {
+      logger.log('📡 BudgetService.restoreIncomeSource (Embedded) called for source:', sourceId);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return;
+      
+      const data = snap.data();
+      const sources = data.incomeSources || [];
+      const updatedSources = sources.map((s: any) => {
+        if (s.id === sourceId) {
+          const { deletedAt, ...rest } = s;
+          return { ...rest, updatedAt: new Date().toISOString() };
+        }
+        return s;
+      });
+      
+      await updateDoc(docRef, { 
+        incomeSources: updatedSources,
+        updatedAt: Timestamp.now()
+      });
+
+      logger.log('✅ Restored income source (removed deletedAt):', sourceId);
+    } catch (error) {
+      logger.warn(`❌ BudgetService.restoreIncomeSource failed: ${error}`);
+      throw new Error(`Failed to restore income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async permanentlyDeleteIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
+    try {
+      logger.log('📡 BudgetService.permanentlyDeleteIncomeSource (Embedded) called for source:', sourceId);
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
+      
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return;
+      
+      const data = snap.data();
+      const sources = data.incomeSources || [];
+      const updatedSources = sources.filter((s: any) => s.id !== sourceId);
+      
+      await updateDoc(docRef, { 
+        incomeSources: updatedSources,
+        updatedAt: Timestamp.now()
+      });
+
+      logger.log('✅ Permanently deleted income source:', sourceId);
+    } catch (error) {
+      logger.warn(`❌ BudgetService.permanentlyDeleteIncomeSource failed: ${error}`);
+      throw new Error(`Failed to permanently delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -685,13 +827,15 @@ export class BudgetService {
 
       const data = snap.data();
       
-      // Parse Income Sources (Embedded Array)
-      const incomeSources = (data.incomeSources || []).map((source: any) => ({
-        ...source,
-        amount: Number(source.amount), // Ensure number
-        createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
-        updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
-      })).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      // Parse Income Sources (Embedded Array) and filter out soft-deleted
+      const incomeSources = (data.incomeSources || [])
+        .filter((source: any) => !source.deletedAt) // Filter out soft-deleted
+        .map((source: any) => ({
+          ...source,
+          amount: Number(source.amount), // Ensure number
+          createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
+          updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
+        })).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       // Parse Allocations (Embedded Map: envelopeId -> amount)
       const allocationsMap = data.allocations || {};
@@ -848,13 +992,15 @@ export class BudgetService {
 
       const data = docSnap.data();
       
-      // Parse Income Sources (Embedded Array)
-      const incomeSources = (data.incomeSources || []).map((source: any) => ({
-        ...source,
-        amount: Number(source.amount), // Ensure number
-        createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
-        updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
-      })).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      // Parse Income Sources (Embedded Array) and filter out soft-deleted
+      const incomeSources = (data.incomeSources || [])
+        .filter((source: any) => !source.deletedAt)
+        .map((source: any) => ({
+          ...source,
+          amount: Number(source.amount), // Ensure number
+          createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
+          updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
+        })).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       // Parse Allocations (Embedded Map: envelopeId -> amount)
       const allocationsMap = data.allocations || {};
@@ -873,52 +1019,41 @@ export class BudgetService {
   }
 
   /**
-   * Prepare monthly budgets data for restoration with embedded income sources
-   * @param allocations - Budget allocations from backup
-   * @param incomeSources - Income sources from backup
-   * @returns Array of monthly budget documents
+   * Fetch deleted income sources for a specific month (for Recently Deleted view)
+   * @param userId - User ID
+   * @param monthStr - Month string in "YYYY-MM" format
+   * @returns Promise<IncomeSource[]> - Array of soft-deleted income sources
    */
-  private prepareMonthlyBudgetsData(allocations: any, incomeSources: any): any[] {
-    const monthlyBudgets: any[] = [];
-    
-    // Get all unique months from allocations and income sources
-    const allMonths = new Set<string>();
-    
-    if (allocations) {
-      Object.keys(allocations).forEach(month => allMonths.add(month));
+  async getDeletedIncomeSources(userId: string, monthStr: string): Promise<IncomeSource[]> {
+    try {
+      logger.log(`📅 BudgetService.getDeletedIncomeSources: Fetching for user ${userId}, month ${monthStr}`);
+      
+      const docRef = doc(db, 'users', userId, 'monthlyBudgets', monthStr);
+      const snap = await getDoc(docRef);
+      
+      if (!snap.exists()) {
+        return [];
+      }
+
+      const data = snap.data();
+      
+      // Parse and filter for deleted income sources only
+      const deletedSources = (data.incomeSources || [])
+        .filter((source: any) => source.deletedAt) // Only soft-deleted
+        .map((source: any) => ({
+          ...source,
+          amount: Number(source.amount),
+          createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
+          updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
+          deletedAt: source.deletedAt
+        })).sort((a: any, b: any) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime()); // Most recent first
+
+      logger.log(`📊 Fetched ${deletedSources.length} deleted income sources for ${monthStr}`);
+      return deletedSources;
+    } catch (error) {
+      logger.warn(`❌ BudgetService.getDeletedIncomeSources failed: ${error}`);
+      throw new Error(`Failed to fetch deleted income sources: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    if (incomeSources) {
-      Object.keys(incomeSources).forEach(month => allMonths.add(month));
-    }
-    
-    // Create monthly budget documents for each month
-    allMonths.forEach(month => {
-      const monthAllocations = allocations?.[month] || [];
-      const monthIncomeSources = incomeSources?.[month] || [];
-      
-      // Convert allocations to the format expected by monthlyBudgets
-      const allocationsObject: any = {};
-      monthAllocations.forEach((alloc: any) => {
-        allocationsObject[alloc.envelopeId] = alloc.budgetedAmount;
-      });
-      
-      const monthlyBudget = {
-        month,
-        userId: '', // Will be set in the restore function
-        incomeSources: monthIncomeSources,
-        allocations: allocationsObject,
-        totalIncome: monthIncomeSources.reduce((sum: number, source: any) => sum + Number(source.amount || 0), 0),
-        availableToBudget: monthIncomeSources.reduce((sum: number, source: any) => sum + Number(source.amount || 0), 0) - 
-                       monthAllocations.reduce((sum: number, alloc: any) => sum + Number(alloc.budgetedAmount || 0), 0),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      monthlyBudgets.push(monthlyBudget);
-    });
-    
-    return monthlyBudgets;
   }
 
   /**
