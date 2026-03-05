@@ -303,7 +303,7 @@ export const TransactionHistoryView: React.FC = () => {
               : 'bg-gray-100 text-gray-800 dark:bg-zinc-800 dark:text-zinc-300'
           } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {isLoading ? 'Loading...' : (showAllTime ? 'Current Month Only' : 'All Time')}
+          {isLoading ? 'Loading...' : (showAllTime ? 'All Time' : 'Current Month Only')}
         </button>
       </div>
 
