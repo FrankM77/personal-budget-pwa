@@ -20,6 +20,10 @@ export interface BudgetState {
   isOnboardingCompleted: boolean; // Persistent State
   guidedTutorialStep: number | null; // null = not active, 0-3 = active step
   guidedTutorialCompleted: boolean; // Persistent State
+  // Known limitation: isLoading is shared across all actions. If two actions run
+  // concurrently (e.g., addTransaction + fetchMonthData), the first to complete
+  // sets isLoading=false while the other is still running. For a single-user app
+  // this is acceptable — a per-feature loading counter would be the fix if needed.
   isLoading: boolean;
   error: string | null;
 

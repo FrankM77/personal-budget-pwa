@@ -90,6 +90,7 @@ export interface AppSettings {
   enableMoveableReorder?: boolean;
   paymentSources?: PaymentSource[];
   siriToken?: string;
+  siriTokenCreatedAt?: string; // ISO String - when the Siri token was generated (for rotation)
 }
 
 // Zero-Based Budgeting Types

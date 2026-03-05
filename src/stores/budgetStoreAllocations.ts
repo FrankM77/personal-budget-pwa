@@ -1,17 +1,11 @@
 import { BudgetService } from '../services/budgetService';
 import { useAuthStore } from './authStore';
+import { requireAuth } from '../utils/requireAuth';
 import logger from '../utils/logger';
 import type { IncomeSource, EnvelopeAllocation } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
 
 const budgetService = BudgetService.getInstance();
-
-// Helper to require an authenticated user (throws if not logged in)
-const requireAuth = () => {
-  const { currentUser } = useAuthStore.getState();
-  if (!currentUser) throw new Error('No authenticated user found');
-  return currentUser;
-};
 
 export const createAllocationSlice = ({ set, get }: SliceParams) => ({
     addIncomeSource: async (month: string, source: Omit<IncomeSource, 'id'>): Promise<void> => {

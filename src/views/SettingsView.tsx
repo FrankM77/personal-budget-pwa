@@ -46,6 +46,7 @@ export const SettingsView: React.FC = () => {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
   const [restoreProgress, setRestoreProgress] = useState(0);
+  const [pendingRestore, setPendingRestore] = useState<{ parsed: any; envelopeCount: number; txCount: number; monthCount: number } | null>(null);
   const [versionPressTimer, setVersionPressTimer] = useState<number | null>(null);
 
   // Version press handlers for accessing logs
@@ -222,11 +223,7 @@ export const SettingsView: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        setIsRestoring(true);
-        setRestoreProgress(0);
-        setRestoreStatus('Reading backup file...');
         const parsed = JSON.parse(e.target?.result as string);
-
         const envelopeCount = parsed.envelopes?.length ?? 0;
         const txCount = parsed.transactions?.length ?? 0;
         const monthCount = new Set([
@@ -234,45 +231,9 @@ export const SettingsView: React.FC = () => {
           ...Object.keys(parsed.incomeSources || {})
         ]).size;
 
-        // Animate to 20% after parsing
-        setRestoreProgress(20);
-        setRestoreStatus('Clearing existing data...');
-        // Small delay so the UI can render the first stage
-        await new Promise(r => setTimeout(r, 100));
-
-        setRestoreProgress(40);
-        setRestoreStatus(`Restoring ${envelopeCount} envelopes, ${txCount} transactions, ${monthCount} months...`);
-
-        const result = await importData(parsed);
-
-        if (!result.success) {
-          setIsRestoring(false);
-          showStatus('error', result.message);
-          return;
-        }
-
-        setRestoreProgress(80);
-        setRestoreStatus('Applying settings...');
-        if (parsed.appSettings?.theme) {
-          try {
-            await updateAppSettings({ theme: parsed.appSettings.theme });
-          } catch (error) {
-            logger.error('Settings', 'Failed to update imported settings', { error });
-          }
-        }
-
-        setRestoreProgress(100);
-        setRestoreStatus('Done!');
-        // Brief pause so user sees 100%
-        await new Promise(r => setTimeout(r, 400));
-
-        setIsRestoring(false);
-        showStatus(
-          'success',
-          `Restored ${envelopeCount} envelopes, ${txCount} transactions across ${monthCount} months.`
-        );
+        // Show confirmation before proceeding
+        setPendingRestore({ parsed, envelopeCount, txCount, monthCount });
       } catch (error) {
-        setIsRestoring(false);
         logger.error('Settings', 'Import failed', { error });
         showStatus('error', 'Invalid backup file. Please verify the JSON.');
       }
@@ -280,6 +241,57 @@ export const SettingsView: React.FC = () => {
 
     reader.readAsText(file);
     event.target.value = '';
+  };
+
+  const executeRestore = async () => {
+    if (!pendingRestore) return;
+    const { parsed, envelopeCount, txCount, monthCount } = pendingRestore;
+    setPendingRestore(null);
+
+    try {
+      setIsRestoring(true);
+      setRestoreProgress(0);
+      setRestoreStatus('Reading backup file...');
+
+      setRestoreProgress(20);
+      setRestoreStatus('Clearing existing data...');
+      await new Promise(r => setTimeout(r, 100));
+
+      setRestoreProgress(40);
+      setRestoreStatus(`Restoring ${envelopeCount} envelopes, ${txCount} transactions, ${monthCount} months...`);
+
+      const result = await importData(parsed);
+
+      if (!result.success) {
+        setIsRestoring(false);
+        showStatus('error', result.message);
+        return;
+      }
+
+      setRestoreProgress(80);
+      setRestoreStatus('Applying settings...');
+      if (parsed.appSettings?.theme) {
+        try {
+          await updateAppSettings({ theme: parsed.appSettings.theme });
+        } catch (error) {
+          logger.error('Settings', 'Failed to update imported settings', { error });
+        }
+      }
+
+      setRestoreProgress(100);
+      setRestoreStatus('Done!');
+      await new Promise(r => setTimeout(r, 400));
+
+      setIsRestoring(false);
+      showStatus(
+        'success',
+        `Restored ${envelopeCount} envelopes, ${txCount} transactions across ${monthCount} months.`
+      );
+    } catch (error) {
+      setIsRestoring(false);
+      logger.error('Settings', 'Import failed', { error });
+      showStatus('error', 'Restore failed. Please try again.');
+    }
   };
 
   const handleReset = async () => {
@@ -360,6 +372,38 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-200">
+      {/* Restore Confirmation Modal */}
+      {pendingRestore && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6 mx-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Restore Backup?</h3>
+            <p className="text-sm text-gray-500 dark:text-zinc-400 mb-4">
+              This will <strong className="text-red-500">replace all current data</strong> with:
+            </p>
+            <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3 mb-4 space-y-1">
+              <p className="text-sm text-gray-700 dark:text-zinc-300">{pendingRestore.envelopeCount} envelopes</p>
+              <p className="text-sm text-gray-700 dark:text-zinc-300">{pendingRestore.txCount} transactions</p>
+              <p className="text-sm text-gray-700 dark:text-zinc-300">{pendingRestore.monthCount} months of budget data</p>
+            </div>
+            <p className="text-xs text-red-500 dark:text-red-400 mb-4">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingRestore(null)}
+                className="flex-1 py-2 px-4 bg-gray-200 dark:bg-zinc-700 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeRestore}
+                className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+              >
+                Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Restore Progress Overlay */}
       {isRestoring && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
@@ -723,7 +767,7 @@ export const SettingsView: React.FC = () => {
                     onClick={async () => {
                       if (confirm('Are you sure you want to regenerate your Siri token? You will need to update your Shortcut.')) {
                         const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-                        await updateAppSettings({ siriToken: token });
+                        await updateAppSettings({ siriToken: token, siriTokenCreatedAt: new Date().toISOString() });
                         showStatus('success', 'Siri token regenerated');
                       }
                     }}
@@ -737,7 +781,7 @@ export const SettingsView: React.FC = () => {
                 <button
                   onClick={async () => {
                     const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-                    await updateAppSettings({ siriToken: token });
+                    await updateAppSettings({ siriToken: token, siriTokenCreatedAt: new Date().toISOString() });
                     showStatus('success', 'Siri token generated');
                   }}
                   className="w-full py-2 px-4 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors"

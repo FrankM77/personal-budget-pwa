@@ -79,15 +79,15 @@ const EnvelopeListItem = ({
     detect: LongPressEventType.Touch
   });
 
-  // Calculate percentage for progress bar
-  const envelopeTransactions = transactions.filter(t => 
-    t.envelopeId === env.id && t.month === currentMonth
-  );
-  const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-  const incomes = envelopeTransactions.filter(t => t.type === 'Income');
-  const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-  const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-  const percentage = totalIncome > 0 ? Math.max(0, (totalSpent / totalIncome) * 100) : 0;
+  // Calculate percentage for progress bar (memoized to avoid recalculating on every render)
+  const percentage = useMemo(() => {
+    const envelopeTransactions = transactions.filter(t => 
+      t.envelopeId === env.id && t.month === currentMonth
+    );
+    const spent = envelopeTransactions.filter(t => t.type === 'Expense').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const income = envelopeTransactions.filter(t => t.type === 'Income').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    return income > 0 ? Math.max(0, (spent / income) * 100) : 0;
+  }, [transactions, env.id, currentMonth]);
 
   const handleMoveableClick = (e: React.MouseEvent | React.TouchEvent) => {
     if (didDragThisItem || isReorderingActive) {

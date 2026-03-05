@@ -1,17 +1,12 @@
 import { CategoryService } from '../services/CategoryService';
 import { useAuthStore } from './authStore';
+import { requireAuth } from '../utils/requireAuth';
 import logger from '../utils/logger';
 import type { Category, Envelope } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
 
 const categoryService = CategoryService.getInstance();
 
-// Helper to require an authenticated user (throws if not logged in)
-const requireAuth = () => {
-  const { currentUser } = useAuthStore.getState();
-  if (!currentUser) throw new Error('No authenticated user found');
-  return currentUser;
-};
 
 export const createCategorySlice = ({ set, get }: SliceParams) => ({
     fetchCategories: async () => {

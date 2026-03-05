@@ -26,7 +26,7 @@ export const Toast: React.FC = () => {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed bottom-24 right-6 z-[110] max-w-xs"
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom)+1rem)] right-6 z-[110] max-w-xs"
         >
           <div className={`rounded-lg shadow-lg p-3 flex items-center justify-between ${getToastStyles()}`}>
             <div className="flex items-center flex-1 min-w-0">

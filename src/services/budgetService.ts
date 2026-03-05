@@ -17,9 +17,14 @@ export interface CleanupReport {
 }
 
 /**
- * Unified Budget Service Layer
- * Handles all Firestore interactions for the unified BudgetStore
- * Returns clean Domain Objects, hiding Firestore complexity
+ * Unified Budget Service Layer (Primary)
+ * Handles ALL Firestore CRUD operations for the unified BudgetStore.
+ * Returns clean Domain Objects, hiding Firestore complexity.
+ *
+ * Architecture note: Standalone services (EnvelopeService, TransactionService,
+ * CategoryService, AppSettingsService, DistributionTemplateService) exist only
+ * for real-time `onSnapshot` subscriptions used by envelopeStoreRealtime.ts.
+ * All create/read/update/delete operations go through this service.
  */
 export class BudgetService {
   private static instance: BudgetService;
@@ -40,6 +45,35 @@ export class BudgetService {
   async restoreUserData(userId: string, backupData: any): Promise<void> {
     try {
       logger.log('🔄 BudgetService.restoreUserData: STARTING RESTORE for user:', userId);
+
+      // 0. Validate backup schema before wiping data
+      if (!backupData || typeof backupData !== 'object') {
+        throw new Error('Invalid backup: data is not an object');
+      }
+      if (backupData.envelopes && !Array.isArray(backupData.envelopes)) {
+        throw new Error('Invalid backup: envelopes must be an array');
+      }
+      if (backupData.transactions && !Array.isArray(backupData.transactions)) {
+        throw new Error('Invalid backup: transactions must be an array');
+      }
+      if (backupData.allocations && typeof backupData.allocations !== 'object') {
+        throw new Error('Invalid backup: allocations must be an object keyed by month');
+      }
+      if (backupData.incomeSources && typeof backupData.incomeSources !== 'object') {
+        throw new Error('Invalid backup: incomeSources must be an object keyed by month');
+      }
+      // Validate envelopes have required fields
+      for (const env of (backupData.envelopes || [])) {
+        if (!env.id || typeof env.name !== 'string') {
+          throw new Error(`Invalid backup: envelope missing id or name`);
+        }
+      }
+      // Validate transactions have required fields
+      for (const tx of (backupData.transactions || [])) {
+        if (!tx.id || typeof tx.amount !== 'number') {
+          throw new Error(`Invalid backup: transaction missing id or amount`);
+        }
+      }
 
       // 1. Wipe existing data
       await this.deleteAllUserData(userId);
@@ -225,10 +259,12 @@ export class BudgetService {
       const q = query(collectionRef, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       
-      const transactions = snapshot.docs.map(doc => {
-        const firebaseTx = { id: doc.id, ...doc.data() } as any;
-        return fromFirestore(firebaseTx);
-      });
+      const transactions = snapshot.docs
+        .map(doc => {
+          const firebaseTx = { id: doc.id, ...doc.data() } as any;
+          return fromFirestore(firebaseTx);
+        })
+        .filter(tx => !tx.deletedAt);
       
       logger.log(`📋 Fetched ${transactions.length} transactions`);
       return transactions;
@@ -609,12 +645,13 @@ export class BudgetService {
       logger.log(`📡 BudgetService.getDeletedTransactions: Fetching for user ${userId}, month ${month}`);
       
       const collectionRef = collection(db, 'users', userId, 'transactions');
-      const snapshot = await getDocs(collectionRef);
+      const q = query(collectionRef, where('month', '==', month));
+      const snapshot = await getDocs(q);
       
       const deletedTransactions: Transaction[] = [];
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
-        if (data.deletedAt && (data.month === month || (data.date && data.date.startsWith(month)))) {
+        if (data.deletedAt) {
           deletedTransactions.push({ id: docSnap.id, ...data } as Transaction);
         }
       });
@@ -1159,6 +1196,68 @@ export class BudgetService {
   }
 
   /**
+   * Purge soft-deleted items older than the retention period (30 days)
+   * Called during init to prevent indefinite accumulation of deleted data
+   * @param userId - User ID to clean up for
+   */
+  async purgeExpiredSoftDeletes(userId: string): Promise<void> {
+    try {
+      const RETENTION_DAYS = 30;
+      const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      let purged = 0;
+
+      // 1. Purge expired soft-deleted envelopes
+      const envelopesRef = collection(db, 'users', userId, 'envelopes');
+      const envelopeSnap = await getDocs(envelopesRef);
+      for (const docSnap of envelopeSnap.docs) {
+        const data = docSnap.data();
+        if (data.deletedAt && data.deletedAt < cutoff) {
+          // Also delete associated transactions
+          const txQuery = query(
+            collection(db, 'users', userId, 'transactions'),
+            where('envelopeId', '==', docSnap.id)
+          );
+          const txSnap = await getDocs(txQuery);
+          await Promise.all(txSnap.docs.map(tx => deleteDoc(tx.ref)));
+          await deleteDoc(docSnap.ref);
+          purged++;
+        }
+      }
+
+      // 2. Purge expired soft-deleted transactions
+      const txRef = collection(db, 'users', userId, 'transactions');
+      const txSnap = await getDocs(txRef);
+      for (const docSnap of txSnap.docs) {
+        const data = docSnap.data();
+        if (data.deletedAt && data.deletedAt < cutoff) {
+          await deleteDoc(docSnap.ref);
+          purged++;
+        }
+      }
+
+      // 3. Purge expired soft-deleted income sources (embedded in monthlyBudgets)
+      const monthlyRef = collection(db, 'users', userId, 'monthlyBudgets');
+      const monthlySnap = await getDocs(monthlyRef);
+      for (const docSnap of monthlySnap.docs) {
+        const data = docSnap.data();
+        const sources = data.incomeSources || [];
+        const filtered = sources.filter((s: any) => !s.deletedAt || s.deletedAt >= cutoff);
+        if (filtered.length < sources.length) {
+          await updateDoc(docSnap.ref, { incomeSources: filtered, updatedAt: Timestamp.now() });
+          purged += sources.length - filtered.length;
+        }
+      }
+
+      if (purged > 0) {
+        logger.log(`🧹 Purged ${purged} expired soft-deleted items (>${RETENTION_DAYS} days old)`);
+      }
+    } catch (error) {
+      // Non-critical — log but don't throw
+      logger.warn(`⚠️ Soft-delete purge failed (non-critical): ${error}`);
+    }
+  }
+
+  /**
    * Permanently delete ALL data for a user
    * @param userId - User ID to delete data for
    */
@@ -1166,12 +1265,13 @@ export class BudgetService {
     try {
       logger.log('🔥 BudgetService.deleteAllUserData: STARTING DELETION for user:', userId);
 
+      // Legacy collections (incomeSources, envelopeAllocations) included for migration cleanup
       const collections = [
         'envelopes',
         'transactions',
         'categories',
-        'incomeSources',
-        'envelopeAllocations',
+        'incomeSources',        // Legacy — now embedded in monthlyBudgets
+        'envelopeAllocations',  // Legacy — now embedded in monthlyBudgets
         'monthlyBudgets',
         'appSettings'
       ];

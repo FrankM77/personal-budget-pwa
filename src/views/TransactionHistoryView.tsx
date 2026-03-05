@@ -84,27 +84,18 @@ export const TransactionHistoryView: React.FC = () => {
 
   // --- 3. The Filter Logic (Matching Swift Computed Property) ---
   const filteredTransactions = useMemo(() => {
-    logger.log('🔍 Filtering transactions:', {
-      totalTransactions: transactions.length,
-      showAllTime,
-      currentMonth,
-      transactionMonths: transactions.map(t => ({ id: t.id, month: t.month, date: t.date, description: t.description }))
-    });
+    if (import.meta.env.DEV) {
+      logger.log('🔍 Filtering transactions:', {
+        totalTransactions: transactions.length,
+        showAllTime,
+        currentMonth
+      });
+    }
     
     // First filter by month if not showing all time
     let filteredByMonth = transactions;
     if (!showAllTime) {
       filteredByMonth = transactions.filter(t => t.month === currentMonth || !t.month);
-      logger.log('📅 After month filter:', {
-        remaining: filteredByMonth.length,
-        currentMonth,
-        filteredTransactions: filteredByMonth.map(t => ({
-          id: t.id,
-          description: t.description,
-          month: t.month,
-          matchesCurrentMonth: t.month === currentMonth
-        }))
-      });
     }
     
     // Sanitize transactions - ensure dates are valid strings, convert if needed
@@ -190,17 +181,9 @@ export const TransactionHistoryView: React.FC = () => {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth, isDateFilterActive, selectedMonth]);
 
-  logger.log('✅ Final filtered transactions:', {
-    count: filteredTransactions.length,
-    transactions: filteredTransactions.map(t => ({
-      id: t.id,
-      description: t.description,
-      amount: t.amount,
-      date: t.date,
-      month: t.month,
-      type: t.type
-    }))
-  });
+  if (import.meta.env.DEV) {
+    logger.log('✅ Final filtered transactions:', filteredTransactions.length);
+  }
 
   // Group split transactions: transactions sharing a splitGroupId appear as one row
   // with the total amount and a comma-separated list of envelope names
@@ -450,6 +433,29 @@ export const TransactionHistoryView: React.FC = () => {
                     }`} />
                   </button>
               </div>
+            </div>
+            {/* Quick Presets */}
+            <div className="flex gap-2">
+              {[
+                { label: '7d', days: 7 },
+                { label: '30d', days: 30 },
+                { label: '90d', days: 90 },
+              ].map(({ label, days }) => (
+                <button
+                  key={label}
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(start.getDate() - days);
+                    setStartDate(start.toISOString().split('T')[0]);
+                    setEndDate(end.toISOString().split('T')[0]);
+                    setIsDateFilterActive(true);
+                  }}
+                  className="px-3 py-1 text-xs font-medium rounded-md bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <div className={`grid grid-cols-2 gap-4 transition-opacity ${isDateFilterActive ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
               <div className="space-y-1">

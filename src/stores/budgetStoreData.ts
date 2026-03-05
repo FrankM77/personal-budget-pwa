@@ -1,18 +1,12 @@
 import { BudgetService } from '../services/budgetService';
 import { CategoryService } from '../services/CategoryService';
 import { useAuthStore } from './authStore';
+import { requireAuth } from '../utils/requireAuth';
 import logger from '../utils/logger';
 import type { SliceParams } from './budgetStoreTypes';
 
 const budgetService = BudgetService.getInstance();
 const categoryService = CategoryService.getInstance();
-
-// Helper to require an authenticated user (throws if not logged in)
-const requireAuth = () => {
-  const { currentUser } = useAuthStore.getState();
-  if (!currentUser) throw new Error('No authenticated user found');
-  return currentUser;
-};
 
 export const createDataSlice = ({ set, get }: SliceParams) => ({
     setMonth: async (month: string) => {
@@ -209,6 +203,24 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             } else {
                 logger.log(`ℹ️ No lazy loading gaps detected for current month transactions`);
             }
+
+            // 🐷 Pre-fetch transactions for piggybank envelopes
+            // Piggybanks need cumulative cross-month balances, so we must load all their transactions
+            const piggybankEnvelopes = get().envelopes.filter(e => e.isPiggybank);
+            if (piggybankEnvelopes.length > 0) {
+                logger.log(`🐷 Pre-fetching transactions for ${piggybankEnvelopes.length} piggybanks`);
+                for (const pb of piggybankEnvelopes) {
+                    try {
+                        await get().fetchTransactionsForEnvelope(pb.id);
+                    } catch (error) {
+                        logger.error(`❌ Failed to fetch piggybank transactions for ${pb.name}:`, error);
+                    }
+                }
+            }
+
+            // 🧹 Purge expired soft-deleted items (non-blocking, runs in background)
+            budgetService.purgeExpiredSoftDeletes(currentUser.id)
+                .catch(err => logger.warn('⚠️ Background soft-delete purge failed:', err));
             
         } catch (error) {
             logger.error('❌ BudgetStore initialization failed:', error);
@@ -369,9 +381,12 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             set({
                 envelopes: [],
                 transactions: [],
+                categories: [],
                 appSettings: null,
                 incomeSources: {},
                 allocations: {},
+                loadedTransactionMonths: [],
+                areAllTransactionsLoaded: false,
                 isLoading: false,
                 error: null
             });

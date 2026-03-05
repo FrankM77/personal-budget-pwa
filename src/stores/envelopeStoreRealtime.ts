@@ -72,7 +72,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Subscribe to envelopes
   const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(userId, (firebaseEnvelopes) => {
     logger.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
-    const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope);
+    const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope).filter((env: Envelope) => !env.deletedAt);
     
     // Get current state to preserve locally deleted envelopes
     const currentState = budgetStore.getState();

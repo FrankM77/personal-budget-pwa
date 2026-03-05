@@ -1,5 +1,6 @@
 import { BudgetService } from '../services/budgetService';
 import { useAuthStore } from './authStore';
+import { requireAuth } from '../utils/requireAuth';
 import logger from '../utils/logger';
 import type { Transaction } from '../models/types';
 import type { SliceParams } from './budgetStoreTypes';
@@ -9,13 +10,6 @@ const budgetService = BudgetService.getInstance();
 // Track IDs of transactions that have been optimistically deleted
 // so the real-time listener doesn't add them back before the backend write propagates
 export const pendingTransactionDeletions = new Set<string>();
-
-// Helper to require an authenticated user (throws if not logged in)
-const requireAuth = () => {
-  const { currentUser } = useAuthStore.getState();
-  if (!currentUser) throw new Error('No authenticated user found');
-  return currentUser;
-};
 
 export const createTransactionSlice = ({ set, get }: SliceParams) => ({
     addTransaction: async (transaction: Omit<Transaction, 'id' | 'userId'>): Promise<void> => {
