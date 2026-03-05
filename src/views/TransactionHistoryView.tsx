@@ -284,7 +284,9 @@ export const TransactionHistoryView: React.FC = () => {
 
       {/* --- Month Selector and All Time Toggle --- */}
       <div className="px-4 py-2 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 flex justify-between items-center">
-        <div className="text-sm font-medium text-gray-700 dark:text-zinc-300">Month: {currentMonth}</div>
+        <div className="text-sm font-medium text-gray-700 dark:text-zinc-300">
+          {showAllTime ? 'Viewing: All Time' : `Month: ${currentMonth}`}
+        </div>
         <button 
           onClick={() => {
             const newValue = !showAllTime;
