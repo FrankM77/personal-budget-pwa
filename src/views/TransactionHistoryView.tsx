@@ -31,7 +31,7 @@ export const TransactionHistoryView: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedEnvelopeId, setSelectedEnvelopeId] = useState<string>('all');
-  const [selectedType, setSelectedType] = useState<'All' | 'Income' | 'Expense'>('All');
+  const [selectedType, setSelectedType] = useState<'All' | 'Income' | 'Expense' | 'Transfer'>('All');
   const [showReconciledOnly, setShowReconciledOnly] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>('all'); 
   const [showAllTime, setShowAllTime] = useState(false);
@@ -47,6 +47,40 @@ export const TransactionHistoryView: React.FC = () => {
 
   // --- 2. Editing State ---
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  // Available YYYY-MM months derived from loaded transactions (for month filter dropdown)
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    transactions.forEach(t => { if (t.month) months.add(t.month); });
+    return Array.from(months).sort().reverse();
+  }, [transactions]);
+
+  // Count of active filters (drives badge on Filter button)
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchText) count++;
+    if (selectedEnvelopeId !== 'all') count++;
+    if (selectedType !== 'All') count++;
+    if (selectedPaymentMethodId !== 'all') count++;
+    if (selectedMonth !== 'all') count++;
+    if (isDateFilterActive) count++;
+    if (showReconciledOnly) count++;
+    return count;
+  }, [searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, selectedMonth, isDateFilterActive, showReconciledOnly]);
+
+  const clearAllFilters = () => {
+    setSearchText('');
+    setSelectedEnvelopeId('all');
+    setSelectedType('All');
+    setShowReconciledOnly(false);
+    setSelectedMonth('all');
+    setSelectedPaymentMethodId('all');
+    setIsDateFilterActive(false);
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    setStartDate(d.toISOString().split('T')[0]);
+    setEndDate(new Date().toISOString().split('T')[0]);
+  };
 
   // --- 3. The Filter Logic (Matching Swift Computed Property) ---
   const filteredTransactions = useMemo(() => {
@@ -98,14 +132,15 @@ export const TransactionHistoryView: React.FC = () => {
           return false;
         }
 
-        // 1. Search Text (Description OR Envelope Name OR Amount)
+        // 1. Search Text (Description, Merchant, Envelope Name, or Amount)
         if (searchText) {
           const searchLower = searchText.toLowerCase();
           const envName = envelopes.find(e => e.id === t.envelopeId)?.name.toLowerCase() || '';
           const amountStr = t.amount.toFixed(2);
           
           const matches = 
-            t.description.toLowerCase().includes(searchLower) ||
+            t.description?.toLowerCase().includes(searchLower) ||
+            (t.merchant?.toLowerCase().includes(searchLower) ?? false) ||
             envName.includes(searchLower) ||
             amountStr.includes(searchLower);
             
@@ -140,15 +175,10 @@ export const TransactionHistoryView: React.FC = () => {
           }
         }
 
-        // 6. Month Filter
-        if (selectedMonth !== 'all') {
-          const month = new Date(tDate).getMonth();
-          if (month !== parseInt(selectedMonth)) return false;
-        } 
-        
-        // Removed the broken 'else if (currentMonth !== 'all')' block. 
-        // 1. currentMonth filtering is already handled in the 'filteredByMonth' pre-filter step.
-        // 2. The logic 'parseInt(currentMonth)' was flawed (parsed Year instead of Month index).
+        // 6. Month Filter (YYYY-MM exact match — only relevant in all-time view)
+        if (selectedMonth !== 'all' && t.month !== selectedMonth) {
+          return false;
+        }
 
         // 7. Reconciled Filter
         if (showReconciledOnly && !t.reconciled) {
@@ -158,7 +188,7 @@ export const TransactionHistoryView: React.FC = () => {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth, isDateFilterActive]);
+  }, [transactions, envelopes, searchText, selectedEnvelopeId, selectedType, selectedPaymentMethodId, startDate, endDate, showReconciledOnly, showAllTime, currentMonth, isDateFilterActive, selectedMonth]);
 
   logger.log('✅ Final filtered transactions:', {
     count: filteredTransactions.length,
@@ -254,13 +284,18 @@ export const TransactionHistoryView: React.FC = () => {
         {/* Filter Toggle Button */}
         <button 
           onClick={() => setShowFilters(!showFilters)}
-          className={`p-2 rounded-full transition-colors ${
+          className={`relative p-2 rounded-full transition-colors ${
             showFilters 
               ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' 
               : 'text-gray-400 dark:text-zinc-600 hover:bg-gray-100 dark:hover:bg-zinc-800'
           }`}
         >
           <Filter size={20} className={showFilters ? 'fill-current' : ''} />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
       </header>
 
@@ -271,6 +306,7 @@ export const TransactionHistoryView: React.FC = () => {
           onClick={() => {
             const newValue = !showAllTime;
             setShowAllTime(newValue);
+            if (!newValue) setSelectedMonth('all');
             if (newValue && !areAllTransactionsLoaded) {
               fetchAllTransactions();
             }
@@ -303,6 +339,11 @@ export const TransactionHistoryView: React.FC = () => {
             </button>
           )}
         </div>
+        {activeFilterCount > 0 && (
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2">
+            {displayRows.length} result{displayRows.length !== 1 ? 's' : ''} &middot; {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
+          </p>
+        )}
       </div>
 
       {/* --- Collapsible Filter Panel --- */}
@@ -312,6 +353,15 @@ export const TransactionHistoryView: React.FC = () => {
         }`}
       >
         <div className="p-4 space-y-4">
+          {/* Filter Panel Header */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Filters</span>
+            {activeFilterCount > 0 && (
+              <button onClick={clearAllFilters} className="text-xs text-blue-500 font-medium hover:text-blue-600 transition-colors">
+                Clear All ({activeFilterCount})
+              </button>
+            )}
+          </div>
           
           {/* Payment Method Filter */}
           <div className="space-y-1">
@@ -349,7 +399,7 @@ export const TransactionHistoryView: React.FC = () => {
 
           {/* Segmented Control (Type) */}
           <div className="bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg flex">
-            {(['All', 'Income', 'Expense'] as const).map((type) => (
+            {(['All', 'Income', 'Expense', 'Transfer'] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setSelectedType(type)}
@@ -364,20 +414,24 @@ export const TransactionHistoryView: React.FC = () => {
             ))}
           </div>
 
-          {/* Month Picker */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500 uppercase">Month</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
-            >
-              <option value="all">All Months</option>
-              {Array.from({length: 12}, (_, i) => i).map(month => (
-                <option key={month} value={month}>{new Date(2022, month).toLocaleString('default', { month: 'long' })}</option>
-              ))}
-            </select>
-          </div>
+          {/* Month Picker — only useful in All Time view */}
+          {showAllTime && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full p-2 rounded-lg bg-gray-100 dark:bg-zinc-800 border-r-8 border-transparent text-sm dark:text-white outline-none"
+              >
+                <option value="all">All Months</option>
+                {availableMonths.map(m => (
+                  <option key={m} value={m}>
+                    {new Date(m + '-02').toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Date Range */}
           <div className="space-y-2">
@@ -438,20 +492,6 @@ export const TransactionHistoryView: React.FC = () => {
             </button>
           </div>
 
-          {/* Show All Time Toggle */}
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Show all time</span>
-            <button
-              onClick={() => setShowAllTime(!showAllTime)}
-              className={`w-11 h-6 rounded-full transition-colors relative ${
-                showAllTime ? 'bg-green-500' : 'bg-gray-300 dark:bg-zinc-700'
-              }`}
-            >
-              <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                showAllTime ? 'translate-x-5' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
         </div>
       </div>
 
