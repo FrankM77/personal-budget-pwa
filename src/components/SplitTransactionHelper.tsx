@@ -8,13 +8,17 @@ interface SplitTransactionHelperProps {
   transactionAmount: number;
   onSplitChange: (splits: Record<string, number>) => void;
   initialSelectedEnvelopeId?: string | null;
+  initialSelectedEnvelopeIds?: string[];
+  initialSplitAmounts?: Record<string, number>;
 }
 
 export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
   envelopes,
   transactionAmount,
   onSplitChange,
-  initialSelectedEnvelopeId
+  initialSelectedEnvelopeId,
+  initialSelectedEnvelopeIds,
+  initialSplitAmounts
 }) => {
   const { categories } = useBudgetStore();
   const [selectedEnvelopes, setSelectedEnvelopes] = useState<string[]>([]);
@@ -23,14 +27,42 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
 
   // Auto-select envelope from Siri pre-fill
   useEffect(() => {
-    if (initialSelectedEnvelopeId && !hasAppliedInitial) {
-      const exists = envelopes.some(e => e.id === initialSelectedEnvelopeId);
-      if (exists) {
-        setSelectedEnvelopes([initialSelectedEnvelopeId]);
-        setHasAppliedInitial(true);
-      }
+    if (hasAppliedInitial) {
+      return;
     }
-  }, [initialSelectedEnvelopeId, envelopes, hasAppliedInitial]);
+
+    const requestedEnvelopeIds = initialSelectedEnvelopeIds?.length
+      ? initialSelectedEnvelopeIds
+      : initialSelectedEnvelopeId
+        ? [initialSelectedEnvelopeId]
+        : [];
+
+    if (requestedEnvelopeIds.length === 0) {
+      return;
+    }
+
+    const validEnvelopeIds = requestedEnvelopeIds.filter(id => envelopes.some(e => e.id === id));
+
+    if (validEnvelopeIds.length > 0) {
+      setSelectedEnvelopes(validEnvelopeIds);
+
+      if (initialSplitAmounts && Object.keys(initialSplitAmounts).length > 0) {
+        const sanitizedSplitAmounts = validEnvelopeIds.reduce<Record<string, number>>((acc, id) => {
+          const amount = initialSplitAmounts[id];
+          if (typeof amount === 'number') {
+            acc[id] = amount;
+          }
+          return acc;
+        }, {});
+
+        if (Object.keys(sanitizedSplitAmounts).length > 0) {
+          setSplitAmounts(sanitizedSplitAmounts);
+        }
+      }
+
+      setHasAppliedInitial(true);
+    }
+  }, [initialSelectedEnvelopeId, initialSelectedEnvelopeIds, initialSplitAmounts, envelopes, hasAppliedInitial]);
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
   const [remaining, setRemaining] = useState(transactionAmount);
 
@@ -90,13 +122,15 @@ export const SplitTransactionHelper: React.FC<SplitTransactionHelperProps> = ({
       const envelopeId = selectedEnvelopes[0];
       setSplitAmounts({ [envelopeId]: transactionAmount });
     } else if (selectedEnvelopes.length > 1 && prevEnvelopeCount.current <= 1) {
-      // Transitioning from 0 or 1 envelope to multiple: reset all to 0
-      const zeroed: Record<string, number> = {};
-      selectedEnvelopes.forEach(id => { zeroed[id] = 0; });
-      setSplitAmounts(zeroed);
+      const hasExistingAmountsForAllSelections = selectedEnvelopes.every(id => splitAmounts[id] !== undefined);
+      if (!hasExistingAmountsForAllSelections) {
+        const zeroed: Record<string, number> = {};
+        selectedEnvelopes.forEach(id => { zeroed[id] = 0; });
+        setSplitAmounts(zeroed);
+      }
     }
     prevEnvelopeCount.current = selectedEnvelopes.length;
-  }, [selectedEnvelopes.length, selectedEnvelopes, transactionAmount]);
+  }, [selectedEnvelopes.length, selectedEnvelopes, transactionAmount, splitAmounts]);
 
   useEffect(() => {
     // Calculate remaining amount

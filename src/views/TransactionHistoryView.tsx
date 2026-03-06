@@ -47,6 +47,7 @@ export const TransactionHistoryView: React.FC = () => {
 
   // --- 2. Editing State ---
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editingSplitTransactions, setEditingSplitTransactions] = useState<Transaction[]>([]);
 
   // Available YYYY-MM months derived from loaded transactions (for month filter dropdown)
   const availableMonths = useMemo(() => {
@@ -556,6 +557,7 @@ export const TransactionHistoryView: React.FC = () => {
                           const env = envelopes.find(e => e.id === primaryTx.envelopeId);
                           if (env) {
                             setEditingTransaction(primaryTx);
+                            setEditingSplitTransactions(row.isSplitGroup ? row.splitTransactions : []);
                           } else {
                             alert("Cannot edit: Envelope deleted.");
                           }
@@ -573,10 +575,14 @@ export const TransactionHistoryView: React.FC = () => {
       {/* --- Edit Modal --- */}
       <TransactionModal
         isVisible={!!editingTransaction && !!activeEnvelope}
-        onClose={() => setEditingTransaction(null)}
+        onClose={() => {
+          setEditingTransaction(null);
+          setEditingSplitTransactions([]);
+        }}
         mode="edit"
         currentEnvelope={activeEnvelope || {} as any}
         initialTransaction={editingTransaction}
+        initialSplitTransactions={editingSplitTransactions}
         envelopes={envelopes}
       />
     </div>

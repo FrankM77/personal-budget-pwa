@@ -1,24 +1,19 @@
-# TODO - Scroll Position Restoration
+# TODO - Split Transaction Edit From History
 
 ## Plan
-- [x] Reproduce and confirm when scroll is saved as `0` (open envelope -> Done -> back to main list)
-- [x] Replace unmount-only save logic with continuous scroll tracking on list view
-- [x] Restore scroll only after list content is fully loaded/rendered
-- [x] Prevent repeated restore on subsequent rerenders
-- [x] Verify behavior across navigation and month switches
+- [x] Trace transaction history edit flow and identify why split edits hydrate as a single child transaction
+- [x] Update edit modal and split helper to initialize with grouped total and per-envelope split amounts
+- [ ] Verify build succeeds and confirm the transaction history split-edit UX matches expected behavior
 
 ## Verification Checklist
-- [x] Scroll to bottom of main view
-- [x] Open an envelope
-- [x] Tap/click Done to return to main view
-- [x] Confirm previous scroll position is restored (does not jump to top)
-- [x] Switch months and confirm behavior is still stable
+- [ ] Open a split transaction in transaction history and confirm the amount shows the grouped total
+- [ ] Open the envelope selection UI and confirm both envelopes are pre-selected
+- [ ] Confirm a split amount field is visible for each selected envelope
+- [ ] Save an edited split and confirm the split group remains consistent
 
 ## Review Notes
-- Final implementation uses explicit intent flag (`envelopeListShouldRestoreScroll`) set only when navigating to envelope detail
-- Scroll position saved at navigation time, restored once on return with useLayoutEffect, then flag cleared
-- No timing dependencies, no race conditions, no interference with normal navigation
-- Pattern: Intent > Timing - explicit state beats complex DOM timing hacks
+- Root cause: transaction history passed only the primary split child into the edit modal, and the split helper only initialized a single selected envelope
+- Fix updates history modal wiring, modal prefill logic, and split helper initialization so grouped edits hydrate with full split context
 
 ## Status
-✅ **COMPLETED** - Scroll position restoration working correctly across envelope navigation
+🚧 **IN PROGRESS** - implementation patched, verification pending

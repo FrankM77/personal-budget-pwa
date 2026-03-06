@@ -14,10 +14,11 @@ interface Props {
   mode: 'add' | 'spend' | 'edit';
   currentEnvelope: Envelope;
   initialTransaction?: Transaction | null;
+  initialSplitTransactions?: Transaction[];
   envelopes?: Envelope[]; // Add envelopes prop for edit mode
 }
 
-const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction, envelopes }) => {
+const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction, initialSplitTransactions, envelopes }) => {
   const { addTransaction, updateTransaction, deleteTransaction, currentMonth } = useBudgetStore();
   
   const [amount, setAmount] = useState('');
@@ -28,8 +29,6 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
   const [selectedEnvelope, setSelectedEnvelope] = useState<Envelope | null>(null);
   const [splitAmounts, setSplitAmounts] = useState<Record<string, number>>({});
 
-  // Sort envelopes by orderIndex (creation order) with name as fallback
-  // Only show active envelopes (filter out deleted ones)
   const sortedEnvelopes = envelopes ? [...envelopes]
     .filter(env => env.isActive !== false)
     .sort((a, b) => {
@@ -41,21 +40,37 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       return a.name.localeCompare(b.name);
     }) : [];
 
+  const editTransactions = mode === 'edit'
+    ? (initialSplitTransactions?.length ? initialSplitTransactions : initialTransaction ? [initialTransaction] : [])
+    : [];
+  const isEditingSplitGroup = editTransactions.length > 1;
+  const initialSelectedEnvelopeIds = editTransactions.map(tx => tx.envelopeId);
+  const initialSplitAmounts = editTransactions.reduce<Record<string, number>>((acc, tx) => {
+    acc[tx.envelopeId] = (acc[tx.envelopeId] || 0) + tx.amount;
+    return acc;
+  }, {});
+  const initialTotalAmount = isEditingSplitGroup
+    ? editTransactions.reduce((sum, tx) => sum + tx.amount, 0)
+    : (initialTransaction?.amount ?? 0);
+
   // Reset or Populate when opening
   useEffect(() => {
     if (!isVisible) return;
 
     if (mode === 'edit' && initialTransaction) {
-      setAmount(initialTransaction.amount.toString()); // Convert number to string
+      setAmount(initialTotalAmount.toFixed(2));
       setMerchant(initialTransaction.merchant || '');
       setNote(initialTransaction.description);
       setSelectedPaymentMethod(initialTransaction.paymentMethod || null);
       // Set selected envelope to the transaction's current envelope
       if (envelopes) {
-        const transactionEnvelope = envelopes.find(e => e.id === initialTransaction.envelopeId);
+        const transactionEnvelope = envelopes.find(e => e.id === initialSelectedEnvelopeIds[0] || e.id === initialTransaction.envelopeId);
         setSelectedEnvelope(transactionEnvelope || currentEnvelope);
-        // Initialize splitAmounts with the full amount in the current envelope
-        setSplitAmounts({ [initialTransaction.envelopeId]: initialTransaction.amount });
+        setSplitAmounts(
+          isEditingSplitGroup
+            ? initialSplitAmounts
+            : { [initialTransaction.envelopeId]: initialTransaction.amount }
+        );
       }
       try {
         const d = new Date(initialTransaction.date);
@@ -80,7 +95,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       // but CardStack relies on null to trigger default selection.
       // With setTimeout removed, the race condition should be resolved.
     }
-  }, [isVisible, mode, initialTransaction, currentEnvelope, envelopes]);
+  }, [isVisible, mode, initialTransaction, currentEnvelope, envelopes, initialSplitAmounts, initialSelectedEnvelopeIds, initialTotalAmount, isEditingSplitGroup]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,8 +106,8 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       return;
     }
 
-    // For edit mode, check if we have split amounts
-    const hasSplitTransactions = mode === 'edit' && Object.keys(splitAmounts).length > 0;
+    const splitEntries = Object.entries(splitAmounts).filter(([_envelopeId, splitAmount]) => splitAmount > 0);
+    const hasSplitTransactions = mode === 'edit' && splitEntries.length > 1;
     
     logger.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, splitAmounts, paymentMethod: selectedPaymentMethod });
 
@@ -134,18 +149,31 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         });
       } else if (mode === 'edit' && initialTransaction) {
         logger.log('✏️ Updating transaction');
-        if (hasSplitTransactions) {
-          // Handle split transaction - for now, just update the original transaction
-          // In a future enhancement, we could delete the original and create new split transactions
-          await updateTransaction({
-            ...initialTransaction,
-            amount: numAmount,
-            description: note,
-            merchant: merchant || undefined,
-            date: new Date(date).toISOString(),
-            envelopeId: Object.keys(splitAmounts)[0] || initialTransaction.envelopeId, // Use first split envelope
-            paymentMethod: selectedPaymentMethod || undefined
-          });
+        if (hasSplitTransactions || isEditingSplitGroup) {
+          const transactionsToReplace = editTransactions.length > 0 ? editTransactions : [initialTransaction];
+          const splitGroupId = splitEntries.length > 1
+            ? (initialTransaction.splitGroupId || crypto.randomUUID())
+            : undefined;
+
+          for (const tx of transactionsToReplace) {
+            if (tx.id) {
+              await deleteTransaction(tx.id);
+            }
+          }
+
+          for (const [envelopeId, splitAmount] of splitEntries) {
+            await addTransaction({
+              amount: splitAmount,
+              description: note,
+              merchant: merchant || undefined,
+              date: new Date(date).toISOString(),
+              envelopeId,
+              type: initialTransaction.type,
+              reconciled: initialTransaction.reconciled,
+              paymentMethod: selectedPaymentMethod || undefined,
+              splitGroupId
+            });
+          }
         } else {
           // Normal single envelope update
           await updateTransaction({
@@ -171,7 +199,12 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
     if (!initialTransaction || !initialTransaction.id) return;
 
     if (window.confirm('Are you sure you want to delete this transaction?')) {
-      deleteTransaction(initialTransaction.id);
+      const transactionsToDelete = editTransactions.length > 0 ? editTransactions : [initialTransaction];
+      for (const tx of transactionsToDelete) {
+        if (tx.id) {
+          deleteTransaction(tx.id);
+        }
+      }
       onClose();
     }
   };
@@ -318,6 +351,8 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
                     transactionAmount={parseFloat(amount) || 0}
                     onSplitChange={setSplitAmounts}
                     initialSelectedEnvelopeId={initialTransaction?.envelopeId}
+                    initialSelectedEnvelopeIds={isEditingSplitGroup ? initialSelectedEnvelopeIds : undefined}
+                    initialSplitAmounts={isEditingSplitGroup ? initialSplitAmounts : undefined}
                   />
                 </div>
               )}
