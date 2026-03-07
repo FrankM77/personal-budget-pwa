@@ -286,7 +286,86 @@ This document captures patterns, mistakes, and learnings from coding sessions to
 
 ---
 
-*Last Updated: 2026-03-04*
+## Lesson: useEffect Dependencies Must Be Memoized for Objects/Arrays
+
+**Context**: Split transaction edit fix introduced input blocking bug in envelope detail modals
+**Date**: March 5, 2026 at 11:01 PM (commit 5e2dd76)
+
+**Problem**: Added computed objects/arrays to useEffect dependency array without memoization:
+```typescript
+const editTransactions = mode === 'edit' ? ... : [];
+const initialSplitAmounts = editTransactions.reduce(...);
+// Used in useEffect:
+}, [..., initialSplitAmounts, initialSelectedEnvelopeIds, ...]);
+```
+
+**What Happened**:
+1. User types in amount input → component re-renders
+2. Re-render → `initialSplitAmounts` recreated as NEW object (same value, different reference)
+3. useEffect sees "different" dependency → fires again
+4. useEffect resets `amount` to empty string
+5. User sees input appears blocked
+
+**Root Cause**: Arrays and objects are recreated on every render, even with identical contents
+
+**Solution**: Wrap computed values in `useMemo`:
+```typescript
+const editTransactions = useMemo(() => mode === 'edit' ? ... : [], [mode, initialSplitTransactions, initialTransaction]);
+const initialSplitAmounts = useMemo(() => editTransactions.reduce(...), [editTransactions]);
+```
+
+**Pattern**: **Never add raw computed objects/arrays to useEffect dependencies**. Always memoize them first.
+
+**Timeline**:
+- March 5, 11:01 PM: Bug introduced in split transaction edit fix
+- March 6, 4:00 AM: User reported input blocking (5 hours later)
+- March 7, 3:19 PM: Fixed with useMemo (version 1.15.2)
+
+---
+
+## Lesson: Breaking Change Verification Protocol
+
+**Context**: Multiple regressions introduced during feature implementations
+**Problem**: Changes that could affect multiple parts of the app weren't systematically verified
+
+**Protocol**: After making potentially breaking changes, always instruct user on verification steps:
+
+### When to Use This Protocol
+- Adding/modifying useEffect dependencies
+- Changing shared component props or state
+- Modifying store state structure
+- Changing routing or navigation logic
+- Updating data models or interfaces
+- Any change that affects multiple render paths
+
+### Verification Steps to Provide User
+1. **Identify affected areas**: List all components/views that use the changed code
+2. **Provide test scenarios**: Specific user flows to test
+3. **Compare behaviors**: "Before vs After" expectations
+4. **Request confirmation**: Ask user to verify each area works as expected
+
+### Example Template
+```
+I've made changes to [component/logic]. This could affect:
+- Envelope detail modals (Add/Spend/Transfer)
+- Global FAB transaction entry
+- Transaction history editing
+
+Please test:
+1. Open envelope detail → tap "Add Money" → try entering amount
+2. Use global FAB → add transaction → verify amount input works
+3. Edit a transaction from history → confirm split editing still works
+
+Let me know if any of these don't behave as expected.
+```
+
+**Pattern**: **Anticipate impact → communicate test cases → verify before deployment**
+
+---
+
+*Last Updated: 2026-03-07*
+*Session: useEffect Dependency Memoization - Input Blocking Regression*
+*Session: Breaking Change Verification Protocol*
 *Session: Toast Regression Fix - Optimistic Updates With Real-Time Listeners*
 *Session: Scroll Position Restoration - Intent Over Timing*
 *Session: Gemini 3 Migration - Lesson in Simplicity*
