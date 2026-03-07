@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Trash, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
@@ -40,18 +40,30 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       return a.name.localeCompare(b.name);
     }) : [];
 
-  const editTransactions = mode === 'edit'
-    ? (initialSplitTransactions?.length ? initialSplitTransactions : initialTransaction ? [initialTransaction] : [])
-    : [];
-  const isEditingSplitGroup = editTransactions.length > 1;
-  const initialSelectedEnvelopeIds = editTransactions.map(tx => tx.envelopeId);
-  const initialSplitAmounts = editTransactions.reduce<Record<string, number>>((acc, tx) => {
-    acc[tx.envelopeId] = (acc[tx.envelopeId] || 0) + tx.amount;
-    return acc;
-  }, {});
-  const initialTotalAmount = isEditingSplitGroup
-    ? editTransactions.reduce((sum, tx) => sum + tx.amount, 0)
-    : (initialTransaction?.amount ?? 0);
+  const editTransactions = useMemo(() => 
+    mode === 'edit'
+      ? (initialSplitTransactions?.length ? initialSplitTransactions : initialTransaction ? [initialTransaction] : [])
+      : []
+  , [mode, initialSplitTransactions, initialTransaction]);
+
+  const isEditingSplitGroup = useMemo(() => editTransactions.length > 1, [editTransactions]);
+  
+  const initialSelectedEnvelopeIds = useMemo(() => 
+    editTransactions.map(tx => tx.envelopeId)
+  , [editTransactions]);
+  
+  const initialSplitAmounts = useMemo(() => 
+    editTransactions.reduce<Record<string, number>>((acc, tx) => {
+      acc[tx.envelopeId] = (acc[tx.envelopeId] || 0) + tx.amount;
+      return acc;
+    }, {})
+  , [editTransactions]);
+  
+  const initialTotalAmount = useMemo(() => 
+    isEditingSplitGroup
+      ? editTransactions.reduce((sum, tx) => sum + tx.amount, 0)
+      : (initialTransaction?.amount ?? 0)
+  , [isEditingSplitGroup, editTransactions, initialTransaction]);
 
   // Reset or Populate when opening
   useEffect(() => {
