@@ -328,7 +328,7 @@ const initialSplitAmounts = useMemo(() => editTransactions.reduce(...), [editTra
 **Context**: Multiple regressions introduced during feature implementations
 **Problem**: Changes that could affect multiple parts of the app weren't systematically verified
 
-**Protocol**: After making potentially breaking changes, always instruct user on verification steps:
+**Protocol**: After making potentially breaking changes, provide verification guidance while proceeding with normal deployment:
 
 ### When to Use This Protocol
 - Adding/modifying useEffect dependencies
@@ -341,7 +341,7 @@ const initialSplitAmounts = useMemo(() => editTransactions.reduce(...), [editTra
 ### Verification Steps to Provide User
 1. **Identify affected areas**: List all components/views that use the changed code
 2. **Provide test scenarios**: Specific user flows to test
-3. **Compare behaviors**: "Before vs After" expectations
+3. **Deploy normally**: Commit/push/deploy as usual
 4. **Request confirmation**: Ask user to verify each area works as expected
 
 ### Example Template
@@ -351,15 +351,15 @@ I've made changes to [component/logic]. This could affect:
 - Global FAB transaction entry
 - Transaction history editing
 
-Please test:
+I'm deploying this now. Please test after deployment:
 1. Open envelope detail → tap "Add Money" → try entering amount
 2. Use global FAB → add transaction → verify amount input works
 3. Edit a transaction from history → confirm split editing still works
 
-Let me know if any of these don't behave as expected.
+Let me know if any of these don't behave as expected and I'll fix immediately.
 ```
 
-**Pattern**: **Anticipate impact → communicate test cases → verify before deployment**
+**Pattern**: **Anticipate impact → communicate test cases → deploy normally → verify post-deployment**
 
 ---
 
