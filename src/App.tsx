@@ -27,19 +27,13 @@ function App() {
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
   const { showToast } = useToastStore();
 
-  // Effect: Adaptive launch screen - dismiss early if auth ready, max 800ms
+  // Effect: Launch screen with early dismissal once auth + data are ready
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowingLaunchScreen(false);
-    }, 800);
-    
-    // Dismiss early if auth is ready
-    if (isInitialized && isAuthenticated) {
-      setShowingLaunchScreen(false);
-    }
-    
+    }, 2000);
     return () => clearTimeout(timer);
-  }, [isInitialized, isAuthenticated]);
+  }, []);
 
   // Initialize Firebase Auth
   useEffect(() => {
