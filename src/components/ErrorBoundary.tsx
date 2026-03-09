@@ -93,13 +93,13 @@ export class ErrorBoundary extends Component<Props, State> {
               We're sorry, but something unexpected happened. You can try refreshing or going back to the home screen.
             </p>
 
-            {/* Show error details in development */}
-            {import.meta.env.DEV && this.state.error && (
+            {/* Show error details for diagnosis */}
+            {this.state.error && (
               <details className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-md text-sm">
                 <summary className="cursor-pointer font-medium text-red-800 dark:text-red-200 mb-2">
-                  Error Details (Development Only)
+                  Error Details
                 </summary>
-                <pre className="text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">
+                <pre className="text-red-700 dark:text-red-300 whitespace-pre-wrap break-words text-xs">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>
