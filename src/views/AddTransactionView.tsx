@@ -4,6 +4,7 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 import CardStack from '../components/ui/CardStack';
 import { useSiriQuery } from '../hooks/useSiriQuery';
+import { parseSiriQuery } from '../services/SiriService';
 import type { PaymentSource } from '../models/types';
 import '../styles/CardStack.css';
 import logger from '../utils/logger';
@@ -17,56 +18,76 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
+  const applyParsedSiriData = (data: any, queryText: string) => {
+    if (data.amount !== null) {
+      setAmount(data.amount.toFixed(2));
+    }
+    if (data.merchant) {
+      setMerchant(data.merchant);
+    }
+    if (data.description) {
+      setNote(data.description);
+    }
+    if (data.type) {
+      setTransactionType(data.type === 'Income' ? 'income' : 'expense');
+    }
+    if (data.envelopeId) {
+      setSiriEnvelopeId(data.envelopeId);
+    }
+
+    if (data.paymentMethodName && appSettings?.paymentSources?.length) {
+      const normalized = data.paymentMethodName.toLowerCase();
+      const matched = appSettings.paymentSources.find((p: PaymentSource) => {
+        const name = p.name.toLowerCase();
+        return name === normalized || name.includes(normalized) || normalized.includes(name);
+      });
+
+      if (matched) {
+        setSelectedPaymentMethod(matched);
+        setHasUserSelectedPayment(false);
+      }
+    }
+
+    setSiriPrefilled(true);
+    setStoredSiriQueryText(queryText);
+  };
+
   // Helper to load Siri data from sessionStorage and pre-fill the form
-  const loadSiriFromSessionStorage = () => {
+  const loadSiriFromSessionStorage = async () => {
     const storedSiriData = sessionStorage.getItem('siriParsedData');
     const storedSiriQuery = sessionStorage.getItem('siriQuery');
+    const storedRawSiriQuery = sessionStorage.getItem('siriRawQuery');
     
     if (storedSiriData && storedSiriQuery) {
       try {
         const data = JSON.parse(storedSiriData);
         logger.log('🎙️ Siri: Loaded stored data from sessionStorage:', data);
-        
-        // Manually set the parsed data as if it came from the hook
-        if (data.amount !== null) {
-          setAmount(data.amount.toFixed(2));
-        }
-        if (data.merchant) {
-          setMerchant(data.merchant);
-        }
-        if (data.description) {
-          setNote(data.description);
-        }
-        if (data.type) {
-          setTransactionType(data.type === 'Income' ? 'income' : 'expense');
-        }
-        if (data.envelopeId) {
-          setSiriEnvelopeId(data.envelopeId);
-        }
-
-        // Payment method prefill
-        if (data.paymentMethodName && appSettings?.paymentSources?.length) {
-          const normalized = data.paymentMethodName.toLowerCase();
-          const matched = appSettings.paymentSources.find((p: PaymentSource) => {
-            const name = p.name.toLowerCase();
-            return name === normalized || name.includes(normalized) || normalized.includes(name);
-          });
-
-          if (matched) {
-            setSelectedPaymentMethod(matched);
-            setHasUserSelectedPayment(false);
-          }
-        }
-
-        setSiriPrefilled(true);
-        setStoredSiriQueryText(storedSiriQuery);
+        applyParsedSiriData(data, storedSiriQuery);
         logger.log('🎙️ Siri: Pre-filled form from sessionStorage');
         
         // Clear sessionStorage after using
         sessionStorage.removeItem('siriParsedData');
         sessionStorage.removeItem('siriQuery');
+        sessionStorage.removeItem('siriRawQuery');
       } catch (error) {
         logger.error('🎙️ Siri: Failed to parse stored data:', error);
+      }
+      return;
+    }
+
+    if (storedRawSiriQuery) {
+      if (envelopes.length === 0) {
+        logger.log('🎙️ Siri: Waiting for envelopes before parsing raw startup query');
+        return;
+      }
+      try {
+        logger.log('🎙️ Siri: Parsing raw query from sessionStorage:', storedRawSiriQuery);
+        const data = await parseSiriQuery(storedRawSiriQuery, envelopes);
+        applyParsedSiriData(data, storedRawSiriQuery);
+        sessionStorage.removeItem('siriRawQuery');
+        sessionStorage.removeItem('siriQuery');
+      } catch (error) {
+        logger.error('🎙️ Siri: Failed to parse raw stored query:', error);
       }
     }
   };
@@ -74,21 +95,21 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   // Check for Siri data from sessionStorage on mount (for webapp URL scheme handling)
   useEffect(() => {
     if (!parsedData && !siriQuery) {
-      loadSiriFromSessionStorage();
+      void loadSiriFromSessionStorage();
     }
-  }, [parsedData, siriQuery, appSettings?.paymentSources]);
+  }, [parsedData, siriQuery, appSettings?.paymentSources, envelopes]);
 
   // Listen for real-time Siri queries dispatched by SiriQueryHandler
   // (handles the case where the app is already open and in view)
   useEffect(() => {
     const handleSiriReady = () => {
       logger.log('🎙️ Siri: Received siri-query-ready event');
-      loadSiriFromSessionStorage();
+      void loadSiriFromSessionStorage();
     };
 
     window.addEventListener('siri-query-ready', handleSiriReady);
     return () => window.removeEventListener('siri-query-ready', handleSiriReady);
-  }, [appSettings?.paymentSources]);
+  }, [appSettings?.paymentSources, envelopes]);
 
   // Form state
   const [amount, setAmount] = useState('');
@@ -112,39 +133,7 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   // Pre-fill form when Siri parsed data arrives
   useEffect(() => {
     if (!parsedData || siriPrefilled) return;
-
-    if (parsedData.amount !== null) {
-      setAmount(parsedData.amount.toFixed(2));
-    }
-    if (parsedData.merchant) {
-      setMerchant(parsedData.merchant);
-    }
-    if (parsedData.description) {
-      setNote(parsedData.description);
-    }
-    if (parsedData.type) {
-      setTransactionType(parsedData.type === 'Income' ? 'income' : 'expense');
-    }
-    if (parsedData.envelopeId) {
-      setSiriEnvelopeId(parsedData.envelopeId);
-    }
-
-    // Payment method prefill (match against Settings payment sources)
-    if (parsedData.paymentMethodName && appSettings?.paymentSources?.length) {
-      const normalized = parsedData.paymentMethodName.toLowerCase();
-      const matched = appSettings.paymentSources.find((p) => {
-        const name = p.name.toLowerCase();
-        return name === normalized || name.includes(normalized) || normalized.includes(name);
-      });
-
-      if (matched) {
-        setSelectedPaymentMethod(matched);
-        // Do NOT mark as user-selected; this is a Siri prefill.
-        setHasUserSelectedPayment(false);
-      }
-    }
-
-    setSiriPrefilled(true);
+    applyParsedSiriData(parsedData, siriQuery || storedSiriQueryText || '');
     logger.log('🎙️ Siri: Pre-filled form with parsed data:', parsedData);
   }, [parsedData, siriPrefilled, appSettings?.paymentSources]);
 

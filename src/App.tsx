@@ -27,6 +27,35 @@ function App() {
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
   const { showToast } = useToastStore();
 
+  const extractStartupSiriQuery = () => {
+    const url = new URL(window.location.href);
+    const searchParams = new URLSearchParams(url.search);
+    let query = searchParams.get('query');
+    let nextHash = window.location.hash;
+
+    if (!query && nextHash.includes('?')) {
+      const [hashPath, hashSearch = ''] = nextHash.split('?');
+      const hashParams = new URLSearchParams(hashSearch);
+      query = hashParams.get('query');
+      if (query) {
+        hashParams.delete('query');
+        const remainingHashSearch = hashParams.toString();
+        nextHash = remainingHashSearch ? `${hashPath}?${remainingHashSearch}` : hashPath;
+      }
+    }
+
+    if (!query || query.trim().length === 0) {
+      return null;
+    }
+
+    searchParams.delete('query');
+    const nextSearch = searchParams.toString();
+    const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${nextHash}`;
+    window.history.replaceState({}, document.title, nextUrl);
+
+    return query.trim();
+  };
+
   // Adaptive launch screen: dismiss once auth is ready, min 500ms, max 2000ms
   useEffect(() => {
     const minTimer = setTimeout(() => {
@@ -55,6 +84,18 @@ function App() {
     const handler = () => setShowAddTransactionModal(true);
     window.addEventListener('open-add-transaction-modal', handler);
     return () => window.removeEventListener('open-add-transaction-modal', handler);
+  }, []);
+
+  useEffect(() => {
+    const startupQuery = extractStartupSiriQuery();
+    if (!startupQuery) {
+      return;
+    }
+
+    logger.log('🎙️ Siri: Found startup query in URL, opening modal');
+    sessionStorage.setItem('siriRawQuery', startupQuery);
+    sessionStorage.setItem('siriQuery', startupQuery);
+    setShowAddTransactionModal(true);
   }, []);
 
   // Initialize Firebase Auth

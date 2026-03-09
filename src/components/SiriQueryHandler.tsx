@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { doc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, deleteDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useBudgetStore } from '../stores/budgetStore';
 import { parseSiriQuery } from '../services/SiriService';
@@ -31,18 +31,13 @@ export const SiriQueryHandler: React.FC = () => {
     // Set up real-time listener
     const docRef = doc(db, 'siriQueries', siriToken!);
     logger.log('🎙️ Siri: Setting up Firestore listener for token:', siriToken);
-    
-    const unsubscribe = onSnapshot(docRef, async (snapshot) => {
-      logger.log('🎙️ Siri: Firestore snapshot received, exists:', snapshot.exists());
-      if (!snapshot.exists() || isProcessing.current) return;
 
-      const data = snapshot.data();
-      if (!data?.query || data.consumed) return;
+    const processQueryData = async (data: any) => {
+      if (!data?.query || data.consumed || isProcessing.current) return;
 
       // Check if the query is fresh (less than 2 minutes old)
       const age = Date.now() - (data.timestamp || 0);
       if (age > 120000) {
-        // Silently clean up stale queries
         try {
           await deleteDoc(docRef);
         } catch (err) {
@@ -55,10 +50,8 @@ export const SiriQueryHandler: React.FC = () => {
       isProcessing.current = true;
 
       try {
-        // Delete immediately so it doesn't trigger again
         await deleteDoc(docRef);
 
-        // Wait for envelopes to load on cold start (poll up to 10s)
         if (envelopesRef.current.length === 0) {
           logger.log('🎙️ Siri: Waiting for envelopes to load...');
           for (let i = 0; i < 20; i++) {
@@ -68,31 +61,54 @@ export const SiriQueryHandler: React.FC = () => {
           logger.log('🎙️ Siri: Envelopes ready:', envelopesRef.current.length);
         }
 
-        // Parse the query using current envelopes via ref
         const result = await parseSiriQuery(data.query, envelopesRef.current);
         logger.log('🎙️ Siri: Parsed result:', result);
 
-        // Store in sessionStorage for AddTransactionView
         sessionStorage.setItem('siriParsedData', JSON.stringify(result));
         sessionStorage.setItem('siriQuery', data.query);
 
-        // Open the add-transaction modal overlay (same path the FAB button uses)
-        // This avoids the routed /add-transaction page which has AnimatePresence exit issues
         window.dispatchEvent(new CustomEvent('open-add-transaction-modal'));
-
-        // Also dispatch siri-query-ready so AddTransactionView re-reads sessionStorage
-        // (handles the case where the modal component is already mounted)
         window.dispatchEvent(new CustomEvent('siri-query-ready'));
       } catch (error) {
         logger.error('🎙️ Siri: Error processing query:', error);
       } finally {
         isProcessing.current = false;
       }
+    };
+
+    let pollAttempts = 0;
+    const maxPollAttempts = 8;
+    const pollForStartupQuery = async () => {
+      if (isProcessing.current || pollAttempts >= maxPollAttempts) return;
+      pollAttempts += 1;
+      try {
+        const snapshot = await getDoc(docRef);
+        logger.log('🎙️ Siri: Poll check snapshot exists:', snapshot.exists());
+        if (snapshot.exists()) {
+          await processQueryData(snapshot.data());
+        }
+      } catch (error) {
+        logger.error('🎙️ Siri: Poll check failed:', error);
+      }
+    };
+    
+    const unsubscribe = onSnapshot(docRef, async (snapshot) => {
+      logger.log('🎙️ Siri: Firestore snapshot received, exists:', snapshot.exists());
+      if (!snapshot.exists()) return;
+      await processQueryData(snapshot.data());
     }, (error) => {
       logger.error('🎙️ Siri: Error listening for queries:', error);
     });
 
-    return () => unsubscribe();
+    pollForStartupQuery();
+    const pollTimer = window.setInterval(() => {
+      void pollForStartupQuery();
+    }, 1000);
+
+    return () => {
+      window.clearInterval(pollTimer);
+      unsubscribe();
+    };
   }, [siriToken]);
 
   return null;
