@@ -13,6 +13,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
+  const shouldHide = location.pathname === '/add-transaction';
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -32,6 +33,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ onAddTransac
       };
     }
   }, [showMoreMenu]);
+
+  if (shouldHide) {
+    return null;
+  }
 
   // More menu items definition
   const moreMenuItems = [

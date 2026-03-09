@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SkipForward, DollarSign, Wallet, TrendingUp, PiggyBank, CheckCircle2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useBudgetStore } from '../../stores/budgetStore';
 
 // ─── Tutorial Step Definitions ───
@@ -173,6 +174,7 @@ const SpotlightOverlay: React.FC<{
 // ─── Main GuidedTutorialOverlay ───
 
 export const GuidedTutorialOverlay: React.FC = () => {
+  const location = useLocation();
   const guidedTutorialStep = useBudgetStore(s => s.guidedTutorialStep);
   const skipGuidedTutorial = useBudgetStore(s => s.skipGuidedTutorial);
   const advanceGuidedTutorial = useBudgetStore(s => s.advanceGuidedTutorial);
@@ -259,6 +261,7 @@ export const GuidedTutorialOverlay: React.FC = () => {
     }
   }, [step, incomeSources, currentMonth, envelopes, allocations, piggybanks, advanceGuidedTutorial]);
 
+  if (location.pathname === '/add-transaction') return null;
   if (!isActive || !currentTutorialStep) return null;
 
   const colors = colorMap[currentTutorialStep.color] || colorMap.blue;
