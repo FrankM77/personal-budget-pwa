@@ -110,5 +110,36 @@ export default defineConfig(({ mode }) => {
         }
       })
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-router': ['react-router-dom'],
+            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+            'vendor-ui': ['framer-motion', 'lucide-react'],
+            'vendor-charts': ['@daybrush/utils'],
+            
+            // Feature chunks
+            'views-settings': [
+              './src/views/SettingsView.tsx',
+              './src/views/CategorySettingsView.tsx'
+            ],
+            'views-analytics': [
+              './src/views/AnalyticsView.tsx',
+              './src/views/BudgetBreakdownView.tsx',
+              './src/views/ReportsView.tsx'
+            ],
+            'views-transactions': [
+              './src/views/TransactionHistoryView.tsx',
+              './src/views/AddTransactionView.tsx',
+              './src/views/AddEnvelopeView.tsx'
+            ]
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000
+    }
   }
 })

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { applyActionCode } from 'firebase/auth';
 import { HashRouter } from 'react-router-dom';
 import { LoginView } from './views/LoginView';
 import { ResetPasswordView } from './views/ResetPasswordView';
-import { EmailVerificationView } from './views/EmailVerificationView';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -18,6 +17,9 @@ import { AddTransactionView } from './views/AddTransactionView';
 import { auth } from './firebase';
 import logger from './utils/logger';
 
+// Lazy load EmailVerificationView for code splitting
+const EmailVerificationView = lazy(() => import('./views/EmailVerificationView').then(m => ({ default: m.EmailVerificationView })));
+
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
   const [showingLaunchScreen, setShowingLaunchScreen] = useState(true);
@@ -27,13 +29,19 @@ function App() {
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
   const { showToast } = useToastStore();
 
-  // Effect: Mimicking .onAppear { DispatchQueue... }
+  // Effect: Adaptive launch screen - dismiss early if auth ready, max 800ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowingLaunchScreen(false);
-    }, 2000);
+    }, 800);
+    
+    // Dismiss early if auth is ready
+    if (isInitialized && isAuthenticated) {
+      setShowingLaunchScreen(false);
+    }
+    
     return () => clearTimeout(timer);
-  }, []);
+  }, [isInitialized, isAuthenticated]);
 
   // Initialize Firebase Auth
   useEffect(() => {
@@ -182,7 +190,9 @@ function App() {
     if (currentUser) {
       return (
         <ErrorBoundary>
-          <EmailVerificationView />
+          <Suspense fallback={<LoadingScreen />}>
+            <EmailVerificationView />
+          </Suspense>
           <Toast />
         </ErrorBoundary>
       );
