@@ -16,8 +16,8 @@ export const ReportsView: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800">
-        <div className="flex items-center gap-4 p-4">
+      <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 safe-area-top">
+        <div className="flex items-center gap-4 px-4 pt-2 pb-4">
           <button
             onClick={handleBack}
             className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
