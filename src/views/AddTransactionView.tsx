@@ -17,12 +17,6 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
-  // 🔍 DIAGNOSTIC: Log render context on mount only
-  useEffect(() => {
-    logger.log('🔍 DIAG: AddTransactionView MOUNTED — onClose:', !!onClose, 'onSaved:', !!onSaved, 'location:', window.location.hash);
-    return () => logger.log('🔍 DIAG: AddTransactionView UNMOUNTED');
-  }, []);
-
   // Helper to load Siri data from sessionStorage and pre-fill the form
   const loadSiriFromSessionStorage = () => {
     const storedSiriData = sessionStorage.getItem('siriParsedData');
@@ -83,30 +77,6 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
       loadSiriFromSessionStorage();
     }
   }, [parsedData, siriQuery, appSettings?.paymentSources]);
-
-  // 🔍 DIAGNOSTIC: Document-level tap listener to log what element receives each tap
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const t = e.target as HTMLElement;
-      const tag = t.tagName;
-      const cls = (t.className?.toString?.() || '').slice(0, 80);
-      const txt = (t.textContent || '').slice(0, 30);
-      const rect = t.getBoundingClientRect();
-      const zIdx = window.getComputedStyle(t).zIndex;
-      const pe = window.getComputedStyle(t).pointerEvents;
-      logger.log(`🔍 TAP[${e.type}]: <${tag}> z=${zIdx} pe=${pe} "${txt}" ${Math.round(rect.width)}x${Math.round(rect.height)} cls="${cls}"`);
-      // Log first 3 parents to show the element hierarchy
-      let p = t.parentElement;
-      for (let i = 0; i < 3 && p; i++) {
-        const pCls = (p.className?.toString?.() || '').slice(0, 80);
-        const pZ = window.getComputedStyle(p).zIndex;
-        logger.log(`🔍 TAP PARENT[${i}]: <${p.tagName}> z=${pZ} cls="${pCls}"`);
-        p = p.parentElement;
-      }
-    };
-    document.addEventListener('pointerdown', handler, true);
-    return () => document.removeEventListener('pointerdown', handler, true);
-  }, []);
 
   // Listen for real-time Siri queries dispatched by SiriQueryHandler
   // (handles the case where the app is already open and in view)
@@ -179,12 +149,11 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   }, [parsedData, siriPrefilled, appSettings?.paymentSources]);
 
   const handleClose = () => {
-    logger.log('🔍 DIAG: handleClose CALLED — onClose prop:', !!onClose);
     if (onClose) {
       onClose();
       return;
     }
-    // Routed page: force hash navigation to bypass AnimatePresence exit stall
+    // Fallback for routed page (non-modal)
     window.location.hash = '#/';
   };
 
@@ -204,12 +173,8 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    logger.log('🔍 DIAG: handleSubmit CALLED — isFormValid:', isFormValid, 'event type:', e?.type);
     e.preventDefault();
-    if (!isFormValid) {
-      logger.log('🔍 DIAG: handleSubmit EARLY RETURN — form not valid');
-      return;
-    }
+    if (!isFormValid) return;
     
     // Properly handle the date to avoid timezone issues
     const [year, month, day] = date.split('-').map(Number);

@@ -27,13 +27,28 @@ function App() {
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
   const { showToast } = useToastStore();
 
-  // Effect: Mimicking .onAppear { DispatchQueue... }
+  // Adaptive launch screen: dismiss once auth is ready, min 500ms, max 2000ms
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const minTimer = setTimeout(() => {
+      // After minimum display time, dismiss if auth is already initialized
+      if (isInitialized) {
+        setShowingLaunchScreen(false);
+      }
+    }, 500);
+    const maxTimer = setTimeout(() => {
       setShowingLaunchScreen(false);
     }, 2000);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(minTimer); clearTimeout(maxTimer); };
   }, []);
+
+  // Dismiss launch screen when auth initializes (if min time already passed)
+  useEffect(() => {
+    if (isInitialized) {
+      // Small delay to ensure min display time of ~500ms has likely passed
+      const timer = setTimeout(() => setShowingLaunchScreen(false), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialized]);
 
   // Listen for Siri-triggered modal open event
   useEffect(() => {
