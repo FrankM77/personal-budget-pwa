@@ -35,6 +35,13 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Listen for Siri-triggered modal open event
+  useEffect(() => {
+    const handler = () => setShowAddTransactionModal(true);
+    window.addEventListener('open-add-transaction-modal', handler);
+    return () => window.removeEventListener('open-add-transaction-modal', handler);
+  }, []);
+
   // Initialize Firebase Auth
   useEffect(() => {
     const unsubscribe = initializeAuth();

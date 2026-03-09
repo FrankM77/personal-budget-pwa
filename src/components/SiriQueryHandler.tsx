@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useBudgetStore } from '../stores/budgetStore';
@@ -14,20 +13,24 @@ import logger from '../utils/logger';
  * even if the app is already open/focused.
  */
 export const SiriQueryHandler: React.FC = () => {
-  const navigate = useNavigate();
   const { envelopes, appSettings } = useBudgetStore();
   const isProcessing = useRef(false);
+  // Use ref for envelopes to avoid re-subscribing on every store update
+  const envelopesRef = useRef(envelopes);
+  envelopesRef.current = envelopes;
+
+  const siriToken = appSettings?.siriToken;
+  const hasEnvelopes = envelopes.length > 0;
 
   useEffect(() => {
-    const siriToken = appSettings?.siriToken;
-    logger.log('🎙️ Siri: Handler checking - siriToken:', siriToken, 'envelopes count:', envelopes.length);
-    if (!siriToken || envelopes.length === 0) {
+    logger.log('🎙️ Siri: Handler checking - siriToken:', siriToken, 'envelopes count:', envelopesRef.current.length);
+    if (!siriToken || !hasEnvelopes) {
       logger.log('🎙️ Siri: Handler not ready - missing token or envelopes');
       return;
     }
 
     // Set up real-time listener
-    const docRef = doc(db, 'siriQueries', siriToken);
+    const docRef = doc(db, 'siriQueries', siriToken!);
     logger.log('🎙️ Siri: Setting up Firestore listener for token:', siriToken);
     
     const unsubscribe = onSnapshot(docRef, async (snapshot) => {
@@ -56,20 +59,20 @@ export const SiriQueryHandler: React.FC = () => {
         // Delete immediately so it doesn't trigger again
         await deleteDoc(docRef);
 
-        // Parse the query
-        const result = await parseSiriQuery(data.query, envelopes);
+        // Parse the query using current envelopes via ref
+        const result = await parseSiriQuery(data.query, envelopesRef.current);
         logger.log('🎙️ Siri: Parsed result:', result);
 
         // Store in sessionStorage for AddTransactionView
         sessionStorage.setItem('siriParsedData', JSON.stringify(result));
         sessionStorage.setItem('siriQuery', data.query);
 
-        // Navigate to add transaction with a cache-busting param
-        // This ensures React Router treats it as a new navigation even if already on /add-transaction
-        navigate(`/add-transaction?siri=${Date.now()}`);
+        // Open the add-transaction modal overlay (same path the FAB button uses)
+        // This avoids the routed /add-transaction page which has AnimatePresence exit issues
+        window.dispatchEvent(new CustomEvent('open-add-transaction-modal'));
 
-        // Also dispatch a custom event so AddTransactionView can re-read sessionStorage
-        // (handles the case where the component is already mounted)
+        // Also dispatch siri-query-ready so AddTransactionView re-reads sessionStorage
+        // (handles the case where the modal component is already mounted)
         window.dispatchEvent(new CustomEvent('siri-query-ready'));
       } catch (error) {
         logger.error('🎙️ Siri: Error processing query:', error);
@@ -81,7 +84,7 @@ export const SiriQueryHandler: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [envelopes, appSettings?.siriToken, navigate]);
+  }, [siriToken, hasEnvelopes]);
 
   return null;
 };
