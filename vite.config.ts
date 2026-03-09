@@ -109,6 +109,6 @@ export default defineConfig(({ mode }) => {
           enabled: false // Disable SW in dev mode - it conflicts with Vite's module resolution
         }
       })
-    ]
+    ],
   }
 })

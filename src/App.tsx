@@ -27,7 +27,7 @@ function App() {
   const { isAuthenticated, isInitialized, initializeAuth, lastAuthTime, offlineGracePeriod, currentUser } = useAuthStore();
   const { showToast } = useToastStore();
 
-  // Effect: Launch screen with early dismissal once auth + data are ready
+  // Effect: Mimicking .onAppear { DispatchQueue... }
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowingLaunchScreen(false);
