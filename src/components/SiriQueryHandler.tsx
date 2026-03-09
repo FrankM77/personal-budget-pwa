@@ -20,12 +20,11 @@ export const SiriQueryHandler: React.FC = () => {
   envelopesRef.current = envelopes;
 
   const siriToken = appSettings?.siriToken;
-  const hasEnvelopes = envelopes.length > 0;
 
   useEffect(() => {
-    logger.log('🎙️ Siri: Handler checking - siriToken:', siriToken, 'envelopes count:', envelopesRef.current.length);
-    if (!siriToken || !hasEnvelopes) {
-      logger.log('🎙️ Siri: Handler not ready - missing token or envelopes');
+    logger.log('🎙️ Siri: Handler checking - siriToken:', siriToken);
+    if (!siriToken) {
+      logger.log('🎙️ Siri: Handler not ready - missing token');
       return;
     }
 
@@ -59,6 +58,16 @@ export const SiriQueryHandler: React.FC = () => {
         // Delete immediately so it doesn't trigger again
         await deleteDoc(docRef);
 
+        // Wait for envelopes to load on cold start (poll up to 10s)
+        if (envelopesRef.current.length === 0) {
+          logger.log('🎙️ Siri: Waiting for envelopes to load...');
+          for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 500));
+            if (envelopesRef.current.length > 0) break;
+          }
+          logger.log('🎙️ Siri: Envelopes ready:', envelopesRef.current.length);
+        }
+
         // Parse the query using current envelopes via ref
         const result = await parseSiriQuery(data.query, envelopesRef.current);
         logger.log('🎙️ Siri: Parsed result:', result);
@@ -84,7 +93,7 @@ export const SiriQueryHandler: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [siriToken, hasEnvelopes]);
+  }, [siriToken]);
 
   return null;
 };
