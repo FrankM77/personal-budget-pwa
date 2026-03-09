@@ -1,8 +1,9 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect } from 'react';
 import { applyActionCode } from 'firebase/auth';
 import { HashRouter } from 'react-router-dom';
 import { LoginView } from './views/LoginView';
 import { ResetPasswordView } from './views/ResetPasswordView';
+import { EmailVerificationView } from './views/EmailVerificationView';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { Toast } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -16,9 +17,6 @@ import { useToastStore } from './stores/toastStore';
 import { AddTransactionView } from './views/AddTransactionView';
 import { auth } from './firebase';
 import logger from './utils/logger';
-
-// Lazy load EmailVerificationView for code splitting
-const EmailVerificationView = lazy(() => import('./views/EmailVerificationView').then(m => ({ default: m.EmailVerificationView })));
 
 function App() {
   // State: Mimicking @State private var showingLaunchScreen
@@ -190,9 +188,7 @@ function App() {
     if (currentUser) {
       return (
         <ErrorBoundary>
-          <Suspense fallback={<LoadingScreen />}>
-            <EmailVerificationView />
-          </Suspense>
+          <EmailVerificationView />
           <Toast />
         </ErrorBoundary>
       );
