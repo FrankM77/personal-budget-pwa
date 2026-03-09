@@ -99,13 +99,6 @@ function App() {
     handleUrlActions();
   }, []);
 
-  // Listen for Siri-triggered modal open event
-  useEffect(() => {
-    const handler = () => setShowAddTransactionModal(true);
-    window.addEventListener('open-add-transaction-modal', handler);
-    return () => window.removeEventListener('open-add-transaction-modal', handler);
-  }, []);
-
   // Theme effect: toggle html.dark based on app settings theme preference
   useEffect(() => {
     const root = document.documentElement;
