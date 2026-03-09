@@ -363,7 +363,43 @@ Let me know if any of these don't behave as expected and I'll fix immediately.
 
 ---
 
-*Last Updated: 2026-03-07*
+## Lesson: Performance Optimization Must Not Break Interaction Flows
+
+**Context**: Attempted to reduce app load time from 3-5s to under 1s by reducing launch screen delay (2000ms→800ms with early auth dismissal), lazy-loading EmailVerificationView, adding manual chunk splitting, and adding resource preconnect hints.
+**Date**: March 8, 2026
+
+**What Happened**:
+1. Initial perf commit caused loading screen regression (app stuck on splash) — due to lazy `EmailVerificationView` + `Suspense` + `manualChunks` in vite.config breaking module resolution
+2. Hotfixed by reverting lazy loading and chunk splitting, keeping only the timing change + preconnect hints
+3. Timing change alone caused a **subtle Siri transaction regression**: the `/add-transaction` route rendered correctly with prefilled data, but buttons appeared non-responsive (Cancel/Save visible but taps had no visual feedback), envelope selection unexpectedly closed the view, and scrolling worked but the page felt "frozen"
+4. Transactions were actually being saved (taps registered), but the UI never updated/navigated after interactions
+
+**Symptoms Were Misleading**:
+- Initially diagnosed as "invisible overlay blocking taps" — wrong
+- Then diagnosed as "AnimatePresence mode='wait' trapping transitions" — wrong
+- Disabling GuidedTutorialOverlay and BottomNavigation on the route — no effect
+- Reverting timing back to 2000ms — still broken (cached service worker may have been a factor, or the issue was deeper)
+
+**Root Cause**: Not definitively isolated. The regression persisted even after reverting the timing change, suggesting either:
+- The issue was introduced by a combination of changes across multiple commits
+- Service worker caching was serving stale assets despite code reverts
+- The routed `/add-transaction` page had a pre-existing fragility that was exposed
+
+**What Fixed It**: Full revert of ALL changed files (`src/App.tsx`, `BottomNavigation.tsx`, `guidedTutorialOverlay.tsx`, `index.html`, `vite.config.ts`) back to exact state at commit `0c83537` using `git checkout <commit> -- <files>`.
+
+**Key Takeaways**:
+1. **Never change multiple subsystems simultaneously** — timing, lazy loading, chunk splitting, and resource hints should each be separate, independently verifiable commits
+2. **Test ALL interaction flows before deploying perf changes** — not just page loads. Siri, modal overlays, form submissions, and navigation must all be verified
+3. **PWA service workers can mask reverts** — even after reverting code, users may get cached stale bundles. Consider cache-busting strategies during debugging
+4. **The FAB modal path vs routed page path are different code paths** — the normal "Add Transaction" button uses a modal overlay in App.tsx, while Siri uses `navigate('/add-transaction')` which renders via AppRoutes. These two paths have different interaction characteristics and must both be tested
+5. **When multiple fix attempts fail, revert to last known good state** — don't keep layering fixes on top of a broken base
+
+**Pattern**: **One change per commit for performance work. Test every interaction flow, not just the optimized path. When in doubt, revert fully.**
+
+---
+
+*Last Updated: 2026-03-08*
+*Session: Performance Optimization Revert - Siri Transaction Regression*
 *Session: useEffect Dependency Memoization - Input Blocking Regression*
 *Session: Breaking Change Verification Protocol*
 *Session: Toast Regression Fix - Optimistic Updates With Real-Time Listeners*
