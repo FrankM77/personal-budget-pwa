@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Mic } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
@@ -15,7 +14,6 @@ interface AddTransactionViewProps {
 }
 
 export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose, onSaved }) => {
-  const navigate = useNavigate();
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
@@ -183,18 +181,11 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const handleClose = () => {
     logger.log('🔍 DIAG: handleClose CALLED — onClose prop:', !!onClose);
     if (onClose) {
-      logger.log('🔍 DIAG: Calling onClose prop');
       onClose();
       return;
     }
-    // If opened directly (e.g., from Siri URL), navigate to home
-    logger.log('🔍 DIAG: No onClose prop, calling navigate("/")');
-    try {
-      navigate('/');
-      logger.log('🔍 DIAG: navigate("/") returned successfully');
-    } catch (err) {
-      logger.error('🔍 DIAG: navigate("/") THREW:', err);
-    }
+    // Routed page: force hash navigation to bypass AnimatePresence exit stall
+    window.location.hash = '#/';
   };
 
   const handlePaymentMethodSelect = (card: PaymentSource) => {
@@ -264,22 +255,14 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
       ).catch(err => logger.error('Failed to create transactions:', err));
 
       // Navigate/close immediately - don't wait for Firebase
-      logger.log('🔍 DIAG: handleSubmit — about to navigate/close. onSaved:', !!onSaved, 'onClose:', !!onClose);
       if (onSaved) {
-        logger.log('🔍 DIAG: Calling onSaved');
         onSaved();
       }
       if (onClose) {
-        logger.log('🔍 DIAG: Calling onClose');
         onClose();
       } else {
-        logger.log('🔍 DIAG: No onClose, calling navigate("/")');
-        try {
-          navigate('/');
-          logger.log('🔍 DIAG: navigate("/") after save returned OK, hash now:', window.location.hash);
-        } catch (err) {
-          logger.error('🔍 DIAG: navigate("/") after save THREW:', err);
-        }
+        // Routed page: force hash navigation to bypass AnimatePresence exit stall
+        window.location.hash = '#/';
       }
     } catch (error) {
       logger.error('Error saving transaction:', error);
