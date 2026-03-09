@@ -19,8 +19,11 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
-  // 🔍 DIAGNOSTIC: Log render context (modal vs route)
-  logger.log('🔍 DIAG: AddTransactionView RENDER — onClose:', !!onClose, 'onSaved:', !!onSaved, 'location:', window.location.hash);
+  // 🔍 DIAGNOSTIC: Log render context on mount only
+  useEffect(() => {
+    logger.log('🔍 DIAG: AddTransactionView MOUNTED — onClose:', !!onClose, 'onSaved:', !!onSaved, 'location:', window.location.hash);
+    return () => logger.log('🔍 DIAG: AddTransactionView UNMOUNTED');
+  }, []);
 
   // Helper to load Siri data from sessionStorage and pre-fill the form
   const loadSiriFromSessionStorage = () => {

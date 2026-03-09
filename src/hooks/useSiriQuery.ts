@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { parseSiriQuery } from '../services/SiriService';
@@ -20,13 +20,17 @@ export function useSiriQuery() {
   const [isParsing, setIsParsing] = useState(false);
   const [siriQuery, setSiriQuery] = useState<string | null>(null);
 
+  // Use ref for envelopes to avoid re-triggering effect on every store update
+  const envelopesRef = useRef(envelopes);
+  envelopesRef.current = envelopes;
+
+  // Extract query param once — only react to actual URL query changes
+  const query = searchParams.get('query');
+
   useEffect(() => {
-    const query = searchParams.get('query');
     logger.log('🎙️ Siri: Hook checking URL params - query:', query);
     
     if (!query || query.trim().length === 0) {
-      logger.log('🎙️ Siri: No query parameter found');
-      setSiriQuery(null);
       return;
     }
 
@@ -34,7 +38,7 @@ export function useSiriQuery() {
     setSiriQuery(query);
     setIsParsing(true);
 
-    parseSiriQuery(query, envelopes)
+    parseSiriQuery(query, envelopesRef.current)
       .then((result) => {
         logger.log('🎙️ Siri: Parsed result:', result);
         setParsedData(result);
@@ -51,7 +55,7 @@ export function useSiriQuery() {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('query');
     setSearchParams(newParams, { replace: true });
-  }, [searchParams, envelopes, parseSiriQuery]); // Re-run when query param or parsing function changes
+  }, [query]); // Only re-run when the actual query value changes
 
   const clearParsedData = useCallback(() => {
     setParsedData(null);
