@@ -6,15 +6,34 @@ import EnvelopeDetail from '../views/EnvelopeDetail';
 import { AddTransactionView } from '../views/AddTransactionView';
 import { ErrorBoundary } from './ErrorBoundary';
 
+// Retry wrapper: if a lazy chunk fails to load (stale SW cache after deploy),
+// reload the page once to get the new service worker and fresh chunks.
+function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+  return lazy(() =>
+    factory().catch(() => {
+      const key = 'chunk_reload';
+      const lastReload = sessionStorage.getItem(key);
+      const now = Date.now();
+      // Only reload once per 30s to prevent infinite reload loops
+      if (!lastReload || now - Number(lastReload) > 30000) {
+        sessionStorage.setItem(key, String(now));
+        window.location.reload();
+      }
+      // Return a never-resolving promise so React doesn't render stale module
+      return new Promise(() => {});
+    })
+  );
+}
+
 // Lazy-loaded views (code-split for smaller initial bundle)
-const SettingsView = lazy(() => import('../views/SettingsView').then(m => ({ default: m.SettingsView })));
-const CategorySettingsView = lazy(() => import('../views/CategorySettingsView').then(m => ({ default: m.CategorySettingsView })));
-const AddEnvelopeView = lazy(() => import('../views/AddEnvelopeView').then(m => ({ default: m.AddEnvelopeView })));
-const TransactionHistoryView = lazy(() => import('../views/TransactionHistoryView').then(m => ({ default: m.TransactionHistoryView })));
-const EmailVerificationView = lazy(() => import('../views/EmailVerificationView').then(m => ({ default: m.EmailVerificationView })));
-const AnalyticsView = lazy(() => import('../views/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
-const BudgetBreakdownView = lazy(() => import('../views/BudgetBreakdownView').then(m => ({ default: m.BudgetBreakdownView })));
-const ReportsView = lazy(() => import('../views/ReportsView').then(m => ({ default: m.ReportsView })));
+const SettingsView = lazyWithRetry(() => import('../views/SettingsView').then(m => ({ default: m.SettingsView })));
+const CategorySettingsView = lazyWithRetry(() => import('../views/CategorySettingsView').then(m => ({ default: m.CategorySettingsView })));
+const AddEnvelopeView = lazyWithRetry(() => import('../views/AddEnvelopeView').then(m => ({ default: m.AddEnvelopeView })));
+const TransactionHistoryView = lazyWithRetry(() => import('../views/TransactionHistoryView').then(m => ({ default: m.TransactionHistoryView })));
+const EmailVerificationView = lazyWithRetry(() => import('../views/EmailVerificationView').then(m => ({ default: m.EmailVerificationView })));
+const AnalyticsView = lazyWithRetry(() => import('../views/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
+const BudgetBreakdownView = lazyWithRetry(() => import('../views/BudgetBreakdownView').then(m => ({ default: m.BudgetBreakdownView })));
+const ReportsView = lazyWithRetry(() => import('../views/ReportsView').then(m => ({ default: m.ReportsView })));
 
 const LazyFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-black">
