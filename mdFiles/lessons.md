@@ -398,7 +398,34 @@ Let me know if any of these don't behave as expected and I'll fix immediately.
 
 ---
 
-*Last Updated: 2026-03-08*
+## Lesson: Excessive Logging Degrades Performance and Obscures Issues
+
+**Context**: Log analysis for stuck loading screen revealed hundreds of redundant log entries
+**Date**: March 28, 2026
+
+**Problems Found**:
+1. **Transaction payment method logs** - Each of 90+ transactions logs its payment method individually during render, creating 100+ duplicate entries
+2. **Repeated render logs** - `Rendering with loading states:` and `useEnvelopeList loading states:` fire dozens of times in milliseconds, indicating excessive re-renders
+3. **Duplicate action logs** - `Soft-deleted transaction:` appears twice for the same ID, suggesting double-invocation
+
+**Impact**:
+- Logs become unreadable (455 entries in one session, mostly noise)
+- Actual errors get buried in spam
+- May contribute to performance issues on mobile
+- Makes debugging harder, not easier
+
+**Future Cleanup Tasks**:
+1. Remove or throttle payment method logging (not useful at volume)
+2. Investigate why render logs fire so frequently (unnecessary re-renders)
+3. Add guards to prevent duplicate delete calls
+4. Consider log levels (DEBUG vs INFO) to filter noise
+
+**Pattern**: **Logging should aid debugging, not obscure it.** Remove verbose per-item logs. Use aggregate logging ("Processed 90 transactions") instead of per-item ("Processing transaction 1", "Processing transaction 2", ...).
+
+---
+
+*Last Updated: 2026-03-28*
+*Session: Log Analysis - Excessive Logging and Performance Issues*
 *Session: Performance Optimization Revert - Siri Transaction Regression*
 *Session: useEffect Dependency Memoization - Input Blocking Regression*
 *Session: Breaking Change Verification Protocol*
