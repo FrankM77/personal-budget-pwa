@@ -57,13 +57,15 @@ const convertFirebaseCategory = (firebaseCat: any): Category => ({
 
 // Setup real-time Firebase subscriptions for cross-tab/device sync
 const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
+  const setupStartTime = Date.now();
+  
   // Prevent duplicate subscriptions
   if ((window as any).__firebaseUnsubscribers) {
-    logger.log('⚠️ Real-time subscriptions already active, skipping setup');
+    logger.log('[LOADING-DEBUG] Real-time subscriptions already active, skipping setup');
     return;
   }
 
-  logger.log('🔄 Setting up real-time Firebase subscriptions...');
+  logger.log('[LOADING-DEBUG] Setting up real-time Firebase subscriptions...', { setupStartTime });
 
   // Get current month for income sources and allocations
   const currentMonth = budgetStore.getState().currentMonth;
@@ -208,7 +210,9 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     setupTransactionSubscription // Expose this so it can be called when loadedTransactionMonths changes
   };
 
-  logger.log('✅ Real-time subscriptions active - cross-device sync enabled');
+  logger.log('[LOADING-DEBUG] Real-time subscriptions setup complete', {
+    elapsedMs: Date.now() - setupStartTime
+  });
 };
 
 export const setupEnvelopeStoreRealtime = (params: {

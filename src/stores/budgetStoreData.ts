@@ -37,27 +37,31 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
     },
 
     init: async () => {
-        logger.log("BudgetStore initializing...");
+        const initStartTime = Date.now();
+        logger.log('[LOADING-DEBUG] BudgetStore.init() started', { initStartTime });
         const state = get();
         
         try {
             // Set loading state
+            logger.log('[LOADING-DEBUG] Setting isLoading = true');
             set({ isLoading: true, error: null });
             
             const { currentUser } = useAuthStore.getState();
             
             if (!currentUser) {
-                logger.log("No user logged in, skipping data fetch");
+                logger.log('[LOADING-DEBUG] No user logged in, setting isLoading = false');
                 set({ isLoading: false });
                 return;
             }
             
-            logger.log(`Fetching data for user: ${currentUser.id}, month: ${state.currentMonth}`);
+            logger.log('[LOADING-DEBUG] Fetching data for user', { userId: currentUser.id, month: state.currentMonth });
             
             // Fetch data in parallel with timeout protection
             // OPTIMIZATION: Real-time listeners will handle transactions once setup.
             // We only need to fetch the core building blocks and the budget data for the current month.
-            logger.log('🔍 Starting parallel fetch: envelopes, categories, monthData');
+            logger.log('[LOADING-DEBUG] Starting parallel fetch: envelopes, categories, monthData', {
+                elapsedMs: Date.now() - initStartTime
+            });
             
             // Helper to add timeout to promises
             const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> => {
@@ -108,7 +112,11 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 })
             ]);
             
-            logger.log('🔍 All parallel fetches completed');
+            logger.log('[LOADING-DEBUG] All parallel fetches completed', {
+                elapsedMs: Date.now() - initStartTime,
+                envelopesCount: envelopes.length,
+                categoriesCount: categoriesResult.length
+            });
 
             // Ensure transactions for current month are marked as loading/loaded
             // so the real-time listener doesn't compete with a manual fetch
@@ -135,6 +143,9 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             }
 
             // Update state with fetched data
+            logger.log('[LOADING-DEBUG] Setting store state with fetched data, isLoading = false', {
+                elapsedMs: Date.now() - initStartTime
+            });
             set({
                 envelopes,
                 loadedTransactionMonths: currentMonths,
@@ -152,8 +163,11 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 error: null
             });
             
-            logger.log('🔍 Setting store state with fetched data');
-            logger.log(`✅ BudgetStore initialized: ${envelopes.length} envelopes, current month: ${state.currentMonth}`);
+            logger.log('[LOADING-DEBUG] Store state updated successfully', {
+                elapsedMs: Date.now() - initStartTime,
+                envelopesCount: envelopes.length,
+                currentMonth: state.currentMonth
+            });
             
             // 🔧 Auto-detect and fix lazy loading gaps
             // Check for months that have persisted transactions but no budget data (income/allocations).
@@ -223,7 +237,11 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 .catch(err => logger.warn('⚠️ Background soft-delete purge failed:', err));
             
         } catch (error) {
-            logger.error('❌ BudgetStore initialization failed:', error);
+            logger.error('[LOADING-DEBUG] BudgetStore.init() FAILED', {
+                error,
+                errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                elapsedMs: Date.now() - initStartTime
+            });
             set({ 
                 isLoading: false, 
                 error: error instanceof Error ? error.message : 'Failed to initialize budget data' 

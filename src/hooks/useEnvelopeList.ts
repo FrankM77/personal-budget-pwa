@@ -78,7 +78,7 @@ export const useEnvelopeList = () => {
   // Once fetch is triggered and stores are not loading, we're done
   const isInitialLoading = !initialFetchTriggered || isLoading || isBudgetLoading;
 
-  // DEBUG: Log loading states to diagnose export-related loading issues
+  // DEBUG: Log loading states with more detail to diagnose stuck loading screen
   logger.log('🔍 useEnvelopeList loading states:', {
     initialFetchTriggered,
     isLoading,
@@ -164,24 +164,44 @@ export const useEnvelopeList = () => {
 
   // Load data from Firebase on mount
   useEffect(() => {
+    const mountTime = Date.now();
+    logger.log('🔍 [LOADING-DEBUG] useEnvelopeList mount effect running', {
+      envelopesLength: envelopes.length,
+      isLoading,
+      isBudgetLoading,
+      initialFetchTriggered,
+      mountTime
+    });
+    
     // Skip fetch if we already have envelopes loaded (e.g., navigating back from Settings)
     if (envelopes.length > 0) {
-      logger.log('🔍 useEnvelopeList: Skipping fetch - data already loaded', envelopes.length, 'envelopes');
+      logger.log('🔍 [LOADING-DEBUG] Skipping fetch - data already loaded', {
+        envelopesCount: envelopes.length,
+        settingInitialFetchTriggered: true
+      });
       setInitialFetchTriggered(true);
       return;
     }
     
-    logger.log('🔍 useEnvelopeList: Initial data fetch triggered');
+    logger.log('🔍 [LOADING-DEBUG] Starting initial data fetch...');
     
     // Set timeout message after 8 seconds
     loadingTimeoutRef.current = setTimeout(() => {
+      logger.log('🔍 [LOADING-DEBUG] 8-second timeout reached, showing timeout message', {
+        isLoading,
+        isBudgetLoading,
+        initialFetchTriggered,
+        elapsedMs: Date.now() - mountTime
+      });
       setShowTimeoutMessage(true);
     }, 8000);
 
     // Trigger data fetch - it handles its own loading state
+    logger.log('🔍 [LOADING-DEBUG] Calling fetchData()...');
     fetchData();
     
     // Mark that we've triggered the initial fetch
+    logger.log('🔍 [LOADING-DEBUG] Setting initialFetchTriggered = true');
     setInitialFetchTriggered(true);
 
     // Cleanup
@@ -194,19 +214,28 @@ export const useEnvelopeList = () => {
   
   // Watch store loading states and hide timeout message when both are done
   useEffect(() => {
-    logger.log('🔍 useEnvelopeList: Loading state change', {
+    const now = Date.now();
+    logger.log('🔍 [LOADING-DEBUG] Store loading state changed', {
       initialFetchTriggered,
       isLoading,
       isBudgetLoading,
-      showTimeoutMessage
+      showTimeoutMessage,
+      isInitialLoading: !initialFetchTriggered || isLoading || isBudgetLoading,
+      timestamp: now
     });
     
     if (initialFetchTriggered && !isLoading && !isBudgetLoading) {
-      logger.log('🔍 useEnvelopeList: All loading complete, hiding timeout message');
+      logger.log('🔍 [LOADING-DEBUG] All loading complete! Hiding timeout message');
       setShowTimeoutMessage(false);
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
       }
+    } else if (initialFetchTriggered) {
+      // Log why we're still loading
+      logger.log('🔍 [LOADING-DEBUG] Still loading because:', {
+        isLoadingBlocking: isLoading,
+        isBudgetLoadingBlocking: isBudgetLoading
+      });
     }
   }, [initialFetchTriggered, isLoading, isBudgetLoading]);
 

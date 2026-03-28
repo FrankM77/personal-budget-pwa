@@ -111,17 +111,28 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const submitStartTime = Date.now();
+    logger.log('[MODAL-DEBUG] handleSubmit called', { submitStartTime, mode });
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      logger.log('❌ Invalid amount:', amount);
+      logger.log('[MODAL-DEBUG] Invalid amount, aborting', { amount });
       return;
     }
 
     const splitEntries = Object.entries(splitAmounts).filter(([_envelopeId, splitAmount]) => splitAmount > 0);
     const hasSplitTransactions = mode === 'edit' && splitEntries.length > 1;
     
-    logger.log('💾 Saving transaction:', { mode, amount: numAmount, note, date, splitAmounts, paymentMethod: selectedPaymentMethod });
+    logger.log('[MODAL-DEBUG] Starting save operation', { 
+      mode, 
+      amount: numAmount, 
+      note, 
+      date, 
+      splitAmounts, 
+      paymentMethod: selectedPaymentMethod,
+      submitStartTime 
+    });
 
     try {
       // Validate date against current budget month
@@ -136,7 +147,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
       }
 
       if (mode === 'add') {
-        logger.log('➕ Adding income transaction');
+        logger.log('[MODAL-DEBUG] Adding income transaction...');
         await addTransaction({
           amount: numAmount,
           description: note,
@@ -148,7 +159,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           paymentMethod: selectedPaymentMethod || undefined
         });
       } else if (mode === 'spend') {
-        logger.log('➖ Adding expense transaction');
+        logger.log('[MODAL-DEBUG] Adding expense transaction...');
         await addTransaction({
           amount: numAmount,
           description: note,
@@ -160,7 +171,7 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           paymentMethod: selectedPaymentMethod || undefined
         });
       } else if (mode === 'edit' && initialTransaction) {
-        logger.log('✏️ Updating transaction');
+        logger.log('[MODAL-DEBUG] Updating transaction...');
         if (hasSplitTransactions || isEditingSplitGroup) {
           const transactionsToReplace = editTransactions.length > 0 ? editTransactions : [initialTransaction];
           const splitGroupId = splitEntries.length > 1
@@ -199,10 +210,16 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
           });
         }
       }
-      logger.log('✅ Transaction saved successfully');
+      logger.log('[MODAL-DEBUG] Transaction saved successfully, calling onClose()', {
+        elapsedMs: Date.now() - submitStartTime
+      });
       onClose();
     } catch (error) {
-      logger.error('❌ Error saving transaction:', error);
+      logger.error('[MODAL-DEBUG] Error saving transaction', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        elapsedMs: Date.now() - submitStartTime
+      });
       alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
