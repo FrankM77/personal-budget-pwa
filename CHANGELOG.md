@@ -2,6 +2,14 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.3] - 2026-04-01
+
+### 🐛 **BUG FIXES**
+- **Fixed envelope deletion issue**: Envelopes deleted from a specific month (e.g., April 2026) now stay deleted after app restart
+- **Root cause**: Real-time Firebase subscriptions were not properly filtering out soft-deleted transactions
+- **Solution**: Added explicit `where('deletedAt', '==', null)` filters to all Firestore queries in TransactionService
+- **Impact**: Month-specific envelope deletion now works correctly without envelopes reappearing on app restart
+
 ## [1.11.0] - 2026-02-15
 
 ### ✨ **NEW FEATURES**

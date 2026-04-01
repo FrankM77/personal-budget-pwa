@@ -249,17 +249,17 @@ export const useEnvelopeList = () => {
         // Respect global active flag
         if (env.isActive === false) return false;
 
-        // Check if envelope has an allocation for the current month
+        // Check if envelope has an allocation for current month
         const monthAllocations = allocations[currentMonth] || [];
         const hasAllocation = monthAllocations.some(a => a.envelopeId === env.id);
 
-        // Check if envelope has transactions for the current month
+        // Check if envelope has transactions for current month
         const hasTransactions = transactions.some(t => 
           t.envelopeId === env.id && 
           (t.month === currentMonth || t.date.startsWith(currentMonth))
         );
 
-        // Visible if it has an allocation or transactions in this month
+        // Visible if it has an allocation or transactions in this month ONLY
         return hasAllocation || hasTransactions;
       })
       .sort((a, b) => {
