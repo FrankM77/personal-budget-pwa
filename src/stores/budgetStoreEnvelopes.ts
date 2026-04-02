@@ -13,6 +13,12 @@ export const createEnvelopeSlice = ({ set, get }: SliceParams) => ({
             
             const currentUser = requireAuth();
             
+            logger.log('🔍 [DEBUG] budgetStoreEnvelopes.addEnvelope called:', {
+                envelopeName: envelope.name,
+                envelopeCategoryId: envelope.categoryId,
+                currentEnvelopesCount: get().envelopes.length
+            });
+            
             // Create envelope with userId
             const envelopeWithUser = { ...envelope, userId: currentUser.id };
             const createdEnvelope = await budgetService.createEnvelope(envelopeWithUser);

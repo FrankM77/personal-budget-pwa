@@ -26,7 +26,10 @@ export const AddEnvelopeView: React.FC = () => {
   React.useEffect(() => {
     if (!searchParams.get('categoryId') && categories.length > 0 && !categoryId) {
       const defaultCat = categories.find(c => c.isDefault);
-      if (defaultCat) setCategoryId(defaultCat.id);
+      if (defaultCat) {
+        logger.log('🔍 [DEBUG] AddEnvelopeView: Setting default category:', defaultCat.id, defaultCat.name);
+        setCategoryId(defaultCat.id);
+      }
     }
   }, [categories, searchParams, categoryId]);
   
@@ -38,6 +41,13 @@ export const AddEnvelopeView: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || isSubmitting) return;
+
+    logger.log('🔍 [DEBUG] AddEnvelopeView.handleSave called:', {
+      name,
+      categoryId,
+      isPiggybank,
+      categoriesLength: categories.length
+    });
 
     setIsSubmitting(true);
 

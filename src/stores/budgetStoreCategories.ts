@@ -94,6 +94,12 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
             set({ isLoading: true, error: null });
             const currentUser = requireAuth();
 
+            logger.log('🔍 [DEBUG] budgetStoreCategories.deleteCategory called:', {
+                categoryId,
+                currentCategoriesCount: get().categories.length,
+                currentEnvelopesCount: get().envelopes.length
+            });
+
             // Find envelopes that belong to this category
             const orphanedEnvelopes = get().envelopes.filter(e => e.categoryId === categoryId);
 

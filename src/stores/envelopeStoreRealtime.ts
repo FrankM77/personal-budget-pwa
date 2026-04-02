@@ -51,6 +51,7 @@ const convertFirebaseCategory = (firebaseCat: any): Category => ({
   name: firebaseCat.name,
   orderIndex: firebaseCat.orderIndex,
   isArchived: firebaseCat.isArchived,
+  isDefault: firebaseCat.isDefault,
   createdAt: firebaseCat.createdAt?.toDate?.() ? firebaseCat.createdAt.toDate().toISOString() : firebaseCat.createdAt,
   updatedAt: firebaseCat.updatedAt?.toDate?.() ? firebaseCat.updatedAt.toDate().toISOString() : firebaseCat.updatedAt,
 });
