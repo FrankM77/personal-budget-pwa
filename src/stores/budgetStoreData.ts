@@ -278,6 +278,16 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
     //                     )
     //                 }));
     //             } else {
+    //             }
+    //         }
+    //     }
+    // },
+
+    // TEMPORARILY DISABLED due to Firestore index issue causing infinite loop
+    verifyPiggybankBalances: async () => {
+        logger.log('🐷 verifyPiggybankBalances disabled due to Firestore index issue');
+    },
+
     fetchMonthData: async (month: string) => {
         try {
             const { currentUser } = useAuthStore.getState();
