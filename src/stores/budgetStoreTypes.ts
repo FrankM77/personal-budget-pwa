@@ -50,6 +50,7 @@ export interface BudgetState {
   restoreTransaction: (transaction: Transaction) => Promise<void>;
   transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
   fetchData: () => Promise<void>;
+  verifyPiggybankBalances: () => Promise<void>;
   renameEnvelope: (envelopeId: string, newName: string) => Promise<void>;
   getEnvelopeBalance: (envelopeId: string, month?: string) => number;
   resetData: () => Promise<void>;

@@ -219,30 +219,8 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 logger.log(`ℹ️ No lazy loading gaps detected for current month transactions`);
             }
 
-            // 🐷 One-time migration: compute and persist currentBalance for piggybank envelopes.
-            // After this runs, incremental delta updates in transaction mutations keep it in sync,
-            // so this block becomes a no-op for any piggybank already having a correct balance.
-            const piggybankEnvelopes = get().envelopes.filter(e => e.isPiggybank);
-            if (piggybankEnvelopes.length > 0) {
-                logger.log(`🐷 Migrating currentBalance for ${piggybankEnvelopes.length} piggybanks`);
-                for (const pb of piggybankEnvelopes) {
-                    try {
-                        const allTxs = await budgetService.getTransactionsByEnvelope(currentUser.id, pb.id);
-                        const income = allTxs.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-                        const expense = allTxs.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
-                        const balance = income - expense;
-                        await EnvelopeService.updateBalance(currentUser.id, pb.id, balance);
-                        set(state => ({
-                            envelopes: state.envelopes.map(e =>
-                                e.id === pb.id ? { ...e, currentBalance: balance } : e
-                            )
-                        }));
-                        logger.log(`✅ Migrated ${pb.name}: currentBalance = ${balance}`);
-                    } catch (error) {
-                        logger.error(`❌ Migration failed for piggybank ${pb.name}:`, error);
-                    }
-                }
-            }
+            // 🐷 Verify and self-heal piggybank balances on every fresh session
+            await get().verifyPiggybankBalances();
 
             // 🧹 Purge expired soft-deleted items (non-blocking, runs in background)
             budgetService.purgeExpiredSoftDeletes(currentUser.id)
@@ -264,6 +242,45 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
     fetchData: async () => {
         // Simply call init() to fetch all data
         await get().init();
+    },
+
+    // Fetches all transactions for each piggybank, computes the correct cumulative balance,
+    // and writes it to Firestore if it differs from the stored value.
+    // Called on every fresh session (via init()) and every cached session (via useEnvelopeList)
+    // to self-heal any balance corruption caused by operations that bypass deleteTransaction
+    // (e.g. clearMonthData's hard deletes) or any other inconsistency.
+    verifyPiggybankBalances: async () => {
+        const { currentUser } = useAuthStore.getState();
+        if (!currentUser) return;
+
+        const piggybankEnvelopes = get().envelopes.filter(e => e.isPiggybank && e.isActive);
+        if (piggybankEnvelopes.length === 0) return;
+
+        logger.log(`🐷 Verifying balances for ${piggybankEnvelopes.length} piggybanks`);
+
+        for (const pb of piggybankEnvelopes) {
+            try {
+                const allTxs = await budgetService.getTransactionsByEnvelope(currentUser.id, pb.id);
+                const income = allTxs.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+                const expense = allTxs.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+                const correctBalance = parseFloat((income - expense).toFixed(2));
+                const storedBalance = parseFloat((pb.currentBalance ?? 0).toFixed(2));
+
+                if (Math.abs(storedBalance - correctBalance) > 0.001) {
+                    logger.log(`🔧 Correcting ${pb.name}: stored=${storedBalance}, correct=${correctBalance}`);
+                    await EnvelopeService.updateBalance(currentUser.id, pb.id, correctBalance);
+                    set(state => ({
+                        envelopes: state.envelopes.map(e =>
+                            e.id === pb.id ? { ...e, currentBalance: correctBalance } : e
+                        )
+                    }));
+                } else {
+                    logger.log(`✅ ${pb.name} balance verified: ${storedBalance}`);
+                }
+            } catch (error) {
+                logger.error(`❌ Failed to verify piggybank ${pb.name}:`, error);
+            }
+        }
     },
 
     fetchMonthData: async (month: string) => {
@@ -374,13 +391,40 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
 
             const currentUser = requireAuth();
 
+            // Capture piggybank transactions for this month BEFORE deleting them.
+            // MonthlyBudgetService uses deleteDoc (hard delete) which bypasses the
+            // deleteTransaction store action — and therefore never calls updatePiggybankBalance.
+            // We compute the net balance reversal per piggybank and apply it explicitly.
+            const state = get();
+            const netDeltas: Record<string, number> = {};
+            state.transactions
+                .filter(t => t.month === month && !t.deletedAt && state.envelopes.find(e => e.id === t.envelopeId)?.isPiggybank)
+                .forEach(tx => {
+                    const reversal = tx.type === 'Income' ? -tx.amount : tx.amount;
+                    netDeltas[tx.envelopeId] = (netDeltas[tx.envelopeId] ?? 0) + reversal;
+                });
+
             const { monthlyBudgetService } = await import('../services/MonthlyBudgetService');
-            
             await monthlyBudgetService.clearMonthData(currentUser.id, month);
-            
+
+            // Apply balance reversals now that transactions are deleted
+            for (const [envelopeId, delta] of Object.entries(netDeltas)) {
+                const envelope = get().envelopes.find(e => e.id === envelopeId);
+                if (!envelope?.isPiggybank) continue;
+                const newBalance = (envelope.currentBalance ?? 0) + delta;
+                set(state => ({
+                    envelopes: state.envelopes.map(e =>
+                        e.id === envelopeId ? { ...e, currentBalance: newBalance } : e
+                    )
+                }));
+                EnvelopeService.updateBalance(currentUser.id, envelopeId, newBalance)
+                    .catch(err => logger.error(`❌ Failed to update piggybank balance after clearMonthData:`, err));
+                logger.log(`🐷 Reversed piggybank ${envelope.name} balance by ${delta}: new balance = ${newBalance}`);
+            }
+
             // Refresh data to reflect changes
             await get().init();
-            
+
             logger.log(`✅ Cleared month data for ${month}`);
             set({ isLoading: false });
 

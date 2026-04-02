@@ -180,23 +180,15 @@ export const useEnvelopeList = () => {
         settingInitialFetchTriggered: true
       });
       setInitialFetchTriggered(true);
-      // Piggybank currentBalance is now maintained in Firestore and synced via the real-time
-      // envelope subscription. If any piggybank still has currentBalance === 0 after the
-      // real-time snapshot settles, it hasn't been migrated yet — trigger init() to run the
-      // one-time migration that computes and writes the correct balance.
-      const piggybankEnvelopes = envelopes.filter(e => e.isPiggybank && e.isActive);
-      const potentiallyUnmigrated = piggybankEnvelopes.some(pb => (pb.currentBalance ?? 0) === 0);
-      if (potentiallyUnmigrated) {
-        setTimeout(() => {
-          const freshEnvelopes = useBudgetStore.getState().envelopes;
-          const stillUnmigrated = freshEnvelopes.some(
-            e => e.isPiggybank && e.isActive && (e.currentBalance ?? 0) === 0
-          );
-          if (stillUnmigrated) {
-            logger.log('🐷 Unmigrated piggybanks detected in cached session, running migration via init()');
-            useBudgetStore.getState().init();
-          }
-        }, 1500);
+      // Always verify piggybank balances in cached sessions. The real-time envelope
+      // subscription keeps currentBalance in sync after any mutation, but operations
+      // that bypass the store (e.g. clearMonthData's hard deletes) can corrupt it.
+      // verifyPiggybankBalances fetches all transactions per piggybank, computes the
+      // correct balance, and writes to Firestore only if a mismatch is detected.
+      const hasPiggybanks = envelopes.some(e => e.isPiggybank && e.isActive);
+      if (hasPiggybanks) {
+        useBudgetStore.getState().verifyPiggybankBalances()
+          .catch(err => logger.error('❌ Failed to verify piggybank balances:', err));
       }
       return;
     }
