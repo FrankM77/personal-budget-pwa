@@ -1,5 +1,6 @@
 import { BudgetService } from '../services/budgetService';
 import { CategoryService } from '../services/CategoryService';
+import { EnvelopeService } from '../services/EnvelopeService';
 import { useAuthStore } from './authStore';
 import { requireAuth } from '../utils/requireAuth';
 import logger from '../utils/logger';
@@ -218,16 +219,27 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 logger.log(`ℹ️ No lazy loading gaps detected for current month transactions`);
             }
 
-            // 🐷 Pre-fetch transactions for piggybank envelopes
-            // Piggybanks need cumulative cross-month balances, so we must load all their transactions
+            // 🐷 One-time migration: compute and persist currentBalance for piggybank envelopes.
+            // After this runs, incremental delta updates in transaction mutations keep it in sync,
+            // so this block becomes a no-op for any piggybank already having a correct balance.
             const piggybankEnvelopes = get().envelopes.filter(e => e.isPiggybank);
             if (piggybankEnvelopes.length > 0) {
-                logger.log(`🐷 Pre-fetching transactions for ${piggybankEnvelopes.length} piggybanks`);
+                logger.log(`🐷 Migrating currentBalance for ${piggybankEnvelopes.length} piggybanks`);
                 for (const pb of piggybankEnvelopes) {
                     try {
-                        await get().fetchTransactionsForEnvelope(pb.id);
+                        const allTxs = await budgetService.getTransactionsByEnvelope(currentUser.id, pb.id);
+                        const income = allTxs.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+                        const expense = allTxs.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+                        const balance = income - expense;
+                        await EnvelopeService.updateBalance(currentUser.id, pb.id, balance);
+                        set(state => ({
+                            envelopes: state.envelopes.map(e =>
+                                e.id === pb.id ? { ...e, currentBalance: balance } : e
+                            )
+                        }));
+                        logger.log(`✅ Migrated ${pb.name}: currentBalance = ${balance}`);
                     } catch (error) {
-                        logger.error(`❌ Failed to fetch piggybank transactions for ${pb.name}:`, error);
+                        logger.error(`❌ Migration failed for piggybank ${pb.name}:`, error);
                     }
                 }
             }

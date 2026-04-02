@@ -180,16 +180,23 @@ export const useEnvelopeList = () => {
         settingInitialFetchTriggered: true
       });
       setInitialFetchTriggered(true);
-      // Piggybank balances are cumulative across all months but transactions are lazy-loaded
-      // per month. When data comes from localStorage (skipping init()), the piggybank
-      // pre-fetch inside init() never runs — so we trigger it here explicitly.
+      // Piggybank currentBalance is now maintained in Firestore and synced via the real-time
+      // envelope subscription. If any piggybank still has currentBalance === 0 after the
+      // real-time snapshot settles, it hasn't been migrated yet — trigger init() to run the
+      // one-time migration that computes and writes the correct balance.
       const piggybankEnvelopes = envelopes.filter(e => e.isPiggybank && e.isActive);
-      if (piggybankEnvelopes.length > 0) {
-        logger.log(`🐷 Pre-fetching transactions for ${piggybankEnvelopes.length} cached piggybanks`);
-        piggybankEnvelopes.forEach(pb => {
-          useBudgetStore.getState().fetchTransactionsForEnvelope(pb.id)
-            .catch(err => logger.error(`❌ Failed to pre-fetch piggybank transactions for ${pb.name}:`, err));
-        });
+      const potentiallyUnmigrated = piggybankEnvelopes.some(pb => (pb.currentBalance ?? 0) === 0);
+      if (potentiallyUnmigrated) {
+        setTimeout(() => {
+          const freshEnvelopes = useBudgetStore.getState().envelopes;
+          const stillUnmigrated = freshEnvelopes.some(
+            e => e.isPiggybank && e.isActive && (e.currentBalance ?? 0) === 0
+          );
+          if (stillUnmigrated) {
+            logger.log('🐷 Unmigrated piggybanks detected in cached session, running migration via init()');
+            useBudgetStore.getState().init();
+          }
+        }, 1500);
       }
       return;
     }

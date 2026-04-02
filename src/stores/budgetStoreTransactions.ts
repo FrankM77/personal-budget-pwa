@@ -1,4 +1,5 @@
 import { BudgetService } from '../services/budgetService';
+import { EnvelopeService } from '../services/EnvelopeService';
 import { useAuthStore } from './authStore';
 import { requireAuth } from '../utils/requireAuth';
 import logger from '../utils/logger';
@@ -11,7 +12,28 @@ const budgetService = BudgetService.getInstance();
 // so the real-time listener doesn't add them back before the backend write propagates
 export const pendingTransactionDeletions = new Set<string>();
 
-export const createTransactionSlice = ({ set, get }: SliceParams) => ({
+export const createTransactionSlice = ({ set, get }: SliceParams) => {
+  // Updates a piggybank envelope's currentBalance by a delta, both locally and in Firestore.
+  // Fire-and-forget on the Firestore write; the real-time envelope listener confirms the value.
+  const updatePiggybankBalance = (envelopeId: string, delta: number) => {
+    const { currentUser } = useAuthStore.getState();
+    if (!currentUser) return;
+    const envelope = get().envelopes.find(e => e.id === envelopeId);
+    if (!envelope?.isPiggybank) return;
+
+    const newBalance = (envelope.currentBalance ?? 0) + delta;
+
+    set(state => ({
+      envelopes: state.envelopes.map(e =>
+        e.id === envelopeId ? { ...e, currentBalance: newBalance } : e
+      )
+    }));
+
+    EnvelopeService.updateBalance(currentUser.id, envelopeId, newBalance)
+      .catch(err => logger.error(`❌ Failed to update piggybank balance for ${envelopeId}:`, err));
+  };
+
+  return {
     addTransaction: async (transaction: Omit<Transaction, 'id' | 'userId'>): Promise<void> => {
         try {
             set({ isLoading: true, error: null });
@@ -39,7 +61,11 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
                     isLoading: false
                 };
             });
-            
+
+            // Update piggybank balance incrementally if applicable
+            const delta = createdTransaction.type === 'Income' ? createdTransaction.amount : -createdTransaction.amount;
+            updatePiggybankBalance(createdTransaction.envelopeId, delta);
+
             logger.log('✅ Added transaction:', createdTransaction.id);
             
         } catch (error) {
@@ -55,13 +81,16 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
     updateTransaction: async (transaction: Transaction): Promise<void> => {
         try {
             set({ isLoading: true, error: null });
-            
+
             const currentUser = requireAuth();
-            
+
+            // Capture old transaction before update to compute piggybank balance delta
+            const oldTx = get().transactions.find(tx => tx.id === transaction.id);
+
             // Ensure month is set
             const txDate = new Date(transaction.date);
             const month = transaction.month || `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-            
+
             const updatedTransaction = { ...transaction, month };
 
             // Update in backend
@@ -69,12 +98,19 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             
             // Update local state
             set(state => ({
-                transactions: state.transactions.map(tx => 
+                transactions: state.transactions.map(tx =>
                     tx.id === transaction.id ? updatedTransaction : tx
                 ),
                 isLoading: false
             }));
-            
+
+            // Update piggybank balance incrementally based on the delta
+            if (oldTx) {
+                const oldEffect = oldTx.type === 'Income' ? oldTx.amount : -oldTx.amount;
+                const newEffect = updatedTransaction.type === 'Income' ? updatedTransaction.amount : -updatedTransaction.amount;
+                updatePiggybankBalance(updatedTransaction.envelopeId, newEffect - oldEffect);
+            }
+
             logger.log('✅ Updated transaction:', transaction.id);
             
         } catch (error) {
@@ -90,22 +126,31 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
     deleteTransaction: async (transactionId: string): Promise<void> => {
         try {
             set({ isLoading: true, error: null });
-            
+
             const currentUser = requireAuth();
-            
+
+            // Capture transaction before removing it to update piggybank balance
+            const tx = get().transactions.find(t => t.id === transactionId);
+
             // Track this deletion so real-time listener doesn't re-add it
             pendingTransactionDeletions.add(transactionId);
-            
+
             // Update local state FIRST (optimistic)
             set(state => ({
-                transactions: state.transactions.filter(tx => tx.id !== transactionId),
+                transactions: state.transactions.filter(t => t.id !== transactionId),
                 isLoading: false
             }));
-            
+
+            // Reverse the transaction's effect on the piggybank balance
+            if (tx) {
+                const reversal = tx.type === 'Income' ? -tx.amount : tx.amount;
+                updatePiggybankBalance(tx.envelopeId, reversal);
+            }
+
             // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
             budgetService.deleteTransaction(currentUser.id, transactionId)
                 .catch(err => logger.error('❌ Backend soft-delete transaction failed:', err));
-            
+
             logger.log('✅ Soft-deleted transaction:', transactionId);
             
         } catch (error) {
@@ -142,7 +187,11 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
                 transactions: [...state.transactions, restoredTransaction],
                 isLoading: false
             }));
-            
+
+            // Re-apply the transaction's effect on the piggybank balance
+            const delta = restoredTransaction.type === 'Income' ? restoredTransaction.amount : -restoredTransaction.amount;
+            updatePiggybankBalance(restoredTransaction.envelopeId, delta);
+
             logger.log('✅ Restored transaction:', transaction.id);
             
         } catch (error) {
@@ -302,20 +351,21 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
             return 0;
         }
 
-        // For Piggybanks, calculate cumulative balance up to the current viewing month
+        // For Piggybanks: use the persisted currentBalance field for the current/latest view.
+        // This is maintained incrementally by updatePiggybankBalance on every transaction mutation
+        // and is kept in sync via the real-time envelope subscription.
+        // For historical month views (EnvelopeDetail), fall back to transaction-based computation;
+        // EnvelopeDetail pre-fetches all envelope transactions on mount so the data is available.
         if (envelope.isPiggybank) {
-            const viewMonth = month || state.currentMonth;
-            const envelopeTransactions = state.transactions.filter(t => 
-                t.envelopeId === envelopeId && 
-                (!t.month || t.month <= viewMonth)
+            if (!month || month >= state.currentMonth) {
+                return envelope.currentBalance ?? 0;
+            }
+            // Historical view: compute from loaded transactions
+            const txs = state.transactions.filter(t =>
+                t.envelopeId === envelopeId && (!t.month || t.month <= month)
             );
-
-            const expenses = envelopeTransactions.filter(t => t.type === 'Expense');
-            const incomes = envelopeTransactions.filter(t => t.type === 'Income');
-
-            const totalSpent = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-            const totalIncome = incomes.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-
+            const totalIncome = txs.filter(t => t.type === 'Income').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+            const totalSpent = txs.filter(t => t.type === 'Expense').reduce((acc, curr) => acc + (curr.amount || 0), 0);
             return totalIncome - totalSpent;
         }
 
@@ -338,4 +388,5 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => ({
         logger.warn(`⚠️ getEnvelopeBalance: Month not provided for non-piggybank envelope ${envelopeId}. Returning 0.`);
         return 0;
     },
-});
+  };
+};
