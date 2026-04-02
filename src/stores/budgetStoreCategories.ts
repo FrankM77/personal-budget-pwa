@@ -112,6 +112,7 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
 
                 // If none exists, create one
                 if (!uncategorized) {
+                    logger.log('📂 Creating new "Uncategorized" category for orphaned envelopes');
                     const newId = categoryService.createId();
                     const now = new Date().toISOString();
                     uncategorized = {
@@ -130,6 +131,8 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
                         return { categories: [...state.categories, uncategorized!] };
                     });
                     logger.log('📂 Created new "Uncategorized" category for orphaned envelopes:', newId);
+                } else {
+                    logger.log('📂 Using existing "Uncategorized" category:', uncategorized.id);
                 }
 
                 for (const env of orphanedEnvelopes) {
@@ -156,7 +159,17 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
         const existing = get().categories.find(c => c.isDefault);
         if (existing) return existing.id;
 
-        // Create the default category
+        // Check if "Uncategorized" category already exists (prevent duplicates)
+        const existingUncategorized = get().categories.find(
+            c => c.name.toLowerCase().trim() === 'uncategorized'
+        );
+        
+        if (existingUncategorized) {
+            logger.log('📂 "Uncategorized" category already exists, skipping creation');
+            return existingUncategorized.id;
+        }
+
+        // Create default category
         const currentUser = requireAuth();
         const newId = categoryService.createId();
         const now = new Date().toISOString();
@@ -169,15 +182,13 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
             createdAt: now,
             updatedAt: now,
         };
-
+        
         await categoryService.createCategory(defaultCategory);
-
         set(state => {
             const exists = state.categories.some(c => c.id === newId);
             if (exists) return {};
             return { categories: [...state.categories, defaultCategory] };
         });
-
         logger.log('📂 Created default "Uncategorized" category:', newId);
         return newId;
     },
