@@ -220,7 +220,8 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             }
 
             // 🐷 Verify and self-heal piggybank balances on every fresh session
-            await get().verifyPiggybankBalances();
+            // TEMPORARILY DISABLED due to Firestore index issue causing infinite loop
+            // await get().verifyPiggybankBalances();
 
             // 🧹 Purge expired soft-deleted items (non-blocking, runs in background)
             budgetService.purgeExpiredSoftDeletes(currentUser.id)
@@ -249,27 +250,41 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
     // Called on every fresh session (via init()) and every cached session (via useEnvelopeList)
     // to self-heal any balance corruption caused by operations that bypass deleteTransaction
     // (e.g. clearMonthData's hard deletes) or any other inconsistency.
-    verifyPiggybankBalances: async () => {
-        const { currentUser } = useAuthStore.getState();
-        if (!currentUser) return;
+    // TODO: Fix Firestore composite index for getTransactionsByEnvelope query
+    // TEMPORARILY DISABLED due to Firestore index issue causing infinite loop
+    // verifyPiggybankBalances: async () => {
+    //     const { currentUser } = useAuthStore.getState();
+    //     if (!currentUser) return;
 
-        const piggybankEnvelopes = get().envelopes.filter(e => e.isPiggybank && e.isActive);
-        if (piggybankEnvelopes.length === 0) return;
+    //     const piggybankEnvelopes = get().envelopes.filter(e => e.isPiggybank && e.isActive);
+    //     if (piggybankEnvelopes.length === 0) return;
 
-        logger.log(`🐷 Verifying balances for ${piggybankEnvelopes.length} piggybanks`);
+    //     logger.log(`🐷 Verifying balances for ${piggybankEnvelopes.length} piggybanks`);
 
-        for (const pb of piggybankEnvelopes) {
-            try {
-                const allTxs = await budgetService.getTransactionsByEnvelope(currentUser.id, pb.id);
-                const income = allTxs.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-                const expense = allTxs.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
-                const correctBalance = parseFloat((income - expense).toFixed(2));
-                const storedBalance = parseFloat((pb.currentBalance ?? 0).toFixed(2));
+    //     for (const pb of piggybankEnvelopes) {
+    //         try {
+    //             const allTxs = await budgetService.getTransactionsByEnvelope(currentUser.id, pb.id);
+    //             const income = allTxs.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+    //             const expense = allTxs.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+    //             const correctBalance = parseFloat((income - expense).toFixed(2));
+    //             const storedBalance = parseFloat((pb.currentBalance ?? 0).toFixed(2));
 
-                if (Math.abs(storedBalance - correctBalance) > 0.001) {
-                    logger.log(`🔧 Correcting ${pb.name}: stored=${storedBalance}, correct=${correctBalance}`);
-                    await EnvelopeService.updateBalance(currentUser.id, pb.id, correctBalance);
-                    set(state => ({
+    //             if (Math.abs(storedBalance - correctBalance) > 0.001) {
+    //                 logger.log(`🔧 Correcting ${pb.name}: stored=${storedBalance}, correct=${correctBalance}`);
+    //                 await EnvelopeService.updateBalance(currentUser.id, pb.id, correctBalance);
+    //                 set(state => ({
+    //                     envelopes: state.envelopes.map(e =>
+    //                         e.id === pb.id ? { ...e, currentBalance: correctBalance } : e
+    //                     )
+    //                 }));
+    //             } else {
+    //                 logger.log(`✅ ${pb.name} balance verified: ${storedBalance}`);
+    //             }
+    //         } catch (error) {
+    //             logger.error(`❌ Failed to verify piggybank ${pb.name}:`, error);
+    //         }
+    //     }
+    // },
                         envelopes: state.envelopes.map(e =>
                             e.id === pb.id ? { ...e, currentBalance: correctBalance } : e
                         )

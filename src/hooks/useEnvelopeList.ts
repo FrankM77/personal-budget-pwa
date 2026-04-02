@@ -183,12 +183,13 @@ export const useEnvelopeList = () => {
       // Always verify piggybank balances in cached sessions. The real-time envelope
       // subscription keeps currentBalance in sync after any mutation, but operations
       // that bypass the store (e.g. clearMonthData's hard deletes) can corrupt it.
+      // TEMPORARILY DISABLED due to Firestore index issue causing infinite loop
       // verifyPiggybankBalances fetches all transactions per piggybank, computes the
       // correct balance, and writes to Firestore only if a mismatch is detected.
       const hasPiggybanks = envelopes.some(e => e.isPiggybank && e.isActive);
       if (hasPiggybanks) {
-        useBudgetStore.getState().verifyPiggybankBalances()
-          .catch(err => logger.error('❌ Failed to verify piggybank balances:', err));
+        // useBudgetStore.getState().verifyPiggybankBalances();
+        // .catch(err => logger.error('❌ Failed to verify piggybank balances:', err));
       }
       return;
     }
