@@ -180,6 +180,17 @@ export const useEnvelopeList = () => {
         settingInitialFetchTriggered: true
       });
       setInitialFetchTriggered(true);
+      // Piggybank balances are cumulative across all months but transactions are lazy-loaded
+      // per month. When data comes from localStorage (skipping init()), the piggybank
+      // pre-fetch inside init() never runs — so we trigger it here explicitly.
+      const piggybankEnvelopes = envelopes.filter(e => e.isPiggybank && e.isActive);
+      if (piggybankEnvelopes.length > 0) {
+        logger.log(`🐷 Pre-fetching transactions for ${piggybankEnvelopes.length} cached piggybanks`);
+        piggybankEnvelopes.forEach(pb => {
+          useBudgetStore.getState().fetchTransactionsForEnvelope(pb.id)
+            .catch(err => logger.error(`❌ Failed to pre-fetch piggybank transactions for ${pb.name}:`, err));
+        });
+      }
       return;
     }
     
