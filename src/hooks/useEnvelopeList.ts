@@ -50,7 +50,8 @@ export const useEnvelopeList = () => {
     fetchData, 
     isLoading, 
     isOnline, 
-    reorderEnvelopes 
+    reorderEnvelopes,
+    loadedTransactionMonths
   } = useBudgetStore();
 
   // Auth store (for current user)
@@ -174,12 +175,27 @@ export const useEnvelopeList = () => {
     });
     
     // Skip fetch if we already have envelopes loaded (e.g., navigating back from Settings)
+    // BUT still fetch transactions if they're missing for the current month
     if (envelopes.length > 0) {
       logger.log('🔍 [LOADING-DEBUG] Skipping fetch - data already loaded', {
         envelopesCount: envelopes.length,
+        transactionsCount: transactions.length,
+        currentMonth,
+        loadedTransactionMonths,
         settingInitialFetchTriggered: true
       });
       setInitialFetchTriggered(true);
+      
+      // Fix: If we have envelopes but no transactions for current month, fetch them
+      // This fixes the issue where balances show 0 after navigation
+      const hasCurrentMonthTransactions = transactions.some(t => t.month === currentMonth);
+      const isCurrentMonthLoaded = loadedTransactionMonths.includes(currentMonth);
+      
+      if (!hasCurrentMonthTransactions && !isCurrentMonthLoaded) {
+        logger.log('🔧 [LOADING-DEBUG] Envelopes loaded but transactions missing, fetching current month transactions');
+        fetchData(); // This will trigger the full init process which includes fetching transactions
+      }
+      
       // Always verify piggybank balances in cached sessions. The real-time envelope
       // subscription keeps currentBalance in sync after any mutation, but operations
       // that bypass the store (e.g. clearMonthData's hard deletes) can corrupt it.

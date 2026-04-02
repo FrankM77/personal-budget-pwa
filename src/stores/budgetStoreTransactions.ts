@@ -371,6 +371,16 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => {
 
         // For regular spending envelopes, calculate monthly balance if month is provided
         if (month) {
+            // Fix: If we're calculating balance for current month and transactions aren't loaded yet,
+            // trigger a fetch to ensure we have the "Budgeted" transactions. This fixes the issue where 
+            // balances show 0 on initial load because transactions (including automatic "Budgeted" 
+            // transactions) are lazy-loaded.
+            if (month === state.currentMonth && !state.loadedTransactionMonths.includes(month)) {
+                // Don't await - let it fetch in background. The balance will update when data arrives.
+                get().fetchTransactionsForMonth(month);
+                logger.log(`🔧 getEnvelopeBalance: Triggering fetch for unloaded month ${month}`);
+            }
+
             const envelopeTransactions = state.transactions.filter(t => 
                 t.envelopeId === envelopeId && t.month === month
             );

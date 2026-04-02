@@ -22,6 +22,23 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             }));
         }
 
+        // Fix: Fetch transactions for the new month to ensure envelope balances work correctly
+        // This fixes the issue where envelope balances show 0 when switching months
+        const hasTransactionsForMonth = state.transactions.some(t => t.month === month);
+        if (!hasTransactionsForMonth) {
+            logger.log(`📥 setMonth: Fetching transactions for new month ${month}`);
+            const monthTransactions = await budgetService.getTransactionsByMonth(useAuthStore.getState().currentUser?.id || '', month);
+            
+            // Add the new transactions to the existing ones
+            set(state => ({
+                transactions: [
+                    ...state.transactions.filter(t => t.month !== month), // Remove old transactions for this month
+                    ...monthTransactions // Add new transactions for this month
+                ]
+            }));
+            logger.log(`✅ setMonth: Loaded ${monthTransactions.length} transactions for ${month}`);
+        }
+
         // Check if we have transactions for this month but no income sources/allocations
         // This can happen when switching to a month that has transactions but hasn't been lazy-loaded yet
         const missingMonthData = 
@@ -119,9 +136,14 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 categoriesCount: categoriesResult.length
             });
 
-            // Ensure transactions for current month are marked as loading/loaded
-            // so the real-time listener doesn't compete with a manual fetch
+            // Ensure transactions for current month are loaded so envelope balances work correctly
+            // This fixes the issue where envelope balances show 0 on initial load
             const currentMonths = [state.currentMonth];
+            
+            // Fetch current month transactions to ensure envelope balances work
+            logger.log(`📥 Fetching current month transactions for: ${state.currentMonth}`);
+            const currentMonthTransactions = await budgetService.getTransactionsByMonth(currentUser.id, state.currentMonth);
+            logger.log(`✅ Loaded ${currentMonthTransactions.length} transactions for ${state.currentMonth}`);
             
             // Deduplicate categories by ID
             let uniqueCategories = Array.from(new Map(categoriesResult.map(c => [c.id, c])).values());
@@ -149,6 +171,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             });
             set({
                 envelopes,
+                transactions: currentMonthTransactions, // Include current month transactions for balance calculations
                 loadedTransactionMonths: currentMonths,
                 areAllTransactionsLoaded: false, 
                 categories: uniqueCategories,

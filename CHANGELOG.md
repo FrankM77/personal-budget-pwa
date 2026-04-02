@@ -2,7 +2,19 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
-## [1.17.3] - 2026-04-01
+## [1.17.5] - 2026-04-02
+
+### 🐛 **BUG FIXES** 
+- **Fixed envelope balance loading regression**: Envelope balances now show correctly on initial load, navigation, and month switching
+- **Root cause**: Lazy loading strategy for transactions wasn't fetching "Budgeted" transactions needed for balance calculations
+- **Three-part fix**:
+  1. **Initial load**: Explicitly fetch current month transactions during app initialization
+  2. **View navigation**: Check for missing transactions when returning to envelope list and fetch if needed  
+  3. **Month switching**: Fetch transactions when changing months in `setMonth` function
+- **Impact**: No more $0 balances, no need to click "All Time" or refresh page
+- **Addresses**: Regression where envelope balances showed 0 until manual intervention
+
+## [1.17.4] - 2026-04-01
 
 ### 🐛 **BUG FIXES**
 - **Fixed envelope deletion issue**: Envelopes deleted from a specific month (e.g., April 2026) now stay deleted after app restart
