@@ -351,16 +351,16 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => {
             return 0;
         }
 
-        // For Piggybanks: use the persisted currentBalance field for the current/latest view.
-        // This is maintained incrementally by updatePiggybankBalance on every transaction mutation
-        // and is kept in sync via the real-time envelope subscription.
-        // For historical month views (EnvelopeDetail), fall back to transaction-based computation;
-        // EnvelopeDetail pre-fetches all envelope transactions on mount so the data is available.
+        // For Piggybanks: when a month is provided, always compute from loaded transactions
+        // (all piggybank transactions are eager-loaded in fetchData so data is always available).
+        // Only fall back to envelope.currentBalance when no month is given (e.g. raw balance queries).
+        // Using currentBalance when a month is given is wrong because currentBalance always reflects
+        // the latest cumulative total regardless of which month is being viewed.
         if (envelope.isPiggybank) {
-            if (!month || month >= state.currentMonth) {
+            if (!month) {
                 return envelope.currentBalance ?? 0;
             }
-            // Historical view: compute from loaded transactions
+            // Compute cumulative balance up to and including the viewed month
             const txs = state.transactions.filter(t =>
                 t.envelopeId === envelopeId && (!t.month || t.month <= month)
             );

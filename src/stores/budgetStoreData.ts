@@ -144,6 +144,30 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             logger.log(`📥 Fetching current month transactions for: ${state.currentMonth}`);
             const currentMonthTransactions = await budgetService.getTransactionsByMonth(currentUser.id, state.currentMonth);
             logger.log(`✅ Loaded ${currentMonthTransactions.length} transactions for ${state.currentMonth}`);
+
+            // Eager-load all piggybank transactions so historical balance recompute works
+            // for any viewed month, including offline (Firebase caches these queries).
+            const piggybankEnvelopes = envelopes.filter(e => e.isPiggybank && e.isActive !== false);
+            let allPiggybankTransactions: import('../models/types').Transaction[] = [];
+            if (piggybankEnvelopes.length > 0) {
+                logger.log(`🐷 Eager-loading transactions for ${piggybankEnvelopes.length} piggybank(s)`);
+                const piggybankTxArrays = await Promise.all(
+                    piggybankEnvelopes.map(pb =>
+                        budgetService.getTransactionsByEnvelope(currentUser.id, pb.id)
+                            .catch(err => {
+                                logger.warn(`⚠️ Failed to eager-load transactions for piggybank ${pb.name}:`, err);
+                                return [] as import('../models/types').Transaction[];
+                            })
+                    )
+                );
+                allPiggybankTransactions = piggybankTxArrays.flat();
+                logger.log(`✅ Eager-loaded ${allPiggybankTransactions.length} total piggybank transactions`);
+            }
+
+            // Merge current month + piggybank transactions, deduplicated by id
+            const txMap = new Map<string, import('../models/types').Transaction>();
+            [...currentMonthTransactions, ...allPiggybankTransactions].forEach(tx => txMap.set(tx.id, tx));
+            const mergedTransactions = Array.from(txMap.values());
             
             // Deduplicate categories by ID
             let uniqueCategories = Array.from(new Map(categoriesResult.map(c => [c.id, c])).values());
@@ -171,7 +195,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             });
             set({
                 envelopes,
-                transactions: currentMonthTransactions, // Include current month transactions for balance calculations
+                transactions: mergedTransactions, // Current month + all piggybank history for balance recompute
                 loadedTransactionMonths: currentMonths,
                 areAllTransactionsLoaded: false, 
                 categories: uniqueCategories,

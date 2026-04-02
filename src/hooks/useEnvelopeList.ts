@@ -104,8 +104,9 @@ export const useEnvelopeList = () => {
     const envelope = envelopes.find(e => e.id === envelopeId);
     
     if (envelope?.isPiggybank) {
-      // For piggybanks, use store's cumulative balance (no month param)
-      const balance = useBudgetStore.getState().getEnvelopeBalance(envelopeId);
+      // Pass currentMonth so historical views compute from transactions rather than the
+      // cumulative currentBalance field (which reflects the latest month, not the viewed month).
+      const balance = useBudgetStore.getState().getEnvelopeBalance(envelopeId, currentMonth);
       return balance; // Return as number
     }
     
