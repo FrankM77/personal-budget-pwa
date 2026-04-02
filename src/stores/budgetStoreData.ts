@@ -278,26 +278,6 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
     //                     )
     //                 }));
     //             } else {
-    //                 logger.log(`✅ ${pb.name} balance verified: ${storedBalance}`);
-    //             }
-    //         } catch (error) {
-    //             logger.error(`❌ Failed to verify piggybank ${pb.name}:`, error);
-    //         }
-    //     }
-    // },
-                        envelopes: state.envelopes.map(e =>
-                            e.id === pb.id ? { ...e, currentBalance: correctBalance } : e
-                        )
-                    }));
-                } else {
-                    logger.log(`✅ ${pb.name} balance verified: ${storedBalance}`);
-                }
-            } catch (error) {
-                logger.error(`❌ Failed to verify piggybank ${pb.name}:`, error);
-            }
-        }
-    },
-
     fetchMonthData: async (month: string) => {
         try {
             const { currentUser } = useAuthStore.getState();
