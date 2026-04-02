@@ -140,14 +140,25 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
                     await get().updateEnvelope(updated);
                 }
                 logger.log(`📂 Reassigned ${orphanedEnvelopes.length} envelopes to "Uncategorized"`);
+
+                // Delete the category being deleted (unless it's "Uncategorized")
+                if (categoryId !== uncategorized?.id) {
+                    await categoryService.deleteCategory(currentUser.id, categoryId);
+                    set(state => ({
+                        categories: state.categories.filter(c => c.id !== categoryId),
+                        isLoading: false
+                    }));
+                } else {
+                    logger.log('📂 Skipping deletion of "Uncategorized" category - keeping it for orphaned envelopes');
+                    set({ isLoading: false });
+                }
+            } else {
+                await categoryService.deleteCategory(currentUser.id, categoryId);
+                set(state => ({
+                    categories: state.categories.filter(c => c.id !== categoryId),
+                    isLoading: false
+                }));
             }
-
-            await categoryService.deleteCategory(currentUser.id, categoryId);
-
-            set(state => ({
-                categories: state.categories.filter(c => c.id !== categoryId),
-                isLoading: false
-            }));
         } catch (error) {
             logger.error('Failed to delete category:', error);
             set({ isLoading: false });
