@@ -393,6 +393,7 @@ Or visit: [https://FrankM77.github.io/personal-budget-pwa/](https://FrankM77.git
 - **Error Handling**: Better error messages and recovery options
 
 ### 🔧 **Technical Improvements**
+- **Data Layer Optimization**: Migrated from soft-deletes to **Hard Delete + UI Undo** (v1.17.10), eliminating background purge latency and Firestore read overhead.
 - **State Management**: Fixed race conditions in real-time listeners
 - **Firebase Integration**: Proper error handling and offline queuing
 - **Transaction Sync**: Clean allocation transaction management

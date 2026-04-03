@@ -56,51 +56,8 @@ Expected: Either rejected or handled safely, not executed
 ## 🟠 HIGH PRIORITY (Performance/Cost)
 
 ### 2. Inefficient Deleted Transactions Query (BUG-2)
-**Severity:** HIGH (Cost & Performance)
-**File:** `src/services/budgetService.ts:607-632` - `getDeletedTransactions()` method
-**Issue:** Fetches **entire transactions collection** to find deleted ones (no Firestore query filter)
-
-**Current Implementation:**
-```typescript
-async getDeletedTransactions(userId: string, month: string): Promise<Transaction[]> {
-  const collectionRef = collection(db, 'users', userId, 'transactions');
-  const snapshot = await getDocs(collectionRef); // Reads EVERY transaction
-  // Then filters client-side
-  const deleted = snapshot.docs.filter(doc => doc.data().deletedAt);
-  return deleted;
-}
-```
-
-**Problems:**
-- **Cost:** Each document read = 1 Firestore read (billable)
-- **Performance:** Downloads all data then filters in app
-- **Scalability:** User with 5,000 transactions = 5,000 reads per call
-
-**Fix Required:**
-```typescript
-// Use Firestore query filter instead
-const q = query(
-  collectionRef,
-  where('deletedAt', '!=', null),
-  where('month', '==', month) // Add month filter too
-);
-const snapshot = await getDocs(q);
-// Data is pre-filtered by Firestore, minimal client-side work
-```
-
-**Effort:** 10-15 minutes
-**Files to Modify:**
-- `src/services/budgetService.ts` - Line 607-632
-- Add `where('month', '==', month)` for extra efficiency
-
-**Verification:**
-```bash
-# Test with large dataset (100+ deleted transactions)
-# Monitor Firestore read count - should be < 20 reads instead of 1000+
-# Check network tab - payload should be small
-```
-
-**Billing Impact:** Potential 50x cost reduction for users with many transactions
+**Status:** ✅ COMPLETED (v1.17.10)
+**Resolution:** Instead of optimizing the query, the entire soft-delete system was removed. The app now uses hard-deletes combined with a copy-and-reinsert UI "Undo" pattern. This eliminates all "God-fetches" and Firestore read costs associated with soft-deleted items.
 
 ---
 

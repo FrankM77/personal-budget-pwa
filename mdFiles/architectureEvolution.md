@@ -137,6 +137,15 @@ users/{userId}/
 - All transactions denormalized with month field
 - Efficient monthly queries without expensive date filtering
 
+### Phase 4: Data Layer Optimization (April 2026) ✅ **COMPLETE**
+
+#### 4.1 Hard Delete + UI Undo Architecture ✅
+**Status:** Implemented in v1.17.10
+- Replaced complex soft-delete system (`deletedAt`) with permanent hard-deletes.
+- Implemented "Undo" via a copy-and-reinsert pattern in the UI layer.
+- Eliminated all background purge tasks and "God-fetches" required by soft-deletes.
+- Achieved 100% immunity to missing Firestore index errors related to deletion filters.
+
 ---
 
 ## 4. Post-Implementation Audit
