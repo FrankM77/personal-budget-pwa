@@ -193,11 +193,8 @@ export class BudgetService {
         orderIndex: doc.data().orderIndex ?? index
       })) as Envelope[];
       
-      // Filter out soft-deleted envelopes
-      const activeEnvelopes = envelopes.filter(env => !env.deletedAt);
-      
       // Sort by orderIndex in memory
-      const sortedEnvelopes = activeEnvelopes.sort((a, b) => {
+      const sortedEnvelopes = envelopes.sort((a, b) => {
         const aIndex = a.orderIndex ?? 0;
         const bIndex = b.orderIndex ?? 0;
         return aIndex - bIndex;
@@ -208,41 +205,6 @@ export class BudgetService {
     } catch (error) {
       logger.warn(`❌ BudgetService.getEnvelopes failed: ${error}`);
       throw new Error(`Failed to fetch envelopes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Fetch deleted envelopes (for Recently Deleted view)
-   * @param userId - User ID to fetch deleted envelopes for
-   * @returns Promise<Envelope[]> - Array of soft-deleted envelope objects
-   */
-  async getDeletedEnvelopes(userId: string): Promise<Envelope[]> {
-    try {
-      logger.log('📡 BudgetService.getDeletedEnvelopes called for user:', userId);
-      
-      const collectionRef = collection(db, 'users', userId, 'envelopes');
-      const snapshot = await getDocs(collectionRef);
-      
-      const envelopes = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Envelope[];
-      
-      // Filter for soft-deleted envelopes only
-      const deletedEnvelopes = envelopes.filter(env => env.deletedAt);
-      
-      // Sort by deletedAt (most recent first)
-      const sortedDeleted = deletedEnvelopes.sort((a, b) => {
-        const aTime = new Date(a.deletedAt!).getTime();
-        const bTime = new Date(b.deletedAt!).getTime();
-        return bTime - aTime;
-      });
-      
-      logger.log('✅ Fetched deleted envelopes:', sortedDeleted.length);
-      return sortedDeleted;
-    } catch (error) {
-      logger.warn(`❌ BudgetService.getDeletedEnvelopes failed: ${error}`);
-      throw new Error(`Failed to fetch deleted envelopes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -263,8 +225,7 @@ export class BudgetService {
         .map(doc => {
           const firebaseTx = { id: doc.id, ...doc.data() } as any;
           return fromFirestore(firebaseTx);
-        })
-        .filter(tx => !tx.deletedAt);
+        });
       
       logger.log(`📋 Fetched ${transactions.length} transactions`);
       return transactions;
@@ -299,8 +260,7 @@ export class BudgetService {
         .map(doc => {
           const firebaseTx = { id: doc.id, ...doc.data() } as any;
           return fromFirestore(firebaseTx);
-        })
-        .filter(tx => !tx.deletedAt); // Filter out soft-deleted transactions
+        });
       
       logger.log(`📋 Fetched ${transactions.length} transactions for ${month}`);
       return transactions;
@@ -335,7 +295,6 @@ export class BudgetService {
           const firebaseTx = { id: doc.id, ...doc.data() } as any;
           return fromFirestore(firebaseTx);
         })
-        .filter(tx => !tx.deletedAt) // Filter out soft-deleted transactions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date descending client-side
       
       logger.log(`📋 Fetched ${transactions.length} transactions for envelope ${envelopeId}`);
@@ -418,39 +377,13 @@ export class BudgetService {
     try {
       const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
       
-      // Soft-delete: Set deletedAt timestamp instead of hard-deleting
-      await updateDoc(docRef, {
-        deletedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString()
-      });
+      // Hard-delete: Remove document from Firestore
+      await deleteDoc(docRef);
       
-      logger.log('✅ Soft-deleted envelope (set deletedAt):', envelopeId);
+      logger.log('✅ Hard-deleted envelope:', envelopeId);
     } catch (error) {
       logger.warn(`❌ BudgetService.deleteEnvelope failed: ${error}`);
       throw new Error(`Failed to delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Restore a soft-deleted envelope
-   * @param userId - User ID
-   * @param envelopeId - Envelope ID to restore
-   * @returns Promise<void>
-   */
-  async restoreEnvelope(userId: string, envelopeId: string): Promise<void> {
-    try {
-      const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
-      
-      // Remove deletedAt to restore
-      await updateDoc(docRef, {
-        deletedAt: deleteField(),
-        lastUpdated: new Date().toISOString()
-      });
-      
-      logger.log('✅ Restored envelope (removed deletedAt):', envelopeId);
-    } catch (error) {
-      logger.warn(`❌ BudgetService.restoreEnvelope failed: ${error}`);
-      throw new Error(`Failed to restore envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -461,29 +394,9 @@ export class BudgetService {
    * @returns Promise<void>
    */
   async permanentlyDeleteEnvelope(userId: string, envelopeId: string): Promise<void> {
-    try {
-      const docRef = doc(db, 'users', userId, 'envelopes', envelopeId);
-      
-      // Delete all transactions associated with this envelope
-      const transactionsQuery = query(
-        collection(db, 'users', userId, 'transactions'),
-        where('envelopeId', '==', envelopeId)
-      );
-      
-      const transactionSnapshot = await getDocs(transactionsQuery);
-      const deletePromises = transactionSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      
-      // Delete the envelope and all its transactions
-      await Promise.all([
-        deleteDoc(docRef),
-        ...deletePromises
-      ]);
-      
-      logger.log('✅ Permanently deleted envelope and associated transactions from Firestore:', envelopeId);
-    } catch (error) {
-      logger.warn(`❌ BudgetService.permanentlyDeleteEnvelope failed: ${error}`);
-      throw new Error(`Failed to permanently delete envelope: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    // Alias for deleteEnvelope to maintain compatibility if needed, 
+    // but now it always does a hard delete.
+    return this.deleteEnvelope(userId, envelopeId);
   }
 
   /**
@@ -609,12 +522,10 @@ export class BudgetService {
       
       const docRef = doc(db, 'users', userId, 'transactions', transactionId);
       
-      // Soft-delete: Set deletedAt timestamp instead of hard-deleting
-      updateDoc(docRef, {
-        deletedAt: new Date().toISOString()
-      }).catch(err => logger.warn(`Soft-delete tx failed: ${err}`));
+      // Hard-delete: Remove document from Firestore
+      await deleteDoc(docRef);
       
-      logger.log('✅ BudgetService: Soft-deleted transaction:', transactionId);
+      logger.log('✅ BudgetService: Hard-deleted transaction:', transactionId);
     } catch (error) {
       logger.warn(`❌ BudgetService.deleteTransaction failed: ${error}`);
       throw new Error(`Failed to delete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -622,68 +533,11 @@ export class BudgetService {
   }
 
   /**
-   * Restore a soft-deleted transaction
-   */
-  async restoreTransaction(userId: string, transactionId: string): Promise<void> {
-    try {
-      const docRef = doc(db, 'users', userId, 'transactions', transactionId);
-      
-      await updateDoc(docRef, {
-        deletedAt: deleteField()
-      });
-      
-      logger.log('✅ Restored transaction (removed deletedAt):', transactionId);
-    } catch (error) {
-      logger.warn(`❌ BudgetService.restoreTransaction failed: ${error}`);
-      throw new Error(`Failed to restore transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Get all soft-deleted transactions for a user in a given month
-   */
-  async getDeletedTransactions(userId: string, month: string): Promise<Transaction[]> {
-    try {
-      logger.log(`📡 BudgetService.getDeletedTransactions: Fetching for user ${userId}, month ${month}`);
-      
-      const collectionRef = collection(db, 'users', userId, 'transactions');
-      const q = query(collectionRef, where('month', '==', month));
-      const snapshot = await getDocs(q);
-      
-      const deletedTransactions: Transaction[] = [];
-      snapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.deletedAt) {
-          deletedTransactions.push({ id: docSnap.id, ...data } as Transaction);
-        }
-      });
-      
-      // Sort by deletedAt descending (most recent first)
-      deletedTransactions.sort((a, b) => 
-        new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
-      );
-      
-      logger.log(`📊 Fetched ${deletedTransactions.length} deleted transactions for ${month}`);
-      return deletedTransactions;
-    } catch (error) {
-      logger.warn(`❌ BudgetService.getDeletedTransactions failed: ${error}`);
-      throw new Error(`Failed to fetch deleted transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
    * Permanently delete a transaction from Firestore
    */
   async permanentlyDeleteTransaction(userId: string, transactionId: string): Promise<void> {
-    try {
-      const docRef = doc(db, 'users', userId, 'transactions', transactionId);
-      await deleteDoc(docRef);
-      
-      logger.log('✅ Permanently deleted transaction:', transactionId);
-    } catch (error) {
-      logger.warn(`❌ BudgetService.permanentlyDeleteTransaction failed: ${error}`);
-      throw new Error(`Failed to permanently delete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    // Alias for deleteTransaction to maintain compatibility
+    return this.deleteTransaction(userId, transactionId);
   }
 
   // === Income Source CRUD (Embedded) ===
@@ -781,65 +635,7 @@ export class BudgetService {
       logger.log('📡 BudgetService.deleteIncomeSource (Embedded) called for source:', sourceId);
       const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
       
-      // Soft-delete: Set deletedAt timestamp on the income source
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return;
-      
-      const data = snap.data();
-      const sources = data.incomeSources || [];
-      const updatedSources = sources.map((s: any) => 
-        s.id === sourceId 
-          ? { ...s, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-          : s
-      );
-      
-      await updateDoc(docRef, { 
-        incomeSources: updatedSources,
-        updatedAt: Timestamp.now()
-      });
-
-      logger.log('✅ Soft-deleted income source (set deletedAt):', sourceId);
-    } catch (error) {
-      logger.warn(`❌ BudgetService.deleteIncomeSource failed: ${error}`);
-      throw new Error(`Failed to delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async restoreIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
-    try {
-      logger.log('📡 BudgetService.restoreIncomeSource (Embedded) called for source:', sourceId);
-      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
-      
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return;
-      
-      const data = snap.data();
-      const sources = data.incomeSources || [];
-      const updatedSources = sources.map((s: any) => {
-        if (s.id === sourceId) {
-          const { deletedAt, ...rest } = s;
-          return { ...rest, updatedAt: new Date().toISOString() };
-        }
-        return s;
-      });
-      
-      await updateDoc(docRef, { 
-        incomeSources: updatedSources,
-        updatedAt: Timestamp.now()
-      });
-
-      logger.log('✅ Restored income source (removed deletedAt):', sourceId);
-    } catch (error) {
-      logger.warn(`❌ BudgetService.restoreIncomeSource failed: ${error}`);
-      throw new Error(`Failed to restore income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async permanentlyDeleteIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
-    try {
-      logger.log('📡 BudgetService.permanentlyDeleteIncomeSource (Embedded) called for source:', sourceId);
-      const docRef = doc(db, 'users', userId, 'monthlyBudgets', month);
-      
+      // Hard-delete: Remove from embedded array
       const snap = await getDoc(docRef);
       if (!snap.exists()) return;
       
@@ -852,11 +648,16 @@ export class BudgetService {
         updatedAt: Timestamp.now()
       });
 
-      logger.log('✅ Permanently deleted income source:', sourceId);
+      logger.log('✅ Hard-deleted income source (removed from array):', sourceId);
     } catch (error) {
-      logger.warn(`❌ BudgetService.permanentlyDeleteIncomeSource failed: ${error}`);
-      throw new Error(`Failed to permanently delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.warn(`❌ BudgetService.deleteIncomeSource failed: ${error}`);
+      throw new Error(`Failed to delete income source: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  async permanentlyDeleteIncomeSource(userId: string, sourceId: string, month: string): Promise<void> {
+    // Alias for deleteIncomeSource to maintain compatibility
+    return this.deleteIncomeSource(userId, sourceId, month);
   }
 
   // === Envelope Allocation CRUD (Embedded) ===
@@ -1157,106 +958,6 @@ export class BudgetService {
 
       callback({ incomeSources, allocations });
     });
-  }
-
-  /**
-   * Fetch deleted income sources for a specific month (for Recently Deleted view)
-   * @param userId - User ID
-   * @param monthStr - Month string in "YYYY-MM" format
-   * @returns Promise<IncomeSource[]> - Array of soft-deleted income sources
-   */
-  async getDeletedIncomeSources(userId: string, monthStr: string): Promise<IncomeSource[]> {
-    try {
-      logger.log(`📅 BudgetService.getDeletedIncomeSources: Fetching for user ${userId}, month ${monthStr}`);
-      
-      const docRef = doc(db, 'users', userId, 'monthlyBudgets', monthStr);
-      const snap = await getDoc(docRef);
-      
-      if (!snap.exists()) {
-        return [];
-      }
-
-      const data = snap.data();
-      
-      // Parse and filter for deleted income sources only
-      const deletedSources = (data.incomeSources || [])
-        .filter((source: any) => source.deletedAt) // Only soft-deleted
-        .map((source: any) => ({
-          ...source,
-          amount: Number(source.amount),
-          createdAt: source.createdAt?.toDate ? source.createdAt.toDate().toISOString() : (source.createdAt || new Date().toISOString()),
-          updatedAt: source.updatedAt?.toDate ? source.updatedAt.toDate().toISOString() : (source.updatedAt || new Date().toISOString()),
-          deletedAt: source.deletedAt
-        })).sort((a: any, b: any) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime()); // Most recent first
-
-      logger.log(`📊 Fetched ${deletedSources.length} deleted income sources for ${monthStr}`);
-      return deletedSources;
-    } catch (error) {
-      logger.warn(`❌ BudgetService.getDeletedIncomeSources failed: ${error}`);
-      throw new Error(`Failed to fetch deleted income sources: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Purge soft-deleted items older than the retention period (30 days)
-   * Called during init to prevent indefinite accumulation of deleted data
-   * @param userId - User ID to clean up for
-   */
-  async purgeExpiredSoftDeletes(userId: string): Promise<void> {
-    try {
-      const RETENTION_DAYS = 30;
-      const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      let purged = 0;
-
-      // 1. Purge expired soft-deleted envelopes
-      const envelopesRef = collection(db, 'users', userId, 'envelopes');
-      const envelopeSnap = await getDocs(envelopesRef);
-      for (const docSnap of envelopeSnap.docs) {
-        const data = docSnap.data();
-        if (data.deletedAt && data.deletedAt < cutoff) {
-          // Also delete associated transactions
-          const txQuery = query(
-            collection(db, 'users', userId, 'transactions'),
-            where('envelopeId', '==', docSnap.id)
-          );
-          const txSnap = await getDocs(txQuery);
-          await Promise.all(txSnap.docs.map(tx => deleteDoc(tx.ref)));
-          await deleteDoc(docSnap.ref);
-          purged++;
-        }
-      }
-
-      // 2. Purge expired soft-deleted transactions
-      const txRef = collection(db, 'users', userId, 'transactions');
-      const txSnap = await getDocs(txRef);
-      for (const docSnap of txSnap.docs) {
-        const data = docSnap.data();
-        if (data.deletedAt && data.deletedAt < cutoff) {
-          await deleteDoc(docSnap.ref);
-          purged++;
-        }
-      }
-
-      // 3. Purge expired soft-deleted income sources (embedded in monthlyBudgets)
-      const monthlyRef = collection(db, 'users', userId, 'monthlyBudgets');
-      const monthlySnap = await getDocs(monthlyRef);
-      for (const docSnap of monthlySnap.docs) {
-        const data = docSnap.data();
-        const sources = data.incomeSources || [];
-        const filtered = sources.filter((s: any) => !s.deletedAt || s.deletedAt >= cutoff);
-        if (filtered.length < sources.length) {
-          await updateDoc(docSnap.ref, { incomeSources: filtered, updatedAt: Timestamp.now() });
-          purged += sources.length - filtered.length;
-        }
-      }
-
-      if (purged > 0) {
-        logger.log(`🧹 Purged ${purged} expired soft-deleted items (>${RETENTION_DAYS} days old)`);
-      }
-    } catch (error) {
-      // Non-critical — log but don't throw
-      logger.warn(`⚠️ Soft-delete purge failed (non-critical): ${error}`);
-    }
   }
 
   /**

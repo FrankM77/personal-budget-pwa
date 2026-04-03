@@ -101,14 +101,14 @@ export const createAllocationSlice = ({ set, get }: SliceParams) => ({
                 isLoading: false
             }));
             
-            // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
+            // Hard-delete from backend (fire-and-forget to avoid real-time listener cascade)
             const { currentUser } = useAuthStore.getState();
             if (!currentUser) return;
             
             budgetService.deleteIncomeSource(currentUser.id, sourceId, month)
-                .catch(err => logger.error('❌ Backend soft-delete failed:', err));
+                .catch(err => logger.error('❌ Backend hard-delete failed:', err));
             
-            logger.log('✅ Soft-deleted income source:', sourceId);
+            logger.log('✅ Hard-deleted income source:', sourceId);
             
         } catch (error) {
             logger.error('❌ deleteIncomeSource failed:', error);

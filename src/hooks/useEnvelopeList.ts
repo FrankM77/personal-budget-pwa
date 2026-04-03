@@ -2,11 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
-import { BudgetService } from '../services/budgetService';
 import type { IncomeSource } from '../models/types';
 import logger from '../utils/logger';
-
-const budgetService = BudgetService.getInstance();
 
 // Helper function to safely convert various date formats to JavaScript Date
 const safeDateConversion = (dateValue: any): Date | null => {
@@ -327,26 +324,28 @@ export const useEnvelopeList = () => {
   const deleteIncomeSourceWithToast = useCallback((incomeSource: IncomeSource) => {
     deleteIncomeSource(currentMonth, incomeSource.id).catch(logger.error);
 
-    const userId = useAuthStore.getState().currentUser?.id;
     showToast(
       `Deleted "${incomeSource.name}"`,
       'neutral',
-      userId ? async () => {
+      async () => {
         try {
-          await budgetService.restoreIncomeSource(userId, incomeSource.id, currentMonth);
-          const monthData = await budgetService.getMonthData(userId, currentMonth);
-          useBudgetStore.setState(state => ({
-            incomeSources: {
-              ...state.incomeSources,
-              [currentMonth]: monthData.incomeSources
-            }
-          }));
+          const store = useBudgetStore.getState();
+          await store.addIncomeSource(currentMonth, {
+            name: incomeSource.name,
+            amount: incomeSource.amount,
+            frequency: incomeSource.frequency,
+            category: incomeSource.category,
+            month: currentMonth,
+            userId: incomeSource.userId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
           showToast(`Restored "${incomeSource.name}"`, 'success');
         } catch (error) {
           logger.error('❌ Failed to restore income source:', error);
           showToast('Failed to restore', 'error');
         }
-      } : undefined
+      }
     );
   }, [deleteIncomeSource, currentMonth, showToast]);
 

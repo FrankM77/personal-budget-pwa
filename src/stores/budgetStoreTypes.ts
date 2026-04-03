@@ -47,7 +47,6 @@ export interface BudgetState {
   addTransaction: (transaction: Omit<Transaction, 'id' | 'userId'>) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
-  restoreTransaction: (transaction: Transaction) => Promise<void>;
   transferFunds: (fromEnvelopeId: string, toEnvelopeId: string, amount: number, note: string, date?: Date | string) => Promise<void>;
   fetchData: () => Promise<void>;
   verifyPiggybankBalances: () => Promise<void>;

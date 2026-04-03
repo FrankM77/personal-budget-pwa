@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useBudgetStore } from '../stores/budgetStore';
 import { useToastStore } from '../stores/toastStore';
-import { useAuthStore } from '../stores/authStore';
 import { toDate } from '../utils/dateUtils';
 import type { Transaction, Envelope } from '../models/types';
 import { Trash, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft } from 'lucide-react';
@@ -38,7 +37,6 @@ const EnvelopeDetail: React.FC = () => {
         renameEnvelope, 
         updateTransaction, 
         deleteTransaction, 
-        restoreTransaction, 
         getEnvelopeBalance, 
         currentMonth,
         allocations,
@@ -245,31 +243,17 @@ const EnvelopeDetail: React.FC = () => {
     };
     
     const handleDeleteEnvelope = () => {
-        if (!id) return;
+        if (!id || !currentEnvelope) return;
 
-        const envelopeName = currentEnvelope?.name || 'Envelope';
+        const envelopeName = currentEnvelope.name || 'Envelope';
 
-        // For piggybanks: soft-delete from all months
-        // For regular envelopes: only remove from current month
-        if (currentEnvelope?.isPiggybank) {
+        if (currentEnvelope.isPiggybank) {
+            const envelopeToRestore = { ...currentEnvelope };
             deleteEnvelope(id);
-            const userId = useAuthStore.getState().currentUser?.id;
             showToast(
                 `Deleted "${envelopeName}"`,
                 'neutral',
-                userId ? async () => {
-                    try {
-                        const { BudgetService } = await import('../services/budgetService');
-                        const svc = BudgetService.getInstance();
-                        await svc.restoreEnvelope(userId, id);
-                        const envelopes = await svc.getEnvelopes(userId);
-                        useBudgetStore.setState({ envelopes });
-                        showToast(`Restored "${envelopeName}"`, 'success');
-                    } catch (error) {
-                        logger.error('❌ Failed to restore envelope:', error);
-                        showToast('Failed to restore', 'error');
-                    }
-                } : undefined
+                () => useBudgetStore.getState().updateEnvelope(envelopeToRestore)
             );
         } else {
             // Capture data needed for undo BEFORE removing
@@ -281,38 +265,29 @@ const EnvelopeDetail: React.FC = () => {
 
             removeEnvelopeFromMonth(id, currentMonth);
 
-            const userId = useAuthStore.getState().currentUser?.id;
             showToast(
                 `Removed "${envelopeName}"`,
                 'neutral',
-                userId ? async () => {
+                async () => {
                     try {
-                        const { BudgetService } = await import('../services/budgetService');
-                        const svc = BudgetService.getInstance();
+                        const store = useBudgetStore.getState();
 
                         // Restore allocation if it existed
                         if (allocationToRestore) {
-                            await svc.createEnvelopeAllocation({
-                                userId,
-                                envelopeId: id,
-                                month: currentMonth,
-                                budgetedAmount: allocationToRestore.budgetedAmount
-                            });
+                            await store.setEnvelopeAllocation(id, allocationToRestore.budgetedAmount);
                         }
 
-                        // Restore soft-deleted transactions
+                        // Re-insert transactions
                         await Promise.all(
-                            transactionsToRestore.map(tx => svc.restoreTransaction(userId, tx.id))
+                            transactionsToRestore.map(tx => store.addTransaction(tx))
                         );
 
-                        // Refresh store data for this month
-                        await useBudgetStore.getState().fetchMonthData(currentMonth);
                         showToast(`Restored "${envelopeName}"`, 'success');
                     } catch (error) {
                         logger.error('❌ Failed to restore envelope from month:', error);
                         showToast('Failed to restore', 'error');
                     }
-                } : undefined
+                }
             );
         }
         navigate(-1);
@@ -471,14 +446,14 @@ const EnvelopeDetail: React.FC = () => {
                                 >
                                     <SwipeableRow 
                                       disabled={transaction.isAutomatic}
-                                      onDelete={() => {
+                                      onDelete={async () => {
                                         if (!transaction.id) return;
-                                        const transactionToDelete = { ...transaction }; // Create a copy
-                                        deleteTransaction(transaction.id);
+                                        const transactionToRestore = { ...transaction };
+                                        await deleteTransaction(transaction.id);
                                         showToast(
                                           'Transaction deleted',
                                           'neutral',
-                                          () => restoreTransaction(transactionToDelete)
+                                          () => useBudgetStore.getState().addTransaction(transactionToRestore)
                                         );
                                       }}
                                     >

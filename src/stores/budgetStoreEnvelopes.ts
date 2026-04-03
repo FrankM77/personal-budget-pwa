@@ -87,11 +87,11 @@ export const createEnvelopeSlice = ({ set, get }: SliceParams) => ({
                 isLoading: false
             }));
             
-            // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
+            // Hard-delete from backend (fire-and-forget to avoid real-time listener cascade)
             budgetService.deleteEnvelope(currentUser.id, envelopeId)
-                .catch(err => logger.error('❌ Backend soft-delete failed:', err));
+                .catch(err => logger.error('❌ Backend hard-delete failed:', err));
             
-            logger.log('✅ Soft-deleted envelope:', envelopeId);
+            logger.log('✅ Hard-deleted envelope:', envelopeId);
             
         } catch (error) {
             logger.error('❌ deleteEnvelope failed:', error);

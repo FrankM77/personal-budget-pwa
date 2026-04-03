@@ -2,6 +2,14 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.10] - 2026-04-03
+
+### 🚀 **DATA OPTIMIZATION**
+- **Migrated to Hard Delete + UI Undo model**: Replaced complex soft-deletion logic with permanent hard deletions combined with a copy-and-reinsert "Undo" pattern.
+- **Improved Performance**: Eliminated the `purgeExpiredSoftDeletes` background task, significantly reducing Firestore reads and startup latency.
+- **Simplified Database Architecture**: Removed `deletedAt` fields and associated filters, resulting in cleaner queries and 100% reliability against missing index errors.
+- **UI Cleanup**: Removed the "Recently Deleted" section from Settings as part of the architectural simplification.
+
 ## [1.17.9] - 2026-04-03
 
 ### 🐛 **BUG FIXES**

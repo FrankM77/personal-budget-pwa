@@ -301,15 +301,6 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             } else {
                 logger.log(`ℹ️ No lazy loading gaps detected for current month transactions`);
             }
-
-            // 🐷 Verify and self-heal piggybank balances on every fresh session
-            // TEMPORARILY DISABLED due to Firestore index issue causing infinite loop
-            // await get().verifyPiggybankBalances();
-
-            // 🧹 Purge expired soft-deleted items (non-blocking, runs in background)
-            budgetService.purgeExpiredSoftDeletes(currentUser.id)
-                .catch(err => logger.warn('⚠️ Background soft-delete purge failed:', err));
-            
         } catch (error) {
             logger.error('[LOADING-DEBUG] BudgetStore.init() FAILED', {
                 error,
@@ -486,7 +477,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             const state = get();
             const netDeltas: Record<string, number> = {};
             state.transactions
-                .filter(t => t.month === month && !t.deletedAt && state.envelopes.find(e => e.id === t.envelopeId)?.isPiggybank)
+                .filter(t => t.month === month && state.envelopes.find(e => e.id === t.envelopeId)?.isPiggybank)
                 .forEach(tx => {
                     const reversal = tx.type === 'Income' ? -tx.amount : tx.amount;
                     netDeltas[tx.envelopeId] = (netDeltas[tx.envelopeId] ?? 0) + reversal;

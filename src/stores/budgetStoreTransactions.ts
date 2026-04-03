@@ -147,58 +147,17 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => {
                 updatePiggybankBalance(tx.envelopeId, reversal);
             }
 
-            // Soft-delete from backend (fire-and-forget to avoid real-time listener cascade)
+            // Hard-delete from backend (fire-and-forget to avoid real-time listener cascade)
             budgetService.deleteTransaction(currentUser.id, transactionId)
-                .catch(err => logger.error('❌ Backend soft-delete transaction failed:', err));
+                .catch(err => logger.error('❌ Backend hard-delete transaction failed:', err));
 
-            logger.log('✅ BudgetStoreTransactions: Soft-deleted transaction:', transactionId);
+            logger.log('✅ BudgetStoreTransactions: Hard-deleted transaction:', transactionId);
             
         } catch (error) {
             logger.error('❌ deleteTransaction failed:', error);
             set({ 
                 isLoading: false, 
                 error: error instanceof Error ? error.message : 'Failed to delete transaction' 
-            });
-            throw error;
-        }
-    },
-
-    restoreTransaction: async (transaction: Transaction): Promise<void> => {
-        try {
-            set({ isLoading: true, error: null });
-            
-            const currentUser = requireAuth();
-            
-            // Ensure month is set
-            const txDate = new Date(transaction.date);
-            const month = transaction.month || `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-            
-            const restoredTransaction = { ...transaction, month, deletedAt: undefined };
-
-            // Clear from pending deletions so real-time listener allows it
-            pendingTransactionDeletions.delete(transaction.id);
-            
-            // Restore in backend (remove deletedAt)
-            budgetService.restoreTransaction(currentUser.id, transaction.id)
-                .catch(err => logger.error('❌ Backend restore transaction failed:', err));
-            
-            // Update local state - add back the transaction
-            set(state => ({
-                transactions: [...state.transactions, restoredTransaction],
-                isLoading: false
-            }));
-
-            // Re-apply the transaction's effect on the piggybank balance
-            const delta = restoredTransaction.type === 'Income' ? restoredTransaction.amount : -restoredTransaction.amount;
-            updatePiggybankBalance(restoredTransaction.envelopeId, delta);
-
-            logger.log('✅ Restored transaction:', transaction.id);
-            
-        } catch (error) {
-            logger.error('❌ restoreTransaction failed:', error);
-            set({ 
-                isLoading: false, 
-                error: error instanceof Error ? error.message : 'Failed to restore transaction' 
             });
             throw error;
         }

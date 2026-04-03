@@ -29,25 +29,13 @@ import {
     ) => {
       const q = query(
         getCollectionRef(userId),
-        where('deletedAt', '==', null), // Explicitly exclude soft-deleted transactions
         orderBy('date', 'desc')
       );
 
       // This listener stays alive and calls 'onUpdate' whenever DB changes
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const transactions = snapshot.docs
-          .map(doc => fromFirestore({ id: doc.id, ...doc.data() }))
-          .filter(tx => {
-            // Filter out soft-deleted transactions with multiple checks
-            if (tx.deletedAt) return false;
-            
-            // Additional safety check: ensure deletedAt is not a future timestamp
-            const now = new Date();
-            const deletedAt = tx.deletedAt ? new Date(tx.deletedAt) : null;
-            if (deletedAt && deletedAt <= now) return false;
-            
-            return true;
-          });
+          .map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
 
         onUpdate(transactions);
       });
@@ -70,26 +58,14 @@ import {
       const q = query(
         getCollectionRef(userId),
         where('month', '==', month),
-        where('deletedAt', '==', null), // Explicitly exclude soft-deleted transactions
         orderBy('date', 'desc')
       );
 
       return onSnapshot(q, (snapshot) => {
         const transactions = snapshot.docs
-          .map(doc => fromFirestore({ id: doc.id, ...doc.data() }))
-          .filter(tx => {
-            // Filter out soft-deleted transactions with multiple checks
-            if (tx.deletedAt) return false;
-            
-            // Additional safety check: ensure deletedAt is not a future timestamp
-            const now = new Date();
-            const deletedAt = tx.deletedAt ? new Date(tx.deletedAt) : null;
-            if (deletedAt && deletedAt <= now) return false;
-            
-            return true;
-          });
+          .map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
         
-        logger.log(`📡 TransactionService: Received ${snapshot.docs.length} docs for ${month}, filtered to ${transactions.length} after removing soft-deleted`);
+        logger.log(`📡 TransactionService: Received ${snapshot.docs.length} docs for ${month}`);
         onUpdate(transactions);
       }, (error) => {
         logger.error(`❌ TransactionService: Subscription failed for ${month}:`, error);
@@ -101,23 +77,11 @@ import {
       logger.log(`📊 TransactionService.getAllTransactions: Fetching for user ${userId}`);
       const q = query(
         getCollectionRef(userId),
-        where('deletedAt', '==', null), // Explicitly exclude soft-deleted transactions
         orderBy('date', 'desc')
       );
       const snapshot = await getDocs(q);
       const transactions = snapshot.docs
-        .map(doc => fromFirestore({ id: doc.id, ...doc.data() }))
-        .filter(tx => {
-          // Filter out soft-deleted transactions with multiple checks
-          if (tx.deletedAt) return false;
-          
-          // Additional safety check: ensure deletedAt is not a future timestamp
-          const now = new Date();
-          const deletedAt = tx.deletedAt ? new Date(tx.deletedAt) : null;
-          if (deletedAt && deletedAt <= now) return false;
-          
-          return true;
-        });
+        .map(doc => fromFirestore({ id: doc.id, ...doc.data() }));
       logger.log(`📋 Fetched ${transactions.length} transactions:`, transactions.map(t => ({ id: t.id, description: t.description, month: t.month })));
       return transactions;
     },

@@ -18,7 +18,6 @@ export const TransactionHistoryView: React.FC = () => {
     envelopes, 
     updateTransaction, 
     deleteTransaction, 
-    restoreTransaction, 
     currentMonth, 
     appSettings,
     fetchAllTransactions,
@@ -526,18 +525,19 @@ export const TransactionHistoryView: React.FC = () => {
                   >
                     <SwipeableRow 
                       disabled={primaryTx.isAutomatic}
-                      onDelete={() => {
+                      onDelete={async () => {
                         // Delete all transactions in the group
-                        const txsToDelete = row.splitTransactions.map(t => ({ ...t }));
+                        const txsToRestore = row.splitTransactions.map(t => ({ ...t }));
                         for (const tx of row.splitTransactions) {
-                          if (tx.id) deleteTransaction(tx.id);
+                          if (tx.id) await deleteTransaction(tx.id);
                         }
                         showToast(
                           row.isSplitGroup ? 'Split transaction deleted' : 'Transaction deleted',
                           'neutral',
                           () => {
-                            for (const tx of txsToDelete) {
-                              restoreTransaction(tx);
+                            const store = useBudgetStore.getState();
+                            for (const tx of txsToRestore) {
+                              store.addTransaction(tx);
                             }
                           }
                         );

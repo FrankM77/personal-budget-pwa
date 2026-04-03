@@ -75,7 +75,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   // Subscribe to envelopes
   const unsubscribeEnvelopes = EnvelopeService.subscribeToEnvelopes(userId, (firebaseEnvelopes) => {
     logger.log('🔄 Real-time sync: Envelopes updated', firebaseEnvelopes.length);
-    const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope).filter((env: Envelope) => !env.deletedAt);
+    const envelopes = firebaseEnvelopes.map(convertFirebaseEnvelope);
     
     // Get current state to preserve locally deleted envelopes
     const currentState = budgetStore.getState();
@@ -107,10 +107,6 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
       // but may not yet be reflected in Firestore's snapshot
       const filteredFirebaseTransactions = firebaseTransactions.filter((tx: any) => {
         if (pendingTransactionDeletions.has(tx.id)) {
-          // Check if Firestore has caught up (tx has deletedAt) — if so, clear the pending flag
-          if (tx.deletedAt) {
-            pendingTransactionDeletions.delete(tx.id);
-          }
           return false; // Don't add back optimistically deleted transactions
         }
         return true;
