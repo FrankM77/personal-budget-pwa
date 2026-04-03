@@ -94,7 +94,7 @@ export const createCategorySlice = ({ set, get }: SliceParams) => ({
             set({ isLoading: true, error: null });
             const currentUser = requireAuth();
 
-            logger.log('🔍 [DEBUG] budgetStoreCategories.deleteCategory called:', {
+            logger.debug('🔍 [DEBUG] budgetStoreCategories.deleteCategory called:', {
                 categoryId,
                 currentCategoriesCount: get().categories.length,
                 currentEnvelopesCount: get().envelopes.length

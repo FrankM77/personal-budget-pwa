@@ -23,6 +23,11 @@ const logger = {
     const data = args.length > 1 ? (args.length === 2 ? args[1] : args.slice(1)) : undefined;
     enhancedLogger.info(source, message, data);
   },
+  debug: (...args: any[]) => {
+    const { source, message } = extractSource(args[0]);
+    const data = args.length > 1 ? (args.length === 2 ? args[1] : args.slice(1)) : undefined;
+    enhancedLogger.debug(source, message, data);
+  },
   warn: (...args: any[]) => {
     const { source, message } = extractSource(args[0]);
     const data = args.length > 1 ? (args.length === 2 ? args[1] : args.slice(1)) : undefined;

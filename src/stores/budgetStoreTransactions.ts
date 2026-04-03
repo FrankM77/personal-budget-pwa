@@ -151,7 +151,7 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => {
             budgetService.deleteTransaction(currentUser.id, transactionId)
                 .catch(err => logger.error('❌ Backend soft-delete transaction failed:', err));
 
-            logger.log('✅ Soft-deleted transaction:', transactionId);
+            logger.log('✅ BudgetStoreTransactions: Soft-deleted transaction:', transactionId);
             
         } catch (error) {
             logger.error('❌ deleteTransaction failed:', error);

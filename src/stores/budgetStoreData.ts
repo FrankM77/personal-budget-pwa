@@ -56,28 +56,28 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
 
     init: async () => {
         const initStartTime = Date.now();
-        logger.log('[LOADING-DEBUG] BudgetStore.init() started', { initStartTime });
+        logger.debug('[LOADING-DEBUG] BudgetStore.init() started', { initStartTime });
         const state = get();
         
         try {
             // Set loading state
-            logger.log('[LOADING-DEBUG] Setting isLoading = true');
+            logger.debug('[LOADING-DEBUG] Setting isLoading = true');
             set({ isLoading: true, error: null });
             
             const { currentUser } = useAuthStore.getState();
             
             if (!currentUser) {
-                logger.log('[LOADING-DEBUG] No user logged in, setting isLoading = false');
+                logger.debug('[LOADING-DEBUG] No user logged in, setting isLoading = false');
                 set({ isLoading: false });
                 return;
             }
             
-            logger.log('[LOADING-DEBUG] Fetching data for user', { userId: currentUser.id, month: state.currentMonth });
+            logger.debug('[LOADING-DEBUG] Fetching data for user', { userId: currentUser.id, month: state.currentMonth });
             
             // Fetch data in parallel with timeout protection
             // OPTIMIZATION: Real-time listeners will handle transactions once setup.
             // We only need to fetch the core building blocks and the budget data for the current month.
-            logger.log('[LOADING-DEBUG] Starting parallel fetch: envelopes, categories, monthData', {
+            logger.debug('[LOADING-DEBUG] Starting parallel fetch: envelopes, categories, monthData', {
                 elapsedMs: Date.now() - initStartTime
             });
             
@@ -130,7 +130,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 })
             ]);
             
-            logger.log('[LOADING-DEBUG] All parallel fetches completed', {
+            logger.debug('[LOADING-DEBUG] All parallel fetches completed', {
                 elapsedMs: Date.now() - initStartTime,
                 envelopesCount: envelopes.length,
                 categoriesCount: categoriesResult.length
@@ -226,7 +226,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             }
 
             // Update state with fetched data
-            logger.log('[LOADING-DEBUG] Setting store state with fetched data, isLoading = false', {
+            logger.debug('[LOADING-DEBUG] Setting store state with fetched data, isLoading = false', {
                 elapsedMs: Date.now() - initStartTime
             });
             set({
@@ -247,7 +247,7 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
                 error: null
             });
             
-            logger.log('[LOADING-DEBUG] Store state updated successfully', {
+            logger.debug('[LOADING-DEBUG] Store state updated successfully', {
                 elapsedMs: Date.now() - initStartTime,
                 envelopesCount: envelopes.length,
                 currentMonth: state.currentMonth

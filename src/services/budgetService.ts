@@ -612,7 +612,7 @@ export class BudgetService {
         deletedAt: new Date().toISOString()
       }).catch(err => logger.warn(`Soft-delete tx failed: ${err}`));
       
-      logger.log('✅ Soft-deleted transaction:', transactionId);
+      logger.log('✅ BudgetService: Soft-deleted transaction:', transactionId);
     } catch (error) {
       logger.warn(`❌ BudgetService.deleteTransaction failed: ${error}`);
       throw new Error(`Failed to delete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);

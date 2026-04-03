@@ -13,7 +13,7 @@ export const createEnvelopeSlice = ({ set, get }: SliceParams) => ({
             
             const currentUser = requireAuth();
             
-            logger.log('🔍 [DEBUG] budgetStoreEnvelopes.addEnvelope called:', {
+            logger.debug('🔍 [DEBUG] budgetStoreEnvelopes.addEnvelope called:', {
                 envelopeName: envelope.name,
                 envelopeCategoryId: envelope.categoryId,
                 currentEnvelopesCount: get().envelopes.length

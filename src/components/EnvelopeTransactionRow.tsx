@@ -78,8 +78,7 @@ const EnvelopeTransactionRow: React.FC<Props> = ({
   // 1. Defensive Check: If transaction is missing, return nothing (don't crash)
   if (!transaction) return null;
 
-  logger.log('🔍 Transaction payment method:', transaction.paymentMethod);
-
+      // logger.log('🔍 Transaction payment method:', transaction.paymentMethod);
   const isIncome = transaction.type === 'Income';
   const isExpense = transaction.type === 'Expense';
 

@@ -62,11 +62,11 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
   
   // Prevent duplicate subscriptions
   if ((window as any).__firebaseUnsubscribers) {
-    logger.log('[LOADING-DEBUG] Real-time subscriptions already active, skipping setup');
+    logger.debug('[LOADING-DEBUG] Real-time subscriptions already active, skipping setup');
     return;
   }
 
-  logger.log('[LOADING-DEBUG] Setting up real-time Firebase subscriptions...', { setupStartTime });
+  logger.debug('[LOADING-DEBUG] Setting up real-time Firebase subscriptions...', { setupStartTime });
 
   // Get current month for income sources and allocations
   const currentMonth = budgetStore.getState().currentMonth;
@@ -225,7 +225,7 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
     setupTransactionSubscription // Expose this so it can be called when loadedTransactionMonths changes
   };
 
-  logger.log('[LOADING-DEBUG] Real-time subscriptions setup complete', {
+  logger.debug('[LOADING-DEBUG] Real-time subscriptions setup complete', {
     elapsedMs: Date.now() - setupStartTime
   });
 };
