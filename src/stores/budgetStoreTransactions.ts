@@ -351,22 +351,21 @@ export const createTransactionSlice = ({ set, get }: SliceParams) => {
             return 0;
         }
 
-        // For Piggybanks: when a month is provided, always compute from loaded transactions
-        // (all piggybank transactions are eager-loaded in fetchData so data is always available).
-        // Only fall back to envelope.currentBalance when no month is given (e.g. raw balance queries).
-        // Using currentBalance when a month is given is wrong because currentBalance always reflects
-        // the latest cumulative total regardless of which month is being viewed.
+        // For Piggybanks: ALWAYS compute balance from transactions (single source of truth).
+        // All piggybank transactions are eager-loaded in fetchData so data is always available.
+        // When a month is provided, filter to transactions up to that month.
+        // When no month is provided, use all loaded transactions.
         if (envelope.isPiggybank) {
-            if (!month) {
-                return envelope.currentBalance ?? 0;
-            }
-            // Compute cumulative balance up to and including the viewed month
-            const txs = state.transactions.filter(t =>
-                t.envelopeId === envelopeId && (!t.month || t.month <= month)
-            );
+            const allPiggybankTxs = state.transactions.filter(t => t.envelopeId === envelopeId);
+            const txs = month
+                ? allPiggybankTxs.filter(t => !t.month || t.month <= month)
+                : allPiggybankTxs;
+
             const totalIncome = txs.filter(t => t.type === 'Income').reduce((acc, curr) => acc + (curr.amount || 0), 0);
             const totalSpent = txs.filter(t => t.type === 'Expense').reduce((acc, curr) => acc + (curr.amount || 0), 0);
-            return totalIncome - totalSpent;
+            const balance = totalIncome - totalSpent;
+
+            return balance;
         }
 
         // For regular spending envelopes, calculate monthly balance if month is provided

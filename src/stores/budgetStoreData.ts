@@ -145,23 +145,59 @@ export const createDataSlice = ({ set, get }: SliceParams) => ({
             const currentMonthTransactions = await budgetService.getTransactionsByMonth(currentUser.id, state.currentMonth);
             logger.log(`✅ Loaded ${currentMonthTransactions.length} transactions for ${state.currentMonth}`);
 
-            // Eager-load all piggybank transactions so historical balance recompute works
-            // for any viewed month, including offline (Firebase caches these queries).
+            // Eager-load ALL piggybank transactions so balance is always computed from
+            // transactions (single source of truth). We fetch by month (which has a Firestore
+            // index) going back to the earliest piggybank creation date.
             const piggybankEnvelopes = envelopes.filter(e => e.isPiggybank && e.isActive !== false);
             let allPiggybankTransactions: import('../models/types').Transaction[] = [];
             if (piggybankEnvelopes.length > 0) {
-                logger.log(`🐷 Eager-loading transactions for ${piggybankEnvelopes.length} piggybank(s)`);
-                const piggybankTxArrays = await Promise.all(
-                    piggybankEnvelopes.map(pb =>
-                        budgetService.getTransactionsByEnvelope(currentUser.id, pb.id)
+                logger.log(`🐷 Eager-loading ALL transactions for ${piggybankEnvelopes.length} piggybank(s)`);
+
+                const piggybankEnvelopeIds = new Set(piggybankEnvelopes.map(pb => pb.id));
+
+                // Find earliest piggybank creation month (fall back to current month - 24 months)
+                let earliestMonth = state.currentMonth;
+                for (const pb of piggybankEnvelopes) {
+                    if (pb.createdAt) {
+                        // Handle both ISO strings and Firestore Timestamp objects
+                        let createdMonth: string | null = null;
+                        if (typeof pb.createdAt === 'string') {
+                            createdMonth = pb.createdAt.substring(0, 7); // "YYYY-MM"
+                        } else if (typeof pb.createdAt === 'object' && 'toDate' in (pb.createdAt as any)) {
+                            const d = (pb.createdAt as any).toDate();
+                            createdMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        if (createdMonth && createdMonth < earliestMonth) earliestMonth = createdMonth;
+                    }
+                }
+
+                // Build list of months from earliest to current using string math
+                // (avoids timezone issues with Date constructor parsing "YYYY-MM-DD" as UTC)
+                const monthsToFetch: string[] = [];
+                let [curYear, curMon] = earliestMonth.split('-').map(Number);
+                const [endYear, endMon] = state.currentMonth.split('-').map(Number);
+                while (curYear < endYear || (curYear === endYear && curMon <= endMon)) {
+                    monthsToFetch.push(`${curYear}-${String(curMon).padStart(2, '0')}`);
+                    curMon++;
+                    if (curMon > 12) { curMon = 1; curYear++; }
+                }
+
+                logger.log(`🐷 Fetching ${monthsToFetch.length} months of piggybank history (${earliestMonth} → ${state.currentMonth})`);
+
+                const txArrays = await Promise.all(
+                    monthsToFetch.map(month =>
+                        budgetService.getTransactionsByMonth(currentUser.id, month)
                             .catch(err => {
-                                logger.warn(`⚠️ Failed to eager-load transactions for piggybank ${pb.name}:`, err);
+                                logger.warn(`⚠️ Failed to fetch transactions for month ${month}:`, err);
                                 return [] as import('../models/types').Transaction[];
                             })
                     )
                 );
-                allPiggybankTransactions = piggybankTxArrays.flat();
-                logger.log(`✅ Eager-loaded ${allPiggybankTransactions.length} total piggybank transactions`);
+
+                // Filter to only piggybank transactions
+                const allTxs = txArrays.flat();
+                allPiggybankTransactions = allTxs.filter(t => piggybankEnvelopeIds.has(t.envelopeId));
+                logger.log(`✅ Eager-loaded ${allPiggybankTransactions.length} total piggybank transactions across ${monthsToFetch.length} months`);
             }
 
             // Merge current month + piggybank transactions, deduplicated by id

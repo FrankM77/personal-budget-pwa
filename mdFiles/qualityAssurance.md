@@ -18,14 +18,22 @@ This document combines known issues tracking with comprehensive testing procedur
 
 ## 1. Current Known Issues
 
-### 🐷 Resolved Issues
+### 🐷 Recently Resolved Issues
+
+#### ✅ FIXED: Piggybank Balance Incorrect in Historical Month Views
+**Status:** RESOLVED (v1.17.6, Commit: e92b1b8)
+**Date Fixed:** April 2, 2026
+**Issue:** Piggybank balance showed the latest cumulative total when viewing any historical month, instead of computing the correct balance up to that month. When copying data from March to April, April's contribution was added to the cumulative balance. Navigating back to March would show April's cumulative total instead of March's.
+**Root Cause:** `getEnvelopeBalance()` used `envelope.currentBalance` (always reflects latest total) for all months. The condition to detect historical views was flawed because `state.currentMonth` is the viewed month, not the actual current date.
+**Fix:** Modified `getEnvelopeBalance()` and `useEnvelopeList` to always compute piggybank balance from transactions when a specific month is provided. Implemented eager-loading of all piggybank transactions in `fetchData()` to ensure complete history is available for any month view.
+**Files Changed:** `src/stores/budgetStoreTransactions.ts`, `src/hooks/useEnvelopeList.ts`, `src/stores/budgetStoreData.ts`
 
 #### ✅ FIXED: Piggybank Allocation Copying
 **Status:** RESOLVED (Commit: 2ad1b17)
 **Issue:** When copying previous month allocations, piggybank contributions were not included, causing budgets to go negative when auto-contributions triggered later.
 **Fix:** Enhanced `copyPreviousMonthAllocations()` to include piggybank allocations and income sources.
 
-#### ✅ FIXED: Month Targeting Bug  
+#### ✅ FIXED: Month Targeting Bug
 **Status:** RESOLVED (Commit: 2ad1b17)
 **Issue:** Copy function was using stale `currentMonth` from hook closure instead of UI-selected month.
 **Fix:** Modified `copyFromPreviousMonthWithToast()` to accept target month parameter.
@@ -41,18 +49,19 @@ This document combines known issues tracking with comprehensive testing procedur
 **Status:** PARTIALLY FIXED (Commit: 2ad1b17)
 **Issue:** Copy prompt appears even when data exists due to race condition between data loading and prompt logic.
 **Current Fix:** Added 500ms delay and better loading state checks.
-**Remaining Issue:** May still occur on slow connections or complex data loads.
+**Remaining Issue:** May still occur on slow connections or complex data loads. Related to month navigation timing issues.
 
 ### 🐛 Open Issues
 
-#### 🐛 Navigation Data Loss
+#### 🐛 Navigation Data Loss / Copy Prompt Race Condition
 **Status:** OPEN
 **Issue:** When navigating away from and back to a month, copy prompt may appear even though data exists in backend.
 **Symptoms:**
 - Data visible in React DevTools but copy prompt still shows
 - Console shows data exists but UI thinks month is empty
-**Root Cause:** Race condition between backend data loading and copy prompt logic.
-**Debug:** Added logging `🔍 Copy prompt check:` to diagnose.
+**Root Cause:** Race condition between backend data loading and copy prompt logic combined with month navigation timing.
+**Debug:** Added logging `🔍 Copy prompt check:` to diagnose. Check `loadedTransactionMonths` state when issue occurs.
+**Related To:** Copy Prompt Race Condition (partially fixed)
 
 #### 🐛 Month Selector State Sync
 **Status:** OPEN
@@ -61,6 +70,7 @@ This document combines known issues tracking with comprehensive testing procedur
 - UI shows April but copy targets February
 - `currentMonth` prop stale in components
 **Debug:** Check React DevTools for component prop vs store state mismatches.
+**Note:** Related to navigation data loss issues above.
 
 ---
 

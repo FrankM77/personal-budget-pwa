@@ -116,13 +116,27 @@ const setupRealtimeSubscriptions = (budgetStore: any, userId: string) => {
         return true;
       });
       
+      // Preserve piggybank transactions from this month — they are eager-loaded
+      // by init() and should not be wiped by the real-time listener replacing
+      // this month's transactions. Piggybank txs are the single source of truth
+      // for piggybank balances and must persist across listener updates.
+      const piggybankEnvelopeIds = new Set(
+        (currentState.envelopes || [])
+          .filter((e: any) => e.isPiggybank)
+          .map((e: any) => e.id)
+      );
+      const piggybankTxsThisMonth = currentState.transactions.filter((tx: any) =>
+        tx.month === month && piggybankEnvelopeIds.has(tx.envelopeId)
+      );
       const otherMonthsTransactions = currentState.transactions.filter((tx: any) => tx.month !== month);
-      
-      const updatedTransactions = [
-        ...otherMonthsTransactions,
-        ...filteredFirebaseTransactions
-      ];
-      
+
+      // Merge: other months + preserved piggybank txs + fresh Firebase txs (deduped)
+      const mergedMap = new Map<string, any>();
+      [...otherMonthsTransactions, ...piggybankTxsThisMonth, ...filteredFirebaseTransactions]
+        .forEach((tx: any) => mergedMap.set(tx.id, tx));
+      const updatedTransactions = Array.from(mergedMap.values());
+
+
       budgetStore.setState({ transactions: updatedTransactions });
     });
   };
