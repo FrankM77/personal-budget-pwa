@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Trash, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/budgetStore';
+import { useToastStore } from '../../stores/toastStore';
 import type { Transaction, Envelope, PaymentSource } from '../../models/types';
 import logger from '../../utils/logger';
 import CardStack from '../ui/CardStack';
@@ -20,6 +21,7 @@ interface Props {
 
 const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEnvelope, initialTransaction, initialSplitTransactions, envelopes }) => {
   const { addTransaction, updateTransaction, deleteTransaction, currentMonth } = useBudgetStore();
+  const { showToast } = useToastStore();
   
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -220,7 +222,10 @@ const TransactionModal: React.FC<Props> = ({ isVisible, onClose, mode, currentEn
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         elapsedMs: Date.now() - submitStartTime
       });
-      alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      showToast(
+        'Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        'error'
+      );
     }
   };
 

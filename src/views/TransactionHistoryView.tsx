@@ -559,7 +559,7 @@ export const TransactionHistoryView: React.FC = () => {
                             setEditingTransaction(primaryTx);
                             setEditingSplitTransactions(row.isSplitGroup ? row.splitTransactions : []);
                           } else {
-                            alert("Cannot edit: Envelope deleted.");
+                            showToast("Cannot edit: Envelope deleted.", "error");
                           }
                         }}
                       />

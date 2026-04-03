@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, PiggyBank } from 'lucide-react';
+import { useToastStore } from '../../stores/toastStore';
 import type { Envelope } from '../../models/types';
 import logger from '../../utils/logger';
 
@@ -17,6 +18,7 @@ export const PiggybankModal: React.FC<PiggybankModalProps> = ({
   onSave,
   existingPiggybank
 }) => {
+  const { showToast } = useToastStore();
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [monthlyContribution, setMonthlyContribution] = useState('');
@@ -78,7 +80,7 @@ export const PiggybankModal: React.FC<PiggybankModalProps> = ({
       onClose();
     } catch (error) {
       logger.error('Error saving piggybank:', error);
-      alert('Failed to save piggybank');
+      showToast('Failed to save piggybank', 'error');
     } finally {
       setIsSaving(false);
     }

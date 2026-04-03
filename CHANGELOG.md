@@ -2,6 +2,13 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.12] - 2026-04-03
+
+### 💄 **UX POLISH**
+- **Removed Browser Native Alerts**: Replaced all remaining `alert()` pop-ups with the app's integrated Zinc-styled Toast notification system.
+- **Consistent Feedback**: Standardized error reporting and validation messaging across `AddTransactionView`, `PiggybankModal`, `TransactionModal`, `CardStack`, and `TransactionHistoryView`.
+- **Improved "Native" Feel**: Eliminated browser-level interruptions to preserve the immersive PWA experience.
+
 ## [1.17.11] - 2026-04-03
 
 ### 🐛 **BUG FIXES**

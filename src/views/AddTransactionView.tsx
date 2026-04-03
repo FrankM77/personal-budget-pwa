@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Mic } from 'lucide-react';
 import { useBudgetStore } from '../stores/budgetStore';
+import { useToastStore } from '../stores/toastStore';
 import { SplitTransactionHelper } from '../components/SplitTransactionHelper';
 import CardStack from '../components/ui/CardStack';
 import { useSiriQuery } from '../hooks/useSiriQuery';
@@ -16,6 +17,7 @@ interface AddTransactionViewProps {
 
 export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose, onSaved }) => {
   const { envelopes, addTransaction, currentMonth, appSettings } = useBudgetStore();
+  const { showToast } = useToastStore();
   const { parsedData, isParsing, siriQuery, clearParsedData } = useSiriQuery();
 
   const applyParsedSiriData = (data: any, queryText: string) => {
@@ -220,7 +222,10 @@ export const AddTransactionView: React.FC<AddTransactionViewProps> = ({ onClose,
       }
     } catch (error) {
       logger.error('Error saving transaction:', error);
-      alert('Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      showToast(
+        'Failed to save transaction: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        'error'
+      );
     }
   };
 

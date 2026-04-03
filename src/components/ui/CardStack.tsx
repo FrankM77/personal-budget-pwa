@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SwipeableRow } from './SwipeableRow';
 import { useBudgetStore } from '../../stores/budgetStore';
+import { useToastStore } from '../../stores/toastStore';
 import type { PaymentSource } from '../../models/types';
 import '../../styles/CardStack.css';
 import logger from '../../utils/logger';
@@ -25,6 +26,7 @@ const CardStack: React.FC<Props> = ({
   disabled = false,
   isUserSelected = false
 }) => {
+  const { showToast } = useToastStore();
   const appSettings = useBudgetStore(state => state.appSettings);
   const updateAppSettings = useBudgetStore(state => state.updateAppSettings);
   
@@ -123,7 +125,7 @@ const CardStack: React.FC<Props> = ({
         logger.error('Failed to delete card from app settings:', error);
         // Revert the local state if save failed
         setCards(cards);
-        alert('Failed to delete card. Please try again.');
+        showToast('Failed to delete card. Please try again.', 'error');
         return;
       }
     }
@@ -139,12 +141,12 @@ const CardStack: React.FC<Props> = ({
     // Validate last 4 digits (only for cards)
     const isCard = !['Cash', 'Venmo'].includes(newCard.network);
     if (isCard && (newCard.last4.length !== 4 || !/^\d{4}$/.test(newCard.last4))) {
-      alert('Please enter exactly 4 digits for the last 4 digits');
+      showToast('Please enter exactly 4 digits for the last 4 digits', 'error');
       return;
     }
 
     if (!newCard.name.trim()) {
-      alert('Please enter a name');
+      showToast('Please enter a name', 'error');
       return;
     }
 
@@ -173,7 +175,7 @@ const CardStack: React.FC<Props> = ({
       // Revert the local state if save failed
       setCards(cards);
       setInternalSelectedCard(selectedCard);
-      alert('Failed to save card. Please try again.');
+      showToast('Failed to save card. Please try again.', 'error');
       return;
     }
     
@@ -227,7 +229,7 @@ const CardStack: React.FC<Props> = ({
       logger.error('Failed to reorder cards:', error);
       // Revert the local state if save failed
       setCards(cards);
-      alert('Failed to reorder cards. Please try again.');
+      showToast('Failed to reorder cards. Please try again.', 'error');
     }
   };
 
