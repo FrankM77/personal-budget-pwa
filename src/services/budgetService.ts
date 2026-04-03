@@ -321,10 +321,11 @@ export class BudgetService {
       logger.log(`📊 BudgetService.getTransactionsByEnvelope: Fetching for user ${userId}, envelope ${envelopeId}`);
       
       const collectionRef = collection(db, 'users', userId, 'transactions');
+      // Fix: Removed orderBy('date', 'desc') to avoid requiring a composite index.
+      // Sorting is handled client-side below.
       const q = query(
         collectionRef, 
-        where('envelopeId', '==', envelopeId),
-        orderBy('date', 'desc')
+        where('envelopeId', '==', envelopeId)
       );
       
       const snapshot = await getDocs(q);
@@ -334,7 +335,8 @@ export class BudgetService {
           const firebaseTx = { id: doc.id, ...doc.data() } as any;
           return fromFirestore(firebaseTx);
         })
-        .filter(tx => !tx.deletedAt); // Filter out soft-deleted transactions
+        .filter(tx => !tx.deletedAt) // Filter out soft-deleted transactions
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date descending client-side
       
       logger.log(`📋 Fetched ${transactions.length} transactions for envelope ${envelopeId}`);
       return transactions;
