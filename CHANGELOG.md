@@ -2,6 +2,36 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.9] - 2026-04-03
+
+### 🐛 **BUG FIXES**
+- **Development setup improvements**: Updated session notes and development environment configuration
+- **Version maintenance**: Routine version bump for deployment pipeline
+
+## [1.17.8] - 2026-04-03
+
+### 🐛 **BUG FIXES**
+- **Fixed piggybank balance single source of truth**: Ensured consistent balance calculations across all views
+- **Root cause**: Multiple balance calculation methods were causing discrepancies
+- **Solution**: Standardized on currentBalance field as the single source of truth
+- **Impact**: Piggybank balances now show consistently in list and detail views
+
+## [1.17.7] - 2026-04-03
+
+### 🐛 **BUG FIXES**
+- **Fixed piggybank balance mismatch between list and detail views**: Balances now match across all views
+- **Root cause**: Different calculation methods in different components
+- **Solution**: Unified balance calculation approach
+- **Impact**: Consistent piggybank balance display throughout the app
+
+## [1.17.6] - 2026-04-03
+
+### 🐛 **BUG FIXES**
+- **Fixed piggybank balance displaying incorrectly in historical month views**: Historical views now show correct balances
+- **Root cause**: Historical balance calculation wasn't accounting for piggybank cumulative nature
+- **Solution**: Updated historical balance calculation for piggybanks
+- **Impact**: Accurate balance display when viewing past months
+
 ## [1.17.5] - 2026-04-02
 
 ### 🐛 **BUG FIXES** 
