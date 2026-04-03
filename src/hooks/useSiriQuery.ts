@@ -15,30 +15,39 @@ import logger from '../utils/logger';
  */
 export function useSiriQuery() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { envelopes } = useBudgetStore();
+  const { envelopes, isLoading } = useBudgetStore();
   const [parsedData, setParsedData] = useState<ParsedTransaction | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [siriQuery, setSiriQuery] = useState<string | null>(null);
 
-  // Use ref for envelopes to avoid re-triggering effect on every store update
-  const envelopesRef = useRef(envelopes);
-  envelopesRef.current = envelopes;
+  // Track which queries we have already processed to prevent infinite loops
+  // or re-parsing when envelopes list updates.
+  const processedQueryRef = useRef<string | null>(null);
 
-  // Extract query param once — only react to actual URL query changes
+  // Extract query param
   const query = searchParams.get('query');
 
   useEffect(() => {
-    logger.log('🎙️ Siri: Hook checking URL params - query:', query);
-    
-    if (!query || query.trim().length === 0) {
+    // 1. Exit if no query or if we already processed this exact query
+    if (!query || query.trim().length === 0 || query === processedQueryRef.current) {
       return;
     }
 
-    logger.log('🎙️ Siri: Found query parameter, parsing:', query);
+    // 2. WAIT for envelopes to load. If store is still loading or envelopes 
+    // are empty (and it's not a fresh user), hold off until the next render.
+    if (isLoading || (envelopes.length === 0)) {
+      logger.debug('🎙️ Siri: Query found but waiting for envelopes to load...');
+      return;
+    }
+
+    // 3. LOCK: Mark this query as processed immediately
+    processedQueryRef.current = query;
+
+    logger.log('🎙️ Siri: Envelopes loaded, starting parse for:', query);
     setSiriQuery(query);
     setIsParsing(true);
 
-    parseSiriQuery(query, envelopesRef.current)
+    parseSiriQuery(query, envelopes)
       .then((result) => {
         logger.log('🎙️ Siri: Parsed result:', result);
         setParsedData(result);
@@ -49,13 +58,15 @@ export function useSiriQuery() {
       })
       .finally(() => {
         setIsParsing(false);
+        
+        // 4. CLEANUP: Remove query from URL only AFTER parsing attempt is done
+        // This ensures if the user refreshes, we don't try to parse an old query.
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('query');
+        setSearchParams(newParams, { replace: true });
       });
 
-    // Clean up the query param from the URL so it doesn't re-trigger
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('query');
-    setSearchParams(newParams, { replace: true });
-  }, [query]); // Only re-run when the actual query value changes
+  }, [query, envelopes, isLoading, searchParams, setSearchParams]); // Correct dependency array
 
   const clearParsedData = useCallback(() => {
     setParsedData(null);

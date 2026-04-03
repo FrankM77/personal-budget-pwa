@@ -2,6 +2,13 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.11] - 2026-04-03
+
+### 🐛 **BUG FIXES**
+- **Improved Siri Reliability**: Fixed a race condition where Siri commands would fail to auto-populate the transaction modal on cold starts.
+- **Wait for Data Logic**: The app now ensures all envelope data is fully loaded from Firebase before attempting to parse voice commands.
+- **Processing Lock**: Prevented duplicate parsing of the same Siri query during UI re-renders.
+
 ## [1.17.10] - 2026-04-03
 
 ### 🚀 **DATA OPTIMIZATION**
