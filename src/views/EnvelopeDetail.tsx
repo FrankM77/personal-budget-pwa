@@ -362,9 +362,7 @@ const EnvelopeDetail: React.FC = () => {
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-headline text-gray-900 dark:text-white">Current Balance</span>
                     {(() => {
-                      const balance = currentEnvelope.isPiggybank
-                        ? getEnvelopeBalance(currentEnvelope.id!) // Piggybanks use lifetime balance
-                        : getEnvelopeBalance(currentEnvelope.id!, currentMonth); // Regular envelopes use monthly balance
+                      const balance = getEnvelopeBalance(currentEnvelope.id!, currentMonth);
                       return (
                         <span
                           className={`text-xl font-bold ${
