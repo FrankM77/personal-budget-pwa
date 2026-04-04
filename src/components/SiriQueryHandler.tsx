@@ -22,15 +22,10 @@ export const SiriQueryHandler: React.FC = () => {
   const siriToken = appSettings?.siriToken;
 
   useEffect(() => {
-    logger.log('🎙️ Siri: Handler checking - siriToken:', siriToken);
-    if (!siriToken) {
-      logger.log('🎙️ Siri: Handler not ready - missing token');
-      return;
-    }
+    if (!siriToken) return;
 
     // Set up real-time listener
     const docRef = doc(db, 'siriQueries', siriToken!);
-    logger.log('🎙️ Siri: Setting up Firestore listener for token:', siriToken);
 
     const processQueryData = async (data: any) => {
       if (!data?.query || data.consumed || isProcessing.current) return;
@@ -46,23 +41,20 @@ export const SiriQueryHandler: React.FC = () => {
         return;
       }
 
-      logger.log('🎙️ Siri: Found pending query in Firestore:', data.query);
       isProcessing.current = true;
 
       try {
         await deleteDoc(docRef);
 
+        // Wait for envelopes to load if needed
         if (envelopesRef.current.length === 0) {
-          logger.log('🎙️ Siri: Waiting for envelopes to load...');
           for (let i = 0; i < 20; i++) {
             await new Promise(r => setTimeout(r, 500));
             if (envelopesRef.current.length > 0) break;
           }
-          logger.log('🎙️ Siri: Envelopes ready:', envelopesRef.current.length);
         }
 
         const result = await parseSiriQuery(data.query, envelopesRef.current);
-        logger.log('🎙️ Siri: Parsed result:', result);
 
         sessionStorage.setItem('siriParsedData', JSON.stringify(result));
         sessionStorage.setItem('siriQuery', data.query);
@@ -76,37 +68,29 @@ export const SiriQueryHandler: React.FC = () => {
       }
     };
 
-    let pollAttempts = 0;
-    const maxPollAttempts = 8;
-    const pollForStartupQuery = async () => {
-      if (isProcessing.current || pollAttempts >= maxPollAttempts) return;
-      pollAttempts += 1;
+    // 1. Initial check (for cold starts)
+    const checkImmediately = async () => {
       try {
         const snapshot = await getDoc(docRef);
-        logger.log('🎙️ Siri: Poll check snapshot exists:', snapshot.exists());
         if (snapshot.exists()) {
           await processQueryData(snapshot.data());
         }
-      } catch (error) {
-        logger.error('🎙️ Siri: Poll check failed:', error);
+      } catch (err) {
+        logger.error('🎙️ Siri: Initial check failed:', err);
       }
     };
     
+    // 2. Real-time listener
     const unsubscribe = onSnapshot(docRef, async (snapshot) => {
-      logger.log('🎙️ Siri: Firestore snapshot received, exists:', snapshot.exists());
       if (!snapshot.exists()) return;
       await processQueryData(snapshot.data());
     }, (error) => {
       logger.error('🎙️ Siri: Error listening for queries:', error);
     });
 
-    pollForStartupQuery();
-    const pollTimer = window.setInterval(() => {
-      void pollForStartupQuery();
-    }, 1000);
+    void checkImmediately();
 
     return () => {
-      window.clearInterval(pollTimer);
       unsubscribe();
     };
   }, [siriToken]);

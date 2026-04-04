@@ -2,6 +2,13 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.20] - 2026-04-03
+
+### 🎙️ **SIRI STABILIZATION & CLEANUP**
+- **Streamlined Siri Integration**: Finalized the Siri command handler with a clean, efficient architecture.
+- **Removed Debug Logs**: Stripped all temporary "🎙️ Siri Debug" logging from the production build.
+- **Improved Recovery**: Added a robust initial check on mount to ensure cold-start queries are captured immediately.
+
 ## [1.17.19] - 2026-04-03
 
 ### 🛡️ **STABILIZATION RELEASE**

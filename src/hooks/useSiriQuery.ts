@@ -33,40 +33,34 @@ export function useSiriQuery() {
       return;
     }
 
-    // 2. WAIT for envelopes to load. If store is still loading or envelopes 
-    // are empty (and it's not a fresh user), hold off until the next render.
+    // 2. WAIT for envelopes to load.
     if (isLoading || (envelopes.length === 0)) {
-      logger.debug('🎙️ Siri: Query found but waiting for envelopes to load...');
       return;
     }
 
     // 3. LOCK: Mark this query as processed immediately
     processedQueryRef.current = query;
 
-    logger.log('🎙️ Siri: Envelopes loaded, starting parse for:', query);
     setSiriQuery(query);
     setIsParsing(true);
+parseSiriQuery(query, envelopes)
+  .then((result) => {
+    setParsedData(result);
+  })
+  .catch((error) => {
+    logger.error('🎙️ Siri: Parse failed:', error);
+    setParsedData(null);
+  })
+  .finally(() => {
+    setIsParsing(false);
 
-    parseSiriQuery(query, envelopes)
-      .then((result) => {
-        logger.log('🎙️ Siri: Parsed result:', result);
-        setParsedData(result);
-      })
-      .catch((error) => {
-        logger.error('🎙️ Siri: Parse failed:', error);
-        setParsedData(null);
-      })
-      .finally(() => {
-        setIsParsing(false);
-        
-        // 4. CLEANUP: Remove query from URL only AFTER parsing attempt is done
-        // This ensures if the user refreshes, we don't try to parse an old query.
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete('query');
-        setSearchParams(newParams, { replace: true });
-      });
+    // 4. CLEANUP: Remove query from URL only AFTER parsing attempt is done
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('query');
+    setSearchParams(newParams, { replace: true });
+  });
 
-  }, [query, envelopes, isLoading, searchParams, setSearchParams]); // Correct dependency array
+  }, [query, envelopes, isLoading, searchParams, setSearchParams]);
 
   const clearParsedData = useCallback(() => {
     setParsedData(null);
