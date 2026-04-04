@@ -2,6 +2,13 @@
 
 All notable changes to Personal Budget PWA will be documented in this file.
 
+## [1.17.19] - 2026-04-03
+
+### 🛡️ **STABILIZATION RELEASE**
+- **Reverted Experimental Siri Logic**: Reverted to the stable Siri architecture from v1.17.12 to resolve regressions in cold-start behavior and polling loops.
+- **Preserved Core Successes**: Maintained all major session wins, including the **Hard Delete + UI Undo** data optimization and the **integrated Toast notification system**.
+- **Working State**: Siri commands are stable for "Warm Starts" (when app is open), while cold-start behavior is queued for future architectural planning.
+
 ## [1.17.12] - 2026-04-03
 
 ### 💄 **UX POLISH**
